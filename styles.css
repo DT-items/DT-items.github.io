@@ -56,7 +56,7 @@ body {
 
 .bar-controls {
   display: flex;
-  align-Items: center;
+  align-items: center;
   justify-content: flex-end;
   height: 100%;
   padding-right: 20px;
@@ -119,7 +119,7 @@ body {
 }
 
 /* контейнер иконок */
-.Items {
+.items {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -255,7 +255,7 @@ body {
   top: 10px;
   left: 10px;
   display: flex;
-  align-Items: center;
+  align-items: center;
   gap: 12px;
 }
 .side-panel .scale-controls button {
@@ -287,7 +287,7 @@ body {
 }
 .side-panel .filter-controls label {
   display: flex;
-  align-Items: center;
+  align-items: center;
   gap: 8px;
   cursor: pointer;
 }
@@ -376,7 +376,7 @@ body {
 /* кнопки фильтра по магии */
 .side-panel .filter-controls .magic-filter {
   display: flex;
-  align-Items: center;
+  align-items: center;
   gap: 8px;
   margin-top: 10px;
 }
@@ -426,7 +426,7 @@ body.docked {
 /* --- Attribute Filter Rows --- */
 .side-panel .filter-controls .attr-filter-row {
   display: flex;
-  align-Items: center;
+  align-items: center;
   gap: 8px;
   margin-top: 10px;
 }
@@ -521,7 +521,7 @@ body.docked {
 
 .side-panel .bonus-filter .dropdown-item {
   display: flex;
-  align-Items: center;
+  align-items: center;
   padding: 6px 8px;
   cursor: pointer;
 }
@@ -697,7 +697,7 @@ body {
 /* 1) Делаем правильный inline‑ряд для чекбокса + текста */
 .common-controls .group-toggle-wrapper {
   display: inline-flex;
-  align-Items: center;
+  align-items: center;
   gap: 6px;
   cursor: pointer;
 }
@@ -711,7 +711,7 @@ body {
 /* 2) Перенастраиваем #simple-mode-controls, чтобы он был inline‑рядом рядом с чекбоксом */
 .common-controls #simple-mode-controls {
   display: inline-flex;    /* вместо блок‑flex */
-  align-Items: center;
+  align-items: center;
   gap: 6px;
   margin-bottom: 0;        /* убрали лишний отступ снизу */
   margin-left: 12px;       /* небольшое расстояние от чекбокса */
@@ -721,7 +721,7 @@ body {
 .common-controls {
   display: flex;
   flex-wrap: wrap;
-  align-Items: center;
+  align-items: center;
   gap: 12px;              /* расстояние между элементами */
 }
 
@@ -734,7 +734,7 @@ body {
   order: 3;
   flex-basis: auto;   /* занимает всю ширину, начинает новую строку */
   display: flex;      /* чтобы кнопки «↓ ↑» остались на одной линии */
-  align-Items: center;
+  align-items: center;
   gap: 6px;           /* при необходимости */
   margin-top: -18px;    /* дополнительный отступ сверху */
   margin-bottom: 38px;
@@ -744,7 +744,7 @@ body {
   order: 3;
   margin-left: auto;  /* отодвинуть максимально вправо */
   display: inline-flex;
-  align-Items: center;
+  align-items: center;
   gap: 6px;
 }
 .common-controls #simple-mode-controls {
@@ -914,7 +914,7 @@ html, body, * {
   height: 100vh;
   background: rgba(0,0,0,0.8);
   display: none;
-  align-Items:    center;
+  align-items:    center;
   justify-content: center;
   z-index: 5000; /* выше всего */
 }
@@ -1172,7 +1172,7 @@ html, body, * {
 
 .compare-toggle-wrapper {
   display: none;
-  align-Items: center;
+  align-items: center;
   gap: 4px;
   color: #fff;
   font-size: 0.9em;
@@ -1195,7 +1195,7 @@ html, body, * {
 
 .compare-select-wrapper {
   display: inline-flex;
-  align-Items: center;
+  align-items: center;
   gap: 4px;
   margin-left: -22px;
 }
@@ -1279,7 +1279,7 @@ html, body, * {
 .side-panel .filter-controls .common-controls {
   display: flex;
   flex-wrap: wrap;
-  align-Items: center;
+  align-items: center;
   gap: 12px;
 }
 
@@ -1288,7 +1288,7 @@ html, body, * {
   order: 1;
   flex-basis: 100%;       /* ← теперь на всю ширину */
   display: inline-flex;
-  align-Items: center;
+  align-items: center;
   gap: 6px;
   padding-left: 21px;
 }
@@ -1298,7 +1298,7 @@ html, body, * {
   order: 2;
   flex-basis: auto;
   display: inline-flex;
-  align-Items: center;
+  align-items: center;
   gap: 6px;
 }
 
@@ -1307,7 +1307,7 @@ html, body, * {
   order: 3;
   flex-basis: auto;
   display: inline-flex;
-  align-Items: center;
+  align-items: center;
   gap: 6px;
   margin-left: 24px;
 }
@@ -1317,7 +1317,7 @@ html, body, * {
   order: 4;
   flex-basis: 100%;      /* займёт всю строку */
   display: flex;         /* кнопки останутся в ряд */
-  align-Items: center;
+  align-items: center;
   gap: 6px;
   margin-top: 33;         /* убираем старые смещения */
   margin-bottom: 1;
@@ -1327,7 +1327,7 @@ html, body, * {
 /* контейнер чекбокса рядом с масштабом */
 .side-panel .scale-controls .bg-toggle-wrapper {
   display: inline-flex;
-  align-Items: center;
+  align-items: center;
   gap: 6px;
   margin-left: 12px;              /* отступ от кнопок масштаба */
   color: #ffffff;                 /* надпись белая, как все в шапке */

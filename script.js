@@ -195,7 +195,7 @@ const EDGE_MARGIN = 20;
 function getBasePath() {
   return `./${currentMode}/`;
 }
-let ItemsData = [];
+let itemsData = [];
 let savedData1 = null;
 let bonusMap = { all: null };
 
@@ -246,8 +246,8 @@ let selectedCard = null;
 
 function clearUI() {
   // удалить все карточки
-  ItemsData.forEach(card => card.remove());
-  ItemsData = [];
+  itemsData.forEach(card => card.remove());
+  itemsData = [];
 
   // удалить сайд‑панель
   const oldPanel = document.querySelector('.side-panel');
@@ -259,7 +259,7 @@ function clearUI() {
 
   // подчистить группы group-1…group-10
   Object.values(GROUPS).forEach(id => {
-    const ct = document.getElementById(id).querySelector('.Items');
+    const ct = document.getElementById(id).querySelector('.items');
     ct.innerHTML = '';
   });
 }
@@ -311,7 +311,7 @@ function hasDifference(card) {
   if (existingAll) existingAll.remove();
 
   // Очистим массивы на всякий случай
-   ItemsData = [];
+   itemsData = [];
    bonusMap = { all: null };
 
 // Создадим map2: GlobalIndex → item2
@@ -531,7 +531,7 @@ if (lbl) lbl.style.display = 'none';
 
 
 const toggle = compareContainer.querySelector('.dropdown-toggle');
-const Items  = compareContainer.querySelectorAll('.dropdown-item');
+const items  = compareContainer.querySelectorAll('.dropdown-item');
 
 // ——— 4) чекбокс «Только отличия» ———
 const diffWrapper = document.createElement('label');
@@ -552,12 +552,12 @@ sidePanel
 document.getElementById('diff-only')
   .addEventListener('change', e => {
     diffOnly = e.target.checked;
-    renderItems();
+    renderitems();
   });
 
 
 // Сначала уберём все метки active
-Items.forEach(it => it.classList.remove('active'));
+items.forEach(it => it.classList.remove('active'));
 
 if (!mod2) {
   // без сравнения
@@ -736,9 +736,9 @@ btn.addEventListener('click', () => {
     const allGroup = document.createElement('div');
     allGroup.id = 'group-all';
     allGroup.className = 'group';
-    allGroup.innerHTML = `<h2>Все предметы</h2><div class="Items"></div>`;
+    allGroup.innerHTML = `<h2>Все предметы</h2><div class="items"></div>`;
     document.body.append(allGroup);
-    const allContainer = allGroup.querySelector('.Items');
+    const allContainer = allGroup.querySelector('.items');
 
     //
     // B) advanced‑toggle: показать/скрыть продвинутые
@@ -814,7 +814,7 @@ advToggle.addEventListener('click', e => {
       .forEach(b => b.classList.add('active'));
   }
 
-  renderItems();
+  renderitems();
 });
 
     //
@@ -903,14 +903,14 @@ searchInput.addEventListener('input', e => {
   // ——————————
 
   // остальная логика поиска/фильтрации:
-  renderItems();
+  renderitems();
 });
 
 		
     // группировка
     groupToggle.addEventListener('change', () => {
       showGroups = groupToggle.checked;
-      renderItems();
+      renderitems();
     });
 
     // сортировка цены
@@ -920,7 +920,7 @@ searchInput.addEventListener('input', e => {
       if (s === 0) btnNone .classList.add('active');
       if (s === 1) btnDesc .classList.add('active');
       if (s === 2) btnAsc  .classList.add('active');
-      renderItems();
+      renderitems();
     }
     [btnNone, btnDesc, btnAsc].forEach((b,i)=>
       b.addEventListener('click', e=>{ e.stopPropagation(); setSort(i); })
@@ -932,7 +932,7 @@ searchInput.addEventListener('input', e => {
         Object.values(magicBtns).forEach(x=>x.classList.remove('active'));
         btn.classList.add('active');
         magicFilter = key;
-        renderItems();
+        renderitems();
       });
     });
 
@@ -1008,7 +1008,7 @@ compareToggle.dispatchEvent(new Event('change'));
     searchInput.value = '';
   }
 
-	  renderItems();
+	  renderitems();
 	});
 
 
@@ -1579,7 +1579,7 @@ card.addEventListener('click', e => {
     if (selectedCard === card) positionBoth();
   });
 
-  ItemsData.push(card);
+  itemsData.push(card);
 });
 
 
@@ -1663,7 +1663,7 @@ modeControls.addEventListener('click', e => {
               .forEach(b => b.classList.remove('active'));
   e.target.classList.add('active');
   simpleFilterMode = e.target.dataset.mode;
-  renderItems();
+  renderitems();
 });
 
  // Вставляем #simple-mode-controls сразу под фильтром по магии
@@ -1691,7 +1691,7 @@ simpleList.forEach(({ key, label }, i) => {
         .forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     }
-    renderItems();
+    renderitems();
   });
   // рассчитываем позицию в гриде:
   const row = (i < firstCount ? i : i - firstCount) + 1;
@@ -1715,7 +1715,7 @@ const attrContainer = document.getElementById('attr-filters');
 window.setupAttributeFilters(
   attrList,
   attrContainer,
-  (k,m) => { attrModes[k] = m; renderItems(); }
+  (k,m) => { attrModes[k] = m; renderitems(); }
 );
 
   // ↓ вот этот блок — восстанавливает визуальную подсветку
@@ -1738,15 +1738,15 @@ const bonusList = Object.entries(bonusMap).map(([k,icon])=>({
 window.setupBonusFilter(
   bonusList,
   document.getElementById('bonus-filters'),
-  key => { bonusFilter = key; renderItems(); }
+  key => { bonusFilter = key; renderitems(); }
 );
 
 // ← причина: восстанавливаем визуальную подсветку бонус‑фильтра
 const bonusContainer = document.getElementById('bonus-filters');
 
 // 1) снимем active со всех пунктов
-const bonusItems = bonusContainer.querySelectorAll('.dropdown-item');
-bonusItems.forEach(it => it.classList.remove('active'));
+const bonusitems = bonusContainer.querySelectorAll('.dropdown-item');
+bonusitems.forEach(it => it.classList.remove('active'));
 
 // 2) найдём текущий bonusFilter и поставим ему active
 const activeBonus = bonusContainer.querySelector(
@@ -1779,10 +1779,10 @@ if (toggleBtn) {
     //
     // G) рендер (группировка, магия, цена, атрибуты, бонусы)
     //
-    function renderItems(){
+    function renderitems(){
       // очистка
       Object.values(GROUPS).forEach(id=>{
-        const ct = document.getElementById(id).querySelector('.Items');
+        const ct = document.getElementById(id).querySelector('.items');
         ct.innerHTML = '';
         document.getElementById(id).style.display = showGroups?'block':'none';
       });
@@ -1790,7 +1790,7 @@ if (toggleBtn) {
       allGroup.style.display = showGroups?'none':'block';
 
       // фильтр магии
-      let visible = ItemsData.filter(c=>
+      let visible = itemsData.filter(c=>
         magicFilter==='all' || c.dataset.magicType===magicFilter
       );
       // сортировка цены
@@ -1834,14 +1834,14 @@ if (compareMode && diffOnly) {
 		  if (showGroups) {
         visible.forEach(c=>
           document.getElementById(c.dataset.group)
-                  .querySelector('.Items').append(c)
+                  .querySelector('.items').append(c)
         );
       } else {
         visible.forEach(c=>allContainer.append(c));
       }
     }
 
-     renderItems();
+     renderitems();
      // ——————————— ГАРАНТИЯ СКРЫТИЯ ПРОСТЫХ ФИЛЬТРОВ ———————————
      if (advanced) {
        const simple = document.getElementById('simple-filters');
