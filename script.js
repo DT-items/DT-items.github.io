@@ -147,6 +147,36 @@ document.querySelector('.top-bar .logo')
       : 'Logo-act.png';
   });
 
+// Логика «привязки» лого к состоянию шапки через MutationObserver
+/**
+ * Обновляет src у логотипа в зависимости от наличия класса topbar-hidden
+ */
+function updateLogoByTopbarState() {
+  const logo = document.querySelector('.top-bar .logo');
+  if (!logo) return;
+  if (document.body.classList.contains('topbar-hidden')) {
+    logo.src = 'Logo-act.png';
+  } else {
+    logo.src = 'Logo.png';
+  }
+}
+
+// Выставляем начальное состояние
+updateLogoByTopbarState();
+
+// Наблюдаем за изменениями класса у <body>, чтобы менять лого при любом toggle
+const observer = new MutationObserver(mutations => {
+  for (const m of mutations) {
+    if (m.attributeName === 'class') {
+      updateLogoByTopbarState();
+      break;
+    }
+  }
+});
+observer.observe(document.body, { attributes: true });
+
+
+
 
 // --- 0) Прелоад всех нужных картинок ---
 (function preloadImages() {
