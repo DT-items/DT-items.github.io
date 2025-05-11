@@ -800,12 +800,21 @@ advToggle.addEventListener('click', e => {
     simpleContainer.style.display = 'flex';
     // в простом режиме: дропдаун скрыт, показываем чекбокс
     compareContainer.style.display     = 'none';
-	compareSelectWrapper.style.display  = 'none';
+    compareSelectWrapper.style.display  = 'none';
     simpleCompareWrapper.style.display = 'inline-flex';
-	
+
+    // убираем прежнее !important-скрытие простых фильтров и кнопок режима
+    const simpleFilters = document.getElementById('simple-filters');
+    if (simpleFilters) {
+      simpleFilters.style.removeProperty('display');
+    }
+    const modeCtr = document.getElementById('simple-mode-controls');
+    if (modeCtr) {
+      modeCtr.style.removeProperty('display');
+    }
 
     // **сбрасываем все продвинутые фильтры:**
-    Object.keys(attrModes).forEach(k => attrModes[k] = 'none');
+    Object.keys(attrModes).forEach(k=> attrModes[k] = 'none');
     document
       .querySelectorAll('#attr-filters .attr-filter-row button')
       .forEach(b => b.classList.remove('active'));
@@ -988,6 +997,13 @@ searchInput.addEventListener('input', e => {
   const compareToggle = document.getElementById('toggle-compare');
 compareToggle.checked = false;
 compareToggle.dispatchEvent(new Event('change'));
+  // — Сброс визуального состояния чекбокса "Сравнить с Vanilla"
+  const compareVanillaCheckbox = document.getElementById('compare-vanilla');
+  if (compareVanillaCheckbox) {
+    compareVanillaCheckbox.checked = false;
+    // чтобы изменения вступили в силу и UI пересоздался
+    compareVanillaCheckbox.dispatchEvent(new Event('change'));
+  }
   const compareContainer = document.getElementById('compare-dropdown');
   if (compareContainer) {
     // убираем active у всех пунктов
