@@ -131,6 +131,13 @@ document.addEventListener('click', function onDocumentClick(e) {
 // сразу при загрузке показываем фон для Vanilla
 applyBackgroundFor(currentMode);
 
+// (скроет .site-title, .bar-controls, .bar-divider и #page-toggle)
+document.querySelector('.top-bar .logo')
+        .addEventListener('click', e => {
+  e.stopPropagation();
+  document.body.classList.toggle('topbar-hidden');
+});
+
 
 // --- 0) Прелоад всех нужных картинок ---
 (function preloadImages() {
@@ -1959,6 +1966,16 @@ document.getElementById('btn-Orders')
 // Первый запуск
 loadData();
 
+// === Автоматически скрыть шапку на мобилках через 5 сек после загрузки ===
+window.addEventListener('load', () => {
+  // проверяем мобильный breakpoint
+  if (window.matchMedia('(max-width: 700px)').matches) {
+    // даём пользователю 5 сек на «ознакомление»
+    setTimeout(() => {
+      document.body.classList.add('topbar-hidden');
+    }, 5000);
+  }
+});
 
     // ===== ВСТАВЛЯЕМ ЗДЕСЬ КОД ДЛЯ ОКНА «О САЙТЕ» =====
     // получаем элементы по id

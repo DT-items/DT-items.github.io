@@ -37,21 +37,26 @@ body {
 /* фиксированная полоска сверху */
 .top-bar {
   position: fixed;
-  top: 0; left: 0;
   width: 100%;
   height: var(--top-bar-height);
   background: url('bar.png') no-repeat center/cover;
   z-index: 2000;
+  transition: top 0.3s ease;
+  top: 0; left: 0;
 }
 
 .top-bar .logo {
-  position: absolute;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 40px;    /* или подберите нужную вам высоту */
-  width: auto;
-  pointer-events: none;
+  position: fixed !important;
+  left: 20px !important;
+  /* привязываем к середине шапки: половина её высоты минус половина лого */
+  top: calc(var(--top-bar-height)/2 - 20px) !important;
+  /* снимаем translateY, чтобы не было двойного смещения */
+  transform: none !important;
+  height: 40px !important;
+  width: auto !important;
+  z-index: 3001 !important;     /* поверх всех панелей */
+  pointer-events: auto !important;
+  cursor: pointer !important;
 }
 
 .bar-controls {
@@ -574,15 +579,41 @@ body.docked {
 }
 
 /* разделитель-перекрытие между top-bar и контентом */
-.bar-divider {
-  position: fixed;
-  top: calc(var(--top-bar-height) - var(--divider-overlap));
-  left: calc(-1 * var(--divider-overflow));
-  width: calc(100% + var(--divider-overflow) * 2);
-  height: 55px;
-  background: url('Venzelup.png') repeat-x center;
-  pointer-events: none;
-  z-index: 2500; /* чуть ниже .top-bar (2000), но выше контента */
+ .bar-divider {
+   position: fixed;
+   top: calc(var(--top-bar-height) - var(--divider-overlap));
+   left: calc(-1 * var(--divider-overflow));
+   width: calc(100% + var(--divider-overflow) * 2);
+   height: 55px;
+   background: url('Venzelup.png') repeat-x center;
+   pointer-events: none;
+   z-index: 2500;
+  /* синхронизируем сдвиг с шапкой */
+  transition: top 0.3s ease;
+ }
+
+/* все элементы, которые прячем вместе с панелью */
+.top-bar .site-title,
+.top-bar .bar-controls,
+.bar-divider,
+#page-toggle {
+  /* подготовим для анимации */
+  transition: transform 0.3s ease;
+}
+
+/* класс, который в JS вешаем на <body> */
+body.topbar-hidden .top-bar {
+  top: calc(-1 * var(--top-bar-height)) !important;
+}
+body.topbar-hidden .top-bar .bar-controls,
+body.topbar-hidden #page-toggle {
+  transform: translateY(-100%) !important;
+}
+
+/* для разделителя уезжаем выше всей шапки (+его собственной высоты) */
+body.topbar-hidden .bar-divider {
+  /* --top-bar-height + --divider-height — суммарно 60 + 56 = 116px */
+  transform: translateY(calc(-1 * (var(--top-bar-height) + var(--divider-height)))) !important;
 }
 
 /* Поднимем отступ для body на высоту полоски + разделителя */
@@ -1447,11 +1478,14 @@ html, body, * {
     bottom: -20px;    /* опустить ближе к низу шапки */
   }
   
-    /* 1. Иконка сайта — чуть левее и выше */
+  /* Переопределяем фикс позишн для логотипа на мобилке */
+  body.topbar-hidden .top-bar .logo,
   .top-bar .logo {
-    left: 5px;    /* отступ от левого края */
-    top: 2px;     /* от верха шапки */
-    transform: none !important; /* убираем translateY */
+    position: fixed !important;
+    left: 5px !important;     /* новый отступ */
+    /* центр по новой высоте шапки (90px) */
+    top: calc(var(--top-bar-height)/2 - 40px) !important;
+    transform: none !important;
   }
   
     /* 3. Скрыть название сайта */
@@ -1579,11 +1613,14 @@ html, body, * {
     left: 16px !important;
   }
   
-      /* 1. Иконка сайта — чуть левее и выше */
+  /* Переопределяем фикс позишн для логотипа на планшете */
+  body.topbar-hidden .top-bar .logo,
   .top-bar .logo {
-    left: 5px;    /* отступ от левого края */
-    top: 11px;     /* от верха шапки */
-    transform: none !important; /* убираем translateY */
+    position: fixed !important;
+    left: 5px !important;      /* новый отступ */
+    /* центр по высоте шапки в этом диапазоне (по-прежнему 60px) */
+    top: calc(var(--top-bar-height)/2 - 20px) !important;
+    transform: none !important;
   }
   
     /* 3) Футер-кнопки фонов — по содержимому, прижаты внизу через margin-top:auto */
