@@ -1440,29 +1440,28 @@ if (!tt2) return;
   // 3) --- НОВАЯ ЛОГИКА: падение из-за док-панели ---
 if (compareMode && dockMode && sidePanel.classList.contains('open')) {
   const panelLeft = sidePanel.getBoundingClientRect().left;
-  // 1) детектим упор в панель
-  if (r1.right > panelLeft) {
-    const gap = 8;
-    // — «прижимаем» к панели
-    const clampedLeft = panelLeft - r1.width;
-    tt1.style.left = `${clampedLeft}px`;
+    // 1) детектим упор правого тултипа в док-панель
+    if (r1.right > panelLeft) {
+      const gap = 8;
+      // — «прижимаем» к панели с учётом EDGE_MARGIN
+      tt1.style.left = `${panelLeft - EDGE_MARGIN - r1.width}px`;
 
-    // 2) считаем, куда бы мы его опустили под левым тултипом
-    const belowTop = r2.bottom + gap;
+      // 2) считаем, куда опустить под левым тултипом
+      const belowTop = r2.bottom + gap;
 
-    // 3) проверяем: если это место + высота тултипа уходит за экран,
-    //     рисуем над карточкой, иначе — внизу
-    if (belowTop + r1.height > window.innerHeight) {
-      // берём r2.top, как в общем правиле: рисуем над второй подсказкой
-      const aboveTop = r2.top - gap - r1.height;
-      tt1.style.top = `${Math.max(0, aboveTop)}px`;
-    } else {
-      tt1.style.top = `${belowTop}px`;
+      // 3) проверяем, не вылезет ли за нижний край (с учётом EDGE_MARGIN)
+      if (belowTop + r1.height > window.innerHeight - EDGE_MARGIN) {
+        // рисуем над второй подсказкой
+        const aboveTop = r2.top - gap - r1.height;
+        tt1.style.top = `${Math.max(0, aboveTop)}px`;
+      } else {
+        // рисуем под второй подсказкой
+        tt1.style.top = `${belowTop}px`;
+      }
+
+      return;  // на этом выходим
     }
-
-    return;  // дальше ничего не делаем
-  }
-}
+   }
 
 
   // 4) Ваши уже существующие «край экрана» правила
