@@ -133,10 +133,19 @@ applyBackgroundFor(currentMode);
 
 // (скроет .site-title, .bar-controls, .bar-divider и #page-toggle)
 document.querySelector('.top-bar .logo')
-        .addEventListener('click', e => {
-  e.stopPropagation();
-  document.body.classList.toggle('topbar-hidden');
-});
+  .addEventListener('click', function(e) {
+    e.stopPropagation();
+    // прячем/показываем шапку
+    document.body.classList.toggle('topbar-hidden');
+
+    // а теперь меняем сам логотип
+    // определяем, какой файл сейчас стоит в src
+    const current = this.src.split('/').pop(); 
+    // переключаем на Logo-act.png или обратно на Logo.png
+    this.src = (current === 'Logo-act.png') 
+      ? 'Logo.png' 
+      : 'Logo-act.png';
+  });
 
 
 // --- 0) Прелоад всех нужных картинок ---
