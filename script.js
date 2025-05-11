@@ -167,6 +167,7 @@ applyBackgroundFor(currentMode);
     './about1.png',
 	'./about2.png',
 	'./about3.png',
+	'./RagnPhone.png',
 	'./btn-normal.png',
 	'./btn-hover.png',
 	'./btn-active.png',
