@@ -496,12 +496,7 @@ bgToggle.addEventListener('change', e => {
 const dockToggle = document.getElementById('dock-toggle');
 // помечаем кнопку «⇔» активной, если док закреплён
 dockToggle.classList.toggle('active', dockMode);
-// и добавляем/убираем класс body.docked в зависимости от dockMode
-if (dockMode) {
-  document.body.classList.add('docked');
-} else {
-  document.body.classList.remove('docked');
-}
+
 
 
 document.getElementById('group-toggle').checked = prevShowGroups;
