@@ -195,7 +195,7 @@ const EDGE_MARGIN = 20;
 function getBasePath() {
   return `./${currentMode}/`;
 }
-let itemsData = [];
+let ItemsData = [];
 let savedData1 = null;
 let bonusMap = { all: null };
 
@@ -246,8 +246,8 @@ let selectedCard = null;
 
 function clearUI() {
   // удалить все карточки
-  itemsData.forEach(card => card.remove());
-  itemsData = [];
+  ItemsData.forEach(card => card.remove());
+  ItemsData = [];
 
   // удалить сайд‑панель
   const oldPanel = document.querySelector('.side-panel');
@@ -259,7 +259,7 @@ function clearUI() {
 
   // подчистить группы group-1…group-10
   Object.values(GROUPS).forEach(id => {
-    const ct = document.getElementById(id).querySelector('.items');
+    const ct = document.getElementById(id).querySelector('.Items');
     ct.innerHTML = '';
   });
 }
@@ -311,7 +311,7 @@ function hasDifference(card) {
   if (existingAll) existingAll.remove();
 
   // Очистим массивы на всякий случай
-   itemsData = [];
+   ItemsData = [];
    bonusMap = { all: null };
 
 // Создадим map2: GlobalIndex → item2
@@ -531,7 +531,7 @@ if (lbl) lbl.style.display = 'none';
 
 
 const toggle = compareContainer.querySelector('.dropdown-toggle');
-const items  = compareContainer.querySelectorAll('.dropdown-item');
+const Items  = compareContainer.querySelectorAll('.dropdown-item');
 
 // ——— 4) чекбокс «Только отличия» ———
 const diffWrapper = document.createElement('label');
@@ -557,7 +557,7 @@ document.getElementById('diff-only')
 
 
 // Сначала уберём все метки active
-items.forEach(it => it.classList.remove('active'));
+Items.forEach(it => it.classList.remove('active'));
 
 if (!mod2) {
   // без сравнения
@@ -736,9 +736,9 @@ btn.addEventListener('click', () => {
     const allGroup = document.createElement('div');
     allGroup.id = 'group-all';
     allGroup.className = 'group';
-    allGroup.innerHTML = `<h2>Все предметы</h2><div class="items"></div>`;
+    allGroup.innerHTML = `<h2>Все предметы</h2><div class="Items"></div>`;
     document.body.append(allGroup);
-    const allContainer = allGroup.querySelector('.items');
+    const allContainer = allGroup.querySelector('.Items');
 
     //
     // B) advanced‑toggle: показать/скрыть продвинутые
@@ -1579,7 +1579,7 @@ card.addEventListener('click', e => {
     if (selectedCard === card) positionBoth();
   });
 
-  itemsData.push(card);
+  ItemsData.push(card);
 });
 
 
@@ -1782,7 +1782,7 @@ if (toggleBtn) {
     function renderItems(){
       // очистка
       Object.values(GROUPS).forEach(id=>{
-        const ct = document.getElementById(id).querySelector('.items');
+        const ct = document.getElementById(id).querySelector('.Items');
         ct.innerHTML = '';
         document.getElementById(id).style.display = showGroups?'block':'none';
       });
@@ -1790,7 +1790,7 @@ if (toggleBtn) {
       allGroup.style.display = showGroups?'none':'block';
 
       // фильтр магии
-      let visible = itemsData.filter(c=>
+      let visible = ItemsData.filter(c=>
         magicFilter==='all' || c.dataset.magicType===magicFilter
       );
       // сортировка цены
@@ -1834,7 +1834,7 @@ if (compareMode && diffOnly) {
 		  if (showGroups) {
         visible.forEach(c=>
           document.getElementById(c.dataset.group)
-                  .querySelector('.items').append(c)
+                  .querySelector('.Items').append(c)
         );
       } else {
         visible.forEach(c=>allContainer.append(c));
