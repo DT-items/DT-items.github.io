@@ -73,7 +73,7 @@ function applyBackgroundFor(mode) {
 let panelBgEnabled = true;
 
 // --- Единый обработчик открытия/закрытия и «докинга» боковой панели ---
-let dockMode = true;
+let dockMode = window.innerWidth >= 700;
 
 document.addEventListener('click', function onDocumentClick(e) {
   const sidePanel = document.querySelector('.side-panel');
@@ -492,9 +492,16 @@ bgToggle.addEventListener('change', e => {
 
 
 
-// ── включаем докинг по умолчанию ──
+// ── устанавливаем начальное состояние докинга ──
 const dockToggle = document.getElementById('dock-toggle');
-dockToggle.classList.add('active');
+// помечаем кнопку «⇔» активной, если док закреплён
+dockToggle.classList.toggle('active', dockMode);
+// и добавляем/убираем класс body.docked в зависимости от dockMode
+if (dockMode) {
+  document.body.classList.add('docked');
+} else {
+  document.body.classList.remove('docked');
+}
 
 
 document.getElementById('group-toggle').checked = prevShowGroups;
