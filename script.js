@@ -1453,7 +1453,53 @@ function positionBoth() {
           tt2.style.left = `${EDGE_MARGIN}px`;
         }
       }
+// после всех setTop/setLeft, но до return:
+[tt1, tt2].forEach(tt => {
+  const r = tt.getBoundingClientRect();
+  if (r.bottom > window.innerHeight) {
+    tt.style.top = `${Math.max(0, window.innerHeight - r.height)}px`;
+  }
+});
 
+  {
+    const gap = 8;
+    const r1 = tt1.getBoundingClientRect();
+    const r2 = tt2.getBoundingClientRect();
+
+    // если tt2 свалилась ниже видимой области
+    if (r2.bottom > window.innerHeight) {
+      const newTop2 = r1.top - gap - r2.height;
+      tt2.style.top = `${Math.max(0, newTop2)}px`;
+    }
+  }
+  
+    // === НОВОЕ: если вторая подсказка свалилась за низ — ставим её над первой ===
+  {
+    const r1 = tt1.getBoundingClientRect();
+    const r2 = tt2.getBoundingClientRect();
+    if (r2.bottom > window.innerHeight) {
+      const newTop2 = r1.top - gap - r2.height;
+      tt2.style.top = `${Math.max(0, newTop2)}px`;
+    }
+  }
+
+  // === НОВОЕ: если ОДНА из подсказок упёрлась в верх — вторая под её низ ===
+  {
+    const r1 = tt1.getBoundingClientRect();
+    const r2 = tt2.getBoundingClientRect();
+
+    // если правая (tt1) упрелась в верх, то левая (tt2) — сразу под ней
+    if (r1.top <= EDGE_MARGIN) {
+      const newTop2 = r1.bottom + gap;
+      tt2.style.top = `${newTop2}px`;
+    }
+    // или наоборот: если левая упрелась в верх — правая под ней
+    else if (r2.top <= EDGE_MARGIN) {
+      const newTop1 = r2.bottom + gap;
+      tt1.style.top = `${newTop1}px`;
+    }
+  }
+  
 
       return;
     }
@@ -1604,6 +1650,26 @@ if (compareMode) {
     tt2.style.top = `${Math.max(0, newTop2)}px`;
   }
 }
+  
+  
+
+    // === НОВЫЙ КЕЙС: если один тултип прижался вверху, второй — сбоку — 
+  //              опустим его под «верхний» ===
+  if (tt2) {
+    const r1 = tt1.getBoundingClientRect();
+    const r2 = tt2.getBoundingClientRect();
+    // если tt1 упёрлась в верх, а tt2 стоит сбоку
+    if (r1.top <= EDGE_MARGIN && r2.top > EDGE_MARGIN) {
+      tt2.style.top = `${r1.bottom + gap}px`;
+    }
+    // или наоборот: если tt2 упёрлась в верх, а tt1 — сбоку
+    else if (r2.top <= EDGE_MARGIN && r1.top > EDGE_MARGIN) {
+      tt1.style.top = `${r2.bottom + gap}px`;
+    }
+  }
+  
+  
+  
   
 }
 
