@@ -350,6 +350,7 @@ body {
 /* выезжающая панель */
 .side-panel {
   overflow-y: auto;
+  overflow-x: hidden;
   position: fixed;
   top: var(--top-bar-height);
   right: -33.33%;
@@ -1457,7 +1458,7 @@ html, body, * {
 
   /* 2. Масштаб тултипа */
   .tooltip {
-    transform: scale(1.1);
+    transform: scale(0.9);
     transform-origin: top left;
   }
 

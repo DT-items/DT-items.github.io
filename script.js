@@ -1251,6 +1251,9 @@ if (item2 && item2.Icon) {
   // ——— Вертикальный fallback, если нет места слева и справа ———
   const cR = card.getBoundingClientRect();
   const tR = tt.getBoundingClientRect();
+  
+  
+  
   // вычисляем правую границу с учётом док-панели
   const panelLeft = sidePanel.getBoundingClientRect().left;
   const usableRight = (dockMode && sidePanel.classList.contains('open'))
@@ -1428,11 +1431,29 @@ function positionBoth() {
       tt1.style.top  = `${Math.max(0, above1)}px`;
       tt1.style.left = `${usableRight - t1R.width - EDGE_MARGIN}px`;
 
+
+
       // если оба тултипа оказались сверху — сдвигаем правый дальше, чтобы не перекрывать
       if (t2Above) {
         const newTop1 = top2 - gap - t1R.height;
         tt1.style.top = `${Math.max(0, newTop1)}px`;
       }
+
+      // === НОВАЯ НАДСТРОЙКА ===
+      // В режиме сравнения, если правая подсказка уперлась в верх,
+      // рисуем её под карточкой и левую — сразу под правой.
+      if (compareMode) {
+        const r1check = tt1.getBoundingClientRect();
+        // detect top edge
+        if (r1check.top <= EDGE_MARGIN) {
+          // 1) смещаем правую вниз под карточку
+          tt1.style.top = `${cR.bottom + gap}px`;
+          // 2) и левую сразу под ней
+          tt2.style.top = `${tt1.getBoundingClientRect().bottom + gap}px`;
+          tt2.style.left = `${EDGE_MARGIN}px`;
+        }
+      }
+
 
       return;
     }
@@ -1491,6 +1512,7 @@ if (!tt2) return;
       : Math.max(0, r1.top - gap - r2new.height);
     tt2.style.top = `${newTop}px`;
   }
+  
 }
 
 ///
