@@ -1056,6 +1056,17 @@ html, body, * {
   background-image: url('Crusad3.png');
 }
 
+/* — кнопка Classic — */
+.Classic-btn {
+  background-image: url('Classic1.png');
+}
+.Classic-btn:hover {
+  background-image: url('Classic2.png');
+}
+.Classic-btn:active {
+  background-image: url('Classic3.png');
+}
+
 /* — кнопка Old_Hor — */
 .Old_Hor-btn {
   background-image: url('Old_Hor1.png');
@@ -1436,7 +1447,9 @@ html, body, * {
   cursor: not-allowed;
 }
 
-
+    .page-panel .mods-buttons {
+    top: 10px !important;   /* отступ от верха панели */
+  }
 
 
 
@@ -1537,7 +1550,7 @@ html, body, * {
 
   /* Подвинем кнопки внутри панели (mods-buttons) чуть вниз/вправо */
   .page-panel .mods-buttons {
-    top: 60px !important;   /* отступ от верха панели */
+    top: 10px !important;   /* отступ от верха панели */
     left: 10px !important;  /* от левого края панели */
     right: 10px !important; /* небольшой отступ справа */
     grid-template-columns: repeat(2, 1fr) !important;
@@ -1654,6 +1667,13 @@ top: -51px;
     /* 20px — это ваш обычный отступ; если он отличается, скорректируйте */
     padding-right: calc(var(--panel-width) + 20px) !important;
   }
+  
+    .page-panel .mods-buttons {
+    top: 10px !important;   /* отступ от верха панели */
+  }
+  
+  
+  
   
 }
 

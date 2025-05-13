@@ -1,7 +1,7 @@
 // script.js
 
 // Все папки-моды, которые у вас лежат рядом с index.html
-const ALL_MODS = ['Vanilla','Evolv','Ragnar','Crusad','Old_Hor','Pravl','Discover','Orders'/*'KREST+'/*, 'Xxxx'*/];
+const ALL_MODS = ['Vanilla','Evolv','Ragnar','Crusad','Old_Hor','Pravl','Discover','Orders','Classic'/*'KREST+'/*, 'Xxxx'*/];
 
 // текущий режим: 'Vanilla' или 'Evolv'
 let currentMode = 'Vanilla';
@@ -20,9 +20,17 @@ const modLabelMap = {
   Crusad:   'Крестоносцы',
   Old_Hor:  'Старые Горизонты',
   Pravl:    'Правление',
-  Discover: 'Новые Открытия'  
+  Discover: 'Новые Открытия',
+  Classic: 'ВР 1.5 от Алавар'  
   // при добавлении новых модов просто расширяйте этот словарь
 };
+
+function getTooltipLabel(modKey) {
+  // для Classic переопределяем
+  if (modKey === 'Classic') return 'ВР 1.5';
+  // для остальных — как есть или из словаря
+  return modLabelMap[modKey] || modKey;
+}
 
 
 // 0) Загрузка мапы предвычисленных хешей иконок
@@ -210,6 +218,9 @@ observer.observe(document.body, { attributes: true });
 	'./Discover1.png',	
 	'./Discover2.png',	
 	'./Discover3.png',	
+	'./Classic1.png',	
+	'./Classic2.png',	
+	'./Classic3.png',	
     './about1.png',
 	'./about2.png',
 	'./about3.png',
@@ -679,18 +690,12 @@ compareToggle.addEventListener('change', () => {
 
   // прячем/показываем H3-суффиксы
   document.querySelectorAll('.tooltip-1 h3').forEach(h3 => {
-    // убираем старый суффикс
-    h3.textContent = h3.textContent.replace(/ \[.*\]$/, '');
-    // если включили сравнение — добавляем новый
-    if (compareMode) {
-      h3.textContent += ` [${mod1}]`;
-    }
+   h3.textContent = h3.textContent.replace(/ \[.*\]$/, '');
+   if (compareMode) h3.textContent += ` [${getTooltipLabel(mod1)}]`;
   });
   document.querySelectorAll('.tooltip-2 h3').forEach(h3 => {
-    h3.textContent = h3.textContent.replace(/ \[.*\]$/, '');
-    if (compareMode) {
-      h3.textContent += ` [${mod2}]`;
-    }
+   h3.textContent = h3.textContent.replace(/ \[.*\]$/, '');
+   if (compareMode) h3.textContent += ` [${getTooltipLabel(mod2)}]`;
   });
 
   // скрыть лишние тултипы, как было
@@ -1211,7 +1216,7 @@ if (item2 && item2.Icon) {
          style="background-image: url('${
            useRagnarTooltip ? 'tooltip-ragn.png' : 'tooltip-bg.png'
          }')">
-      <h3>${name1}${compareMode ? ` [${mod1}]` : ''}</h3>
+      <h3>${name1}${compareMode ? ` [${getTooltipLabel(mod1)}]` : ''}</h3>
       <p>${desc1}</p>
       <ul class="attrs">
         ${attrsArr1.map(a=>`<li>${a}</li>`).join('')}
@@ -1227,7 +1232,7 @@ if (item2 && item2.Icon) {
          style="background-image: url('${
            useRagnarTooltip ? 'tooltip-ragn.png' : 'tooltip-bg.png'
          }')">
-      <h3>${name2}${compareMode ? ` [${mod2}]` : ''}</h3>
+      <h3>${name2}${compareMode ? ` [${getTooltipLabel(mod2)}]` : ''}</h3>
       <p>${desc2}</p>
       <ul class="attrs">
         ${attrsArr2.map(a=>`<li>${a}</li>`).join('')}
@@ -2090,7 +2095,9 @@ document.getElementById('btn-Pravl')
 document.getElementById('btn-Discover')
         .addEventListener('click', () => switchMode('Discover'));			
 document.getElementById('btn-Orders')
-        .addEventListener('click', () => switchMode('Orders'));			
+        .addEventListener('click', () => switchMode('Orders'));		
+document.getElementById('btn-Classic')
+        .addEventListener('click', () => switchMode('Classic'));			
 		
 // Первый запуск
 loadData();
