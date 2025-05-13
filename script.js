@@ -1888,11 +1888,15 @@ window.setupAttributeFilters(
   });
 
 // 8) Бонус‑фильтр остаётся без изменений:
-const bonusList = Object.entries(bonusMap).map(([k,icon])=>({
-  key:   k,
-  label: k==='all'?'Все':k,
-  icon
-}));
+const bonusList = [
+  ...Object.entries(bonusMap).map(([k, icon]) => ({
+    key:   k,
+    label: k === 'all' ? 'Все' : k,
+    icon
+  })),
+  { key: 'has',  label: 'ЛЮБОЙ',       icon: null },
+  { key: 'none', label: 'ОТСУТСТВУЕТ', icon: null }
+];
 window.setupBonusFilter(
   bonusList,
   document.getElementById('bonus-filters'),
@@ -1971,9 +1975,25 @@ if (toggleBtn) {
 			}
 
 		  // фильтрация по бонусам
-		  visible = visible.filter(c =>
-			bonusFilter==='all' || c.dataset.bonus === bonusFilter
-		  );
+			visible = visible.filter(c => {
+			  // 1) «Все»
+			  if (bonusFilter === 'all') return true;
+
+			  // 2) «ЛЮБОЙ» — предметы, у которых есть любой бонус
+			  if (bonusFilter === 'has') {
+				return c.dataset.bonus !== 'all';
+			  }
+
+			  // 3) «ОТСУТСТВУЕТ» — предметы без бонуса
+			  if (bonusFilter === 'none') {
+				return c.dataset.bonus === 'all';
+			  }
+
+			  // 4) конкретный бонус
+			  return c.dataset.bonus === bonusFilter;
+			});
+
+
 
 		  // поиск по названию
 		  if (searchQuery) {
