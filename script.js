@@ -349,6 +349,9 @@ function hasDifference(card) {
   if (card.dataset.magicType  !== card.dataset.magicType2) return true;
   // 4) цена
   if (Number(card.dataset.cost) !== Number(card.dataset.cost2)) return true;
+  // 5) тип/категория предмета
+  if (card.dataset.type !== card.dataset.type2) return true;
+  
   return false;
 }
 
@@ -1197,12 +1200,14 @@ if (item2 && item2.Icon) {
   card.dataset.group     = gid;
   card.dataset.name      = name1.toLowerCase();
   card.dataset.cost      = cost1;
+  card.dataset.type      = item1.Type;
   card.dataset.attrs     = JSON.stringify(aobj1);
   card.dataset.bonus = item1.Bonus || 'all';
   card.dataset.bonus2 = item2 ? (item2.Bonus || 'all') : 'all';
   card.dataset.magicType2 = item2 ? mType2 : '';
 
   if (item2) {
+    card.dataset.type2 = item2.Type;
     card.dataset.cost2 = cost2;
     card.dataset.attrs2 = JSON.stringify(
       (item2._attrs || []).reduce((o,a)=>{ o[a.key]=a.value; return o; }, {})
