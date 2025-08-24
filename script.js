@@ -1228,6 +1228,7 @@ if (item2 && item2.Icon) {
         ${extra1.join('')}
         <li class="spacer"></li>
       </ul>
+      <div class="tooltip-id">ID: ${item1.GlobalIndex}</div>
       <div class="tooltip-price">
         ${cost1}<img src="gold.png" class="gold-icon" alt="Gold">
       </div>
@@ -1244,6 +1245,7 @@ if (item2 && item2.Icon) {
         ${extra2.join('')}
         <li class="spacer"></li>
       </ul>
+      <div class="tooltip-id">ID: ${item2.GlobalIndex}</div>
       <div class="tooltip-price">
         ${cost2}<img src="gold.png" class="gold-icon" alt="Gold">
       </div>
@@ -2218,6 +2220,3 @@ document.addEventListener('click', e => {
 pagePanel.addEventListener('click', e => {
   e.stopPropagation();
 });
-
-
-

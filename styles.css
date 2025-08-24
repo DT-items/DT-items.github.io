@@ -182,6 +182,15 @@ body {
   word-wrap: break-word;
 }
 
+/* ID предмета */
+.tooltip .tooltip-id {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  font-size: 1.1em;
+  color: #ffffff;
+}
+
 /* цена */
 .tooltip .tooltip-price {
   position: absolute;
@@ -1676,4 +1685,3 @@ top: -51px;
   
   
 }
-
