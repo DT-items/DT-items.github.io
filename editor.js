@@ -560,8 +560,11 @@ function initEditorUI() {
                     if (val < -99) { inp.value = -99; val = -99; }
                     if (val > 99) { inp.value = 99; val = 99; }
                 } else {
+                    // Разрешаем отрицательные значения для Жизни у зелий
+                    const isPotionHits = (currentType === 'Potion' && stat.key === 'Жизнь (хиты)');
+
                     // Для остальных: меньше 0 -> очистить
-                    if (val < 0) {
+                    if (val < 0 && !isPotionHits) {
                         inp.value = '';
                         // ВАЖНО: Принудительно вызываем обновление превью, 
                         // иначе там может остаться старое значение (например, -1)
@@ -1259,12 +1262,19 @@ function updateItemPreview() {
     // 1. Сбор всех значений из инпутов
     const getValParts = (index) => {
         const parts = [];
+        const isPotionHits = (currentType === 'Potion' && STAT_CONFIG[index].key === 'Жизнь (хиты)');
 
         // Eq
         const eqId = getStatInputId(index, 'eq');
         const eqEl = document.getElementById(eqId);
         if (eqEl && eqEl.value !== '') {
-            parts.push('=' + eqEl.value);
+            if (isPotionHits) {
+                let v = eqEl.value;
+                if (!v.startsWith('-') && !v.startsWith('+')) v = '+' + v;
+                parts.push(`текущее ${v}`);
+            } else {
+                parts.push('=' + eqEl.value);
+            }
         }
         
         // Plus
@@ -1273,7 +1283,11 @@ function updateItemPreview() {
         if (plusEl && plusEl.value !== '') {
             let v = plusEl.value;
             if (!v.startsWith('-') && !v.startsWith('+')) v = '+' + v;
-            parts.push(v);
+            if (isPotionHits) {
+                parts.push(`макс ${v}`);
+            } else {
+                parts.push(v);
+            }
         }
         
         // Percent
@@ -1282,7 +1296,11 @@ function updateItemPreview() {
         if (pctEl && pctEl.value !== '') {
             let v = pctEl.value;
             if (!v.startsWith('-') && !v.startsWith('+')) v = '+' + v;
-            parts.push(v + '%');
+            if (isPotionHits) {
+                parts.push(`макс ${v}%`);
+            } else {
+                parts.push(v + '%');
+            }
         }
         return parts;
     };
@@ -1352,7 +1370,8 @@ function updateItemPreview() {
     // 4. Генерация HTML
     let attrsHtml = '';
     sortedKeys.forEach(key => {
-        const valStr = displayStats[key].join(' ');
+        const isPotionHits = (currentType === 'Potion' && key === 'Жизнь (хиты)');
+        const valStr = isPotionHits ? displayStats[key].join(', ') : displayStats[key].join(' ');
         attrsHtml += `<li>${key}: ${colorizePreviewSigns(valStr)}</li>`;
     });
 

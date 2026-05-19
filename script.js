@@ -1803,9 +1803,25 @@ if (item2 && item2.Icon) {
       });
       
       const html = sortedKeys.map(k => {
-          const valStr = grouped[k].join(' ');
+          let valStr;
+          if (item.Type === 'Potion' && k === 'Жизнь (хиты)') {
+              const parts = grouped[k].map(val => {
+                  if (val.startsWith('=')) {
+                      let v = val.substring(1);
+                      if (!v.startsWith('-') && !v.startsWith('+')) v = '+' + v;
+                      return `текущее ${v}`;
+                  } else if (val.endsWith('%')) {
+                      return `макс ${val}`;
+                  } else {
+                      return `макс ${val}`;
+                  }
+              });
+              valStr = parts.join(', ');
+          } else {
+              valStr = grouped[k].join(' ');
+          }
           // ВСЕГДА вставляем точку, видимость управляется классом родителя через CSS
-          return `<li data-key="${k}" data-val="${valStr}"><span class="filter-dot"></span>${k.replace(/-/g,' ')}: ${window.colorizeSigns(valStr)}</li>`;
+          return `<li data-key="${k}" data-val="${grouped[k].join(' ')}"><span class="filter-dot"></span>${k.replace(/-/g,' ')}: ${window.colorizeSigns(valStr)}</li>`;
       }).join('');
 
       return { datasetObj, html };
