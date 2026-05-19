@@ -2114,7 +2114,80 @@ if (!compareMode && side === 'right' && dockMode && sidePanel.classList.contains
       top = Math.max(topBoundary, newTop);
     }
   }
-  
+
+  // --- Анти-перекрытие с закрепленным тултипом (selectedCard) ---
+  if (selectedCard && selectedCard !== card) {
+    const selTooltips = Array.from(selectedCard.querySelectorAll('.tooltip.visible'));
+    
+    const isOverlap = (l, t, w, h) => {
+      for (const selTt of selTooltips) {
+        const aR = selTt.getBoundingClientRect();
+        const gap = 8;
+        if (!(l + w + gap <= aR.left || l >= aR.right + gap || t + h + gap <= aR.top || t >= aR.bottom + gap)) {
+          return aR;
+        }
+      }
+      return null;
+    };
+
+    let overlapRect = isOverlap(left, top, tR.width, tR.height);
+    if (overlapRect) {
+      const gap = 8;
+      let newTop, newLeft;
+      let resolved = false;
+
+      // 1. Под закрепленным
+      newTop = overlapRect.bottom + gap;
+      if (newTop + tR.height <= window.innerHeight && !isOverlap(left, newTop, tR.width, tR.height)) {
+        top = newTop;
+        resolved = true;
+      }
+      
+      // 2. Над закрепленным
+      if (!resolved) {
+        newTop = overlapRect.top - gap - tR.height;
+        if (newTop >= topBoundary && !isOverlap(left, newTop, tR.width, tR.height)) {
+          top = newTop;
+          resolved = true;
+        }
+      }
+      
+      // 3. С другой стороны карточки
+      if (!resolved) {
+        newLeft = (left >= cR.right) 
+                  ? Math.max(usableLeft + EDGE_MARGIN, cR.left - tR.width) 
+                  : Math.min(usableRight - tR.width - EDGE_MARGIN, cR.right);
+        newTop = cR.top + (cR.height - tR.height) / 2;
+        if (newTop < topBoundary) newTop = topBoundary;
+        if (newTop + tR.height > window.innerHeight) newTop = Math.max(topBoundary, cR.top - tR.height);
+
+        if (!isOverlap(newLeft, newTop, tR.width, tR.height)) {
+          left = newLeft;
+          top = newTop;
+          resolved = true;
+        }
+      }
+      
+      // 4. Над самой карточкой
+      if (!resolved) {
+        newTop = cR.top - gap - tR.height;
+        if (newTop >= topBoundary && !isOverlap(left, newTop, tR.width, tR.height)) {
+          top = newTop;
+          resolved = true;
+        }
+      }
+      
+      // 5. Под самой карточкой
+      if (!resolved) {
+        newTop = cR.bottom + gap;
+        if (newTop + tR.height <= window.innerHeight && !isOverlap(left, newTop, tR.width, tR.height)) {
+          top = newTop;
+          resolved = true;
+        }
+      }
+    }
+  }
+
      tt.style.left = `${left}px`;
      tt.style.top  = `${top}px`;
    }
@@ -2400,9 +2473,61 @@ if (compareMode) {
       tt1.style.top = `${r2.bottom + gap}px`;
     }
   }
-  
-  
-  
+
+  // --- Анти-перекрытие с закрепленным тултипом (selectedCard) для positionBoth ---
+  if (selectedCard && selectedCard !== card) {
+    const selTooltips = Array.from(selectedCard.querySelectorAll('.tooltip.visible'));
+    
+    const isOverlap = (l, t, w, h) => {
+      for (const selTt of selTooltips) {
+        const aR = selTt.getBoundingClientRect();
+        const gap = 8;
+        if (!(l + w + gap <= aR.left || l >= aR.right + gap || t + h + gap <= aR.top || t >= aR.bottom + gap)) {
+          return aR;
+        }
+      }
+      return null;
+    };
+
+    const resolveOverlap = (ttEl) => {
+      let rect = ttEl.getBoundingClientRect();
+      let l = rect.left, t = rect.top, w = rect.width, h = rect.height;
+      let overlapRect = isOverlap(l, t, w, h);
+      
+      if (overlapRect) {
+        const gap = 8;
+        let newTop;
+        
+        // 1. Пробуем под закрепленным
+        newTop = overlapRect.bottom + gap;
+        if (newTop + h <= window.innerHeight && !isOverlap(l, newTop, w, h)) {
+          ttEl.style.top = `${newTop}px`;
+          return;
+        }
+        // 2. Пробуем над закрепленным
+        newTop = overlapRect.top - gap - h;
+        if (newTop >= topBoundary && !isOverlap(l, newTop, w, h)) {
+          ttEl.style.top = `${newTop}px`;
+          return;
+        }
+        // 3. Под карточкой
+        newTop = cR.bottom + gap;
+        if (newTop + h <= window.innerHeight && !isOverlap(l, newTop, w, h)) {
+          ttEl.style.top = `${newTop}px`;
+          return;
+        }
+        // 4. Над карточкой
+        newTop = cR.top - gap - h;
+        if (newTop >= topBoundary && !isOverlap(l, newTop, w, h)) {
+          ttEl.style.top = `${newTop}px`;
+          return;
+        }
+      }
+    };
+
+    resolveOverlap(tt1);
+    resolveOverlap(tt2);
+  }
   
 }
 
