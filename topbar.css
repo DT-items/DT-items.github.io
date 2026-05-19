@@ -1,0 +1,233 @@
+/* фиксированная панель сверху */
+.top-bar {
+  position: fixed;
+  width: 100%;
+  height: var(--top-bar-height);
+  background: url('bar.png') repeat-x center;
+  z-index: 2000;
+  transition: top 0.3s ease, left 0.3s ease, width 0.3s ease;
+  top: 0; left: 0;
+}
+
+/* Сдвиг шапки при открытии левой панели - ОТКЛЮЧЕНО по запросу */
+body.compare-open .top-bar {
+  left: 0;
+  width: 100%;
+}
+
+/* --- ЛОГОТИП (теперь правее) --- */
+.top-bar .logo {
+  position: fixed !important;
+  /* Логотип сдвинут левее, чтобы не было дыры */
+  left: 80px !important;
+  /* привязываем к середине шапки: половина её высоты минус половина лого */
+  top: calc(var(--top-bar-height)/2 - 20px) !important;
+  /* снимаем translateY, чтобы не было двойного смещения */
+  transform: none !important;
+  height: 40px !important;
+  width: auto !important;
+  z-index: 3001 !important;     /* поверх всех панелей */
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+.bar-controls {
+  display: flex;
+  align-Items: center;
+  justify-content: flex-end;
+  height: 100%;
+  padding-right: 20px;
+  box-sizing: border-box;
+}
+
+/* поиск */
+.search-wrapper {
+  position: relative;
+  margin-right: 20px;
+  overflow: visible;
+}
+.search-input {
+  width: 200px;
+  height: 32px;
+  border: none;
+  padding: 0 32px 0 8px; /* Добавлен паддинг справа под крестик */
+  font-size: 0.9em;
+  background: #ffffff;
+  box-sizing: border-box;
+  outline: none;
+  border-radius: 4px;
+}
+.search-decor {
+  position: absolute;
+  bottom: -10px;
+  width: calc(100% + 40px);
+  left: -20px;
+  height: 52px;
+  background: url('searche.png') no-repeat center/cover;
+  pointer-events: none;
+}
+
+/* Кнопка очистки поиска (крестик) */
+.search-clear {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 24px;
+  color: #999;
+  display: none; /* Скрыт по умолчанию */
+  z-index: 10;
+  padding: 0;
+  text-align: center;
+}
+.search-clear.visible {
+  display: block;
+}
+.search-clear:hover {
+  color: #d00;
+}
+.search-clear::before {
+  content: "×";
+  font-weight: bold;
+}
+
+/* Кнопка Редактора */
+.editor-button {
+  width: 80px;
+  height: 40px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: url('editor1.png') no-repeat center/contain;
+  background-color: transparent;
+  margin-right: 0; /* Was 20px */
+  pointer-events: auto; /* Enable clicks inside pointer-events:none wrapper */
+}
+.editor-button:hover {
+  background-image: url('editor2.png');
+}
+.editor-button:active {
+  background-image: url('editor3.png');
+}
+
+/* кнопка */
+.action-button {
+  width: 80px;
+  height: 40px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: url('btn-normal.png') no-repeat center/contain;
+  background-color: transparent;
+}
+.action-button:hover {
+  background-image: url('btn-hover.png');
+}
+.action-button:active {
+  background-image: url('btn-active.png');
+}
+
+/* Container for Title + Editor Button */
+.top-bar .title-group {
+  position: absolute;
+  left: 170px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 15px; /* Adjust gap as needed */
+  pointer-events: none; /* Wrapper shouldn't block clicks */
+  white-space: nowrap;
+  z-index: 2050;
+}
+
+/* название сайта рядом с логотипом */
+.top-bar .site-title {
+  /* Reset positioning for wrapper context */
+  position: static;
+  transform: none;
+  left: auto;
+  top: auto;
+  
+  color: #ffffff;
+  font-family: 'BeauMarchaisC', sans-serif;
+  font-size: 3em;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* разделитель-перекрытие между top-bar и контентом */
+.bar-divider {
+  position: fixed;
+  top: calc(var(--top-bar-height) - var(--divider-overlap));
+  left: calc(-1 * var(--divider-overflow));
+  width: calc(100% + var(--divider-overflow) * 2);
+  height: 55px;
+  background: url('Venzelup.png') repeat-x center;
+  pointer-events: none;
+  z-index: 2500;
+  /* синхронизируем сдвиг с шапкой */
+  transition: top 0.3s ease, left 0.3s ease, width 0.3s ease;
+}
+ 
+/* Сдвиг разделителя при открытии левой панели - ОТКЛЮЧЕНО по запросу */
+body.compare-open .bar-divider {
+  left: calc(-1 * var(--divider-overflow));
+  width: calc(100% + var(--divider-overflow) * 2);
+}
+
+/* все элементы, которые прячем вместе с панелью */
+.top-bar .site-title,
+.top-bar .bar-controls,
+.bar-divider,
+#page-toggle {
+  /* подготовим для анимации */
+  transition: transform 0.3s ease;
+}
+
+/* класс, который в JS вешаем на <body> */
+body.topbar-hidden .top-bar {
+  top: calc(-1 * var(--top-bar-height)) !important;
+}
+body.topbar-hidden .top-bar .bar-controls,
+body.topbar-hidden #page-toggle {
+  transform: translateY(-100%) !important;
+}
+
+/* для разделителя уезжаем выше всей шапки (+его собственной высоты) */
+body.topbar-hidden .bar-divider {
+  /* --top-bar-height + --divider-height — суммарно 60 + 56 = 116px */
+  transform: translateY(calc(-1 * (var(--top-bar-height) + var(--divider-height)))) !important;
+}
+
+/*  поле поиска заблокировано — курсор “недоступно” */
+.search-input:disabled {
+  cursor: not-allowed;
+  /* при желании можно подсветить фон:
+     background-color: #f0f0f0; */
+}
+
+/* ==== Кнопка “О сайте” в шапке ==== */
+.about-button {
+  width: 80px;
+  height: 40px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: url('about1.png') no-repeat center/contain;
+  background-color: transparent;
+  position: relative;
+  left: -110px;
+}
+.about-button:hover {
+  background-image: url('about2.png');
+}
+.about-button:active {
+  background-image: url('about3.png');
+}

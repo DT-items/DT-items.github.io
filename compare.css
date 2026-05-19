@@ -1,0 +1,420 @@
+/* --- КНОПКА СРАВНЕНИЯ (теперь слева) --- */
+.compare-panel-btn {
+  display: block;
+  position: absolute;
+  /* Кнопка сдвинута ближе к краю */
+  left: 10px; 
+  top: 50%;
+  transform: translateY(-50%);
+  width: 80px;
+  height: 40px;
+  border: none;
+  cursor: pointer;
+  background: url('compare1.png') no-repeat center/contain;
+  background-color: transparent;
+  z-index: 2100;
+}
+
+/* compare2.png при обычном наведении */
+.compare-panel-btn:hover {
+  background-image: url('compare2.png');
+}
+/* Если панель открыта (active state) - compare3.png */
+.compare-panel-btn:active,
+body.compare-open .compare-panel-btn {
+  background-image: url('compare3.png');
+}
+/* Если панель открыта И мы наводим курсор - compare4.png */
+body.compare-open .compare-panel-btn:hover {
+  background-image: url('compare4.png');
+}
+/* При клике во время наведения в открытом состоянии - compare1.png */
+body.compare-open .compare-panel-btn:hover:active {
+  background-image: url('compare1.png');
+}
+
+/* --- Левая панель сравнения --- */
+.compare-panel {
+  position: fixed;
+  top: var(--top-bar-height);
+  left: 0;
+  width: var(--compare-panel-width);
+  height: calc(100vh - var(--top-bar-height));
+  background: rgba(0,0,0,0.5) url('panel-bg.png') center/cover;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, width 0.3s ease; /* Добавляем анимацию ширины */
+  z-index: 2900; /* чуть ниже правой панели, если они вдруг пересекутся */
+  box-shadow: 2px 0 8px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+/* При отключении фона делаем просто затемнение */
+.compare-panel.no-bg {
+  background-image: none !important;
+  background-color: rgba(0,0,0,0.5) !important;
+}
+
+/* Класс открытия левой панели */
+body.compare-open .compare-panel {
+  transform: translateX(0);
+}
+
+.compare-panel-content {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Сюда пойдет контент */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* Изменили выравнивание на start, чтобы одиночные карточки были слева */
+  align-items: flex-start;
+}
+
+/* --- СООБЩЕНИЕ ПРИ ПУСТОЙ ПАНЕЛИ --- */
+.compare-empty-message {
+  display: none;
+  padding: 20px;
+  color: #fff;
+  text-align: center;
+  font-size: 1.1em;
+  line-height: 1.4;
+  margin-top: 40px;
+}
+.compare-panel.is-empty .compare-empty-message {
+  display: block;
+}
+
+/* ЛОГИКА СКРЫТИЯ ОПИСАНИЯ */
+/* Если у контейнера есть класс hide-desc, скрываем теги p внутри закрепленных предметов */
+.compare-panel-content.hide-desc .pinned-item .tooltip p {
+  display: none;
+}
+
+/* --- Стили для закрепленных предметов в панели --- */
+.compare-panel .pinned-item {
+  position: relative;
+  /* width: 100% убрано, теперь зависит от типа карточки */
+  /* Сбрасываем фиксированную высоту от .item, чтобы контейнер растягивался по содержимому */
+  height: auto !important; 
+  border: 1px solid transparent;
+  padding: 5px;
+  /* Уменьшен нижний отступ (был 19px) */
+  margin-bottom: 6px; 
+  padding-bottom: 10px;
+  box-sizing: border-box;
+  cursor: pointer;
+  background: rgba(0,0,0,0.2);
+  border-radius: 4px;
+  /* Флекс для расположения: Картинка слева | Тултип справа */
+  display: flex;
+  flex-direction: row;
+  align-Items: center; /* ВАЖНО: Выравниваем по верху, так как иконок может быть две */
+}
+
+/* Стили для одиночной карточки */
+.compare-panel .pinned-item.single {
+  width: 100%;
+  max-width: 400px; /* Фиксированная ширина до 400px */
+  margin-right: auto; /* Выравнивание влево, если вдруг align-items поменяется */
+}
+
+/* Стили для двойной карточки */
+.compare-panel .pinned-item.double {
+  width: 100%; /* Растягивается на всю ширину панели */
+  /* Тултипы будут делить место пополам */
+}
+
+/* Подсветка при наведении на закрепленный предмет */
+.compare-panel .pinned-item:hover {
+  border-color: #ffcc00;
+  background: rgba(255,255,255,0.1);
+}
+
+/* --- КОНТЕЙНЕР ИКОНОК В ЗАКРЕПЛЕННЫХ КАРТОЧКАХ --- */
+.pinned-icon-container {
+  display: flex;
+  flex-direction: column;
+  margin-right: 10px;
+  flex-shrink: 0;
+  gap: 10px; /* Отступ между иконками */
+  width: 64px; /* Фиксированная ширина контейнера */
+}
+
+/* Иконки внутри контейнера */
+.compare-panel .pinned-item > .pinned-icon-container > img {
+  display: block;
+  width: 64px; 
+  height: 64px;
+  object-fit: contain;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* Скрываем старый селектор прямой картинки, если он где-то остался */
+.compare-panel .pinned-item > img {
+  display: none;
+}
+
+/* Тултипы внутри панели */
+.compare-panel .pinned-item .tooltip {
+  position: relative; /* Relative нужен, чтобы absolute-дети (ID/Price) позиционировались внутри */
+  opacity: 1;         /* Всегда видим */
+  visibility: visible;
+  width: auto;        /* Ширина по контенту или flex */
+  flex-grow: 1;       /* Занимаем всё оставшееся место */
+  transform: none;    /* Сброс масштаба, если был */
+  pointer-events: none; /* Чтобы клик проходил на контейнер .pinned-item */
+  box-shadow: none;
+  background-color: transparent; /* Если нужно убрать фон, или оставить */
+  margin: 0;
+  left: auto !important;
+  top: auto !important;
+  /* Убираем паддинг снизу, он задан в родителе */
+  padding-bottom: 0;
+  /* Для двойных карточек, чтобы тултипы не слипались, можно добавить отступ */
+  flex-basis: 0;
+  min-width: 150px;
+}
+
+/* Увеличенный спейсер для закрепленных предметов, чтобы не налезали ID и Цена */
+.compare-panel .pinned-item .tooltip .attrs li.spacer {
+  height: 30px !important; /* Было 1em. Увеличиваем, чтобы хватило места */
+}
+
+/* Добавим небольшой отступ между тултипами в двойной карточке */
+.compare-panel .pinned-item.double .tooltip + .tooltip {
+  margin-left: 10px;
+  border-left: 1px solid rgba(255,255,255,0.1); /* Разделитель визуальный */
+  padding-left: 10px;
+}
+
+.compare-panel-footer {
+  flex: none;
+  /* Убираем лишние отступы, высота будет по контенту */
+  padding: 5px 20px 5px 20px; 
+  display: flex;
+  justify-content: center;
+  align-Items: center;
+  gap: 10px; /* Расстояние между кнопками */
+  min-height: 50px;
+}
+
+
+/* Кнопка переключения сетки */
+.toggle-grid-btn {
+  width: 80px; 
+  height: 40px; 
+  border: none;
+  cursor: pointer;
+  background: url('Grid1.png') no-repeat center/contain;
+  background-color: transparent;
+  flex-shrink: 0;
+}
+.toggle-grid-btn:hover {
+  background-image: url('Grid2.png');
+}
+body.compare-grid-active .toggle-grid-btn {
+  background-image: url('Grid3.png');
+}
+body.compare-grid-active .toggle-grid-btn:hover {
+  background-image: url('Grid4.png');
+}
+
+/* Кнопка переключения описания */
+.toggle-desc-btn {
+  width: 80px; 
+  height: 40px; 
+  border: none;
+  cursor: pointer;
+  background: url('desc1.png') no-repeat center/contain;
+  background-color: transparent;
+  flex-shrink: 0;
+}
+.toggle-desc-btn:hover {
+  background-image: url('desc2.png');
+}
+.toggle-desc-btn:active {
+  background-image: url('desc3.png');
+}
+
+/* Кнопка удаления/очистки */
+.del-compare-btn {
+  /* Уменьшили высоту до 40px (было 80px) чтобы футер был компактным */
+  width: 80px; 
+  height: 40px; 
+  border: none;
+  cursor: pointer;
+  background: url('delcompare1.png') no-repeat center/contain;
+  background-color: transparent;
+  flex-shrink: 0;
+}
+.del-compare-btn:hover {
+  background-image: url('delcompare2.png');
+}
+.del-compare-btn:active {
+  background-image: url('delcompare3.png');
+}
+
+.compare-toggle-wrapper {
+  display: none;
+  align-Items: center;
+  gap: 4px;
+  color: #fff;
+  font-size: 0.9em;
+  margin-left: 12px;
+}
+.compare-toggle-wrapper input {
+	display: none;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+.compare-toggle-wrapper span {
+	display: none;
+  user-select: none;
+  cursor: pointer;
+}
+
+#compare-select { display: none; }
+
+
+.compare-select-wrapper {
+  display: inline-flex;
+  align-Items: center;
+  gap: 4px;
+  margin-left: -22px;
+}
+.compare-select-wrapper select {
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+/* Увеличиваем ширину и размер «Сравнить с» */
+.compare-select-wrapper .dropdown-toggle {
+  min-width: 160px;      /* желаемая минимальная ширина */
+  padding: 8px 12px;     /* чуть больше паддингов */
+  font-size: 1.1em;      /* чуть побольше шрифт */
+}
+
+.compare-select-wrapper .dropdown-menu {
+  min-width: 160px;      /* совпадает с кнопкой */
+}
+
+/* чуть просторнее пункты */
+.compare-select-wrapper .dropdown-item {
+  padding: 8px 12px;
+}
+
+.compare-select-wrapper > span {
+  display: inline-block; /* чтобы margin-top работал надёжнее */
+  font-weight: bold;
+  margin-top: 20px;       /* подберите значение «на глаз» */
+}
+
+/* кастомный чекбокс “Только отличия” */
+#diff-only {
+  /* убираем дефолтный вид */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  /* размер под размер ваших PNG */
+  width: 24px;
+  height: 24px;
+  /* фон для выключенного состояния */
+  background: url('ChkCompareOf.png') no-repeat center center;
+  background-size: contain;
+  cursor: pointer;
+  margin-right: 6px; /* отступ до текста */
+}
+
+/* когда включено — переключаем фон */
+#diff-only:checked {
+  background-image: url('ChkCompareOn.png');
+}
+
+/* когда включено — переключаем фон */
+#diff-only:checked {
+  background-image: url('ChkCompareOn.png');
+}
+
+/* --- РЕЖИМ СЕТКИ ДЛЯ ПАНЕЛИ СРАВНЕНИЯ --- */
+.compare-panel-content.grid-view {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  padding-top: 26px; /* Отступ от верхнего края */
+  gap: 10px; /* Отступ между предметами сетки */
+}
+
+.compare-panel-content.grid-view .pinned-item {
+  width: calc(var(--thumb-size) * var(--global-scale)) !important;
+  height: calc(var(--thumb-size) * var(--global-scale)) !important;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  /* Плавная анимация увеличения карточки при наведении */
+  transition: transform var(--transition);
+}
+.compare-panel-content.grid-view .pinned-item:hover {
+  transform: scale(var(--thumb-hover-scale));
+  background: none;
+  border: none;
+  z-index: 100;
+}
+
+/* Тултипы в режиме сетки */
+.compare-panel-content.grid-view .pinned-item .tooltip {
+  position: fixed;
+  opacity: 0;
+  visibility: hidden;
+  width: var(--tooltip-width);
+  z-index: 3100;
+  pointer-events: none;
+  transform: scale(1);
+  flex-grow: 0;
+  min-width: auto;
+  margin: 0 !important;
+  padding-bottom: 15px;
+  border-left: none !important;
+}
+
+.compare-panel-content.grid-view .pinned-item.hovered .tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.compare-panel-content.grid-view .pinned-item .pinned-icon-container {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  flex-direction: row;
+  gap: 0;
+}
+
+.compare-panel-content.grid-view .pinned-item .pinned-icon-container > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.compare-panel-content.grid-view .pinned-item.double .pinned-icon-container > img {
+  width: 50%; /* В двойном режиме картинки делят ширину */
+}
+
+/* Специальный класс для оторванных тултипов сетки (чтобы выходили за рамки) */
+body > .tooltip.grid-tooltip-detached {
+  /* opacity и visibility теперь плавно управляются классом .visible из основной логики */
+  width: var(--tooltip-width);
+  z-index: 3100;
+  pointer-events: none;
+  transform: scale(1) !important;
+  margin: 0 !important;
+  padding-bottom: 15px;
+  border-left: none !important;
+}

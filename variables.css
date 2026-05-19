@@ -1,0 +1,28 @@
+/* 1) Подключаем кастомный шрифт */
+@font-face {
+  font-family: 'BeauMarchaisC';
+  src: url('beaumarchaisc.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+:root {
+  --background-tile: url('background.png');
+  --tooltip-bg: url('tooltip-bg.png') center/cover no-repeat;
+  --tooltip-width: 300px;
+  --thumb-size: 80px;
+  --thumb-hover-scale: 1.1;
+  --transition: 0.2s ease;
+  --top-bar-height: 60px;
+  --global-scale: 0.8;
+  --group-gap: 40px;
+  --panel-width: 400px;           /* Фиксированная ширина правой панели */
+  --compare-panel-width: 400px;   /* Ширина левой панели по умолчанию */
+  --divider-height: 56px;
+  --divider-overflow: 20px; /* на сколько пикселей за края хотим выйти */
+  --divider-overlap: 14px;
+  --divider-scale:    0.9; 
+  --page-panel-width: 300px;    /* ширина панели */
+  --page-panel-height: 470px;   /* полная высота (контент + кнопка) */
+  --page-button-height: 42px;    /* высота торчащей кнопки */
+}

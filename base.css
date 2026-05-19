@@ -1,0 +1,42 @@
+/* Если добавлен класс compare-wide на body, ширина левой панели меняется */
+body.compare-wide {
+  --compare-panel-width: 600px;
+}
+
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: calc(var(--top-bar-height) + 20px) 20px 20px;
+  /* Поднимем отступ для body на высоту полоски + разделителя */
+  padding-top: calc(
+    var(--top-bar-height)
+    + var(--divider-height)
+  );
+  background-image: var(--background-tile);
+  background-repeat: repeat;
+  /* Анимация сдвига при открытии левой панели */
+  transition: padding-left 0.3s ease;
+}
+
+/* При открытой левой панели сдвигаем контент */
+body.compare-open {
+  padding-left: calc(var(--compare-panel-width) + 20px);
+}
+
+/* Запрет выделения текста и элементов на всей странице */
+html, body, * {
+  /* стандартное свойство */
+  user-select: none !important;
+
+  /* префиксы для кросс-браузерности */
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+
+  /* запрет «перетаскивания» */
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+}

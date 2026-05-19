@@ -1,0 +1,114 @@
+/* 1) Делаем правильный inline‑ряд для чекбокса + текста */
+.common-controls .group-toggle-wrapper {
+  display: inline-flex;
+  align-Items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.common-controls .group-toggle-wrapper .group-toggle-label {
+  /* текст не кликабельный */
+  user-select: none;
+  color: #ffffff;          /* подстроить под ваш дизайн */
+  font-size: 1.1em;
+}
+
+#group-toggle {
+  /* убираем дефолтный вид */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  /* размер под размер ваших PNG */
+  width: 24px;
+  height: 24px;
+  /* картинка “выключено” */
+  background: url('ChkBxOff.png') no-repeat center center;
+  background-size: contain;
+  cursor: pointer;
+  /* немного отступа справа, чтобы текст не прилегал */
+  margin-right: 6px;
+}
+
+/* состояние “включено” */
+#group-toggle:checked {
+  /* просто меняем картинку */
+  background-image: url('ChkBxOn.png');
+}
+
+/* контейнер чекбокса рядом с масштабом */
+.side-panel .scale-controls .bg-toggle-wrapper {
+  display: inline-flex;
+  align-Items: center;
+  gap: 6px;
+  margin-left: 12px;              /* отступ от кнопок масштаба */
+  color: #ffffff;                 /* надпись белая, как все в шапке */
+  font-size: 0.9em;
+  cursor: pointer;
+}
+
+.side-panel .scale-controls .bg-toggle-wrapper input {
+  /* можно стилизовать чекбокс по вашему вкусу или оставить дефолт */
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+/* ────────── Кастомные чекбоксы (Фон, Цвет +/-, Компаратор) ────────── */
+/* Используем общий стиль для всех чекбоксов с одинаковой структурой */
+#bg-toggle,
+#color-sign-toggle,
+#comparator-toggle {
+  /* убираем дефолтный вид */
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+  /* задаём размер под ваши PNG */
+  width: 24px;
+  height: 24px;
+  /* фон — состояние “включено” */
+  background: url('ChkBxOn.png') no-repeat center center;
+  background-size: contain;
+  cursor: pointer;
+  margin-right: 6px; /* если нужен отступ до текста */
+}
+
+/* состояние “выключено” */
+#bg-toggle:not(:checked),
+#color-sign-toggle:not(:checked),
+#comparator-toggle:not(:checked) {
+  background-image: url('ChkBxOff.png');
+}
+
+/* текст лейбла не кликабельный */
+.bg-toggle-wrapper span {
+  user-select: none;
+  cursor: pointer;
+  color: #ffffff;
+}
+
+/* === Кастомный чекбокс "Сравнить с Vanilla" === */
+#compare-vanilla {
+  /* убираем дефолтный вид */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  /* задаём размер под размер ваших PNG */
+  width: 24px;
+  height: 24px;
+  /* фон для выключенного состояния */
+  background: url('ChkBxOff.png') no-repeat center center;
+  background-size: contain;
+  cursor: pointer;
+  margin-right: 6px; /* отступ до текста */
+}
+
+/* состояние “включено” */
+#compare-vanilla:checked {
+  background-image: url('ChkBxOn.png');
+}
+
+/* состояние “недоступно” */
+#compare-vanilla:disabled {
+  /* просто меняем картинку у самого input */
+  background-image: url('ChkBxBlock.png');
+  cursor: not-allowed;
+}

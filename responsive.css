@@ -1,0 +1,252 @@
+
+/* === Mobile Overrides === */
+@media screen and (max-width: 800px) {
+  /* 1 & 3. Масштаб элементов и высота шапки */
+  :root {
+    --global-scale: 1.7;       /* масштаб карточек */
+    --top-bar-height: 90px;   /* шапка x2 */
+  }
+
+  /* Скрыть правую колонку со списком предметов в редакторе */
+  .editor-sidebar {
+    display: none !important;
+  }
+
+    /* Скрываем кнопку компаратора на мобильных устройствах */
+  .compare-panel-btn {
+    display: none !important;
+  }
+
+  /* 2. Масштаб тултипа */
+  .tooltip {
+    transform: scale(0.9);
+    transform-origin: top left;
+  }
+
+  .action-button {
+    position: relative !important;
+    left: 10px !important;
+  }
+
+  /* 4. Поиск в два раза выше */
+  .search-input {
+    height: 45px; /* вместо 32px */
+  }
+
+  /* 6. «О сайте» левее и ниже */
+  .about-button {
+    left: -10px;      /* сдвинуть к левому краю */
+    top: auto;
+    bottom: -20px;    /* опустить ближе к низу шапки */
+  }
+  
+  /* Переопределяем фикс позишн для логотипа на мобилке */
+  body.topbar-hidden .top-bar .logo,
+  .top-bar .logo {
+    position: fixed !important;
+    left: 5px !important;     /* новый отступ */
+    /* центр по новой высоте шапки (90px) */
+    top: calc(var(--top-bar-height)/2 - 40px) !important;
+    transform: none !important;
+  }
+  
+    /* 3. Скрыть название сайта */
+  .top-bar .site-title {
+    display: none !important;
+  }
+  
+  /* Move the group left on mobile */
+  .top-bar .title-group {
+    left: 60px !important; /* Next to logo */
+  }
+  
+  /* Кнопку редактора сдвигаем выше и правее */
+  .editor-button {
+    position: relative !important;
+    top: -27px !important;
+    left: 30px !important;
+  }
+
+    /* 4. Растянуть search-decor по высоте (и не обрезать) */
+  .search-wrapper {
+    overflow: visible !important; /* чтобы декор не обрезался */
+	margin-top: 30px !important;  /* подвинуть вниз на 10px */
+	left: 10px;
+  }
+  .search-decor {
+    bottom: 0 !important;
+    top: 0 !important;
+    height: 100% !important;      /* тянем до полной высоты экрана */
+    background-size: cover !important;
+  }
+  
+    /* 7. Фильтры (side-panel) растянуть на всю ширину экрана */
+  .side-panel.open {
+    width: 100% ;
+    right: 0 ;
+  }
+  
+    /* 6. «Моды» (page-toggle) сместить правее */
+  .page-toggle {
+	top: -10px !important;
+    left: 160px !important;       /* сдвинуто правее (было 90px) */
+	transform: scale(0.7) !important;
+    transform-origin: center;
+  }
+  
+    /* Перенастраиваем саму выезжающую панель */
+  .page-panel {
+    width: 100% !important;       /* на всю ширину экрана */
+    right: 0 !important;          /* от правого края 0 */
+    left: 0 !important;           /* от левого края 0 */
+    /* высоту можно оставить, если устраивает: var(--page-panel-height) */
+
+  }
+
+  /* Когда панель открыта — убираем старый «спрятанный» top */
+  .page-panel.open {
+    top: 0 !important;
+  }
+
+  /* Подвинем кнопки внутри панели (mods-buttons) чуть вниз/вправо */
+  .page-panel .mods-buttons {
+    top: 10px !important;   /* отступ от верха панели */
+    left: 10px !important;  /* от левого края панели */
+    right: 10px !important; /* небольшой отступ справа */
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  /* 1) Шапка панели — ровно по контенту */
+  .side-panel .scale-controls {
+    flex: none         !important;
+    overflow: visible  !important;
+    box-sizing: border-box;
+  }
+
+  /* 2) Основная зона фильтров — растягивается и скроллится */
+  .side-panel .filter-controls {
+    flex: 1 1 auto     !important;
+    overflow-y: auto   !important;
+    /* Уберите лишние отступы, если они есть */
+    padding: 10px      !important;
+    box-sizing: border-box;
+  }
+
+  /* 3) Футер-кнопки фонов — по содержимому, прижаты внизу через margin-top:auto */
+  .side-panel .background-controls {
+    flex: none         !important;
+    margin-top: auto   !important;
+    position: relative !important;
+    /* если фон или паддинги не нужны, можно удалить background/padding */
+    background: none   !important;
+    padding: 8px       !important;
+    box-sizing: border-box;
+  }
+
+    /* 4) Футер-кнопки импорта — под фонами */
+  .side-panel .import-controls {
+    flex: none         !important;
+    margin-top: 0      !important;
+    position: relative !important;
+    top: 0 !important;
+    padding: 8px       !important;
+    box-sizing: border-box;
+  }
+
+  /* 5) Справочник бонусов в одну колонку на мобильных */
+  .bonus-help-content {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* === Tablet Overrides === */
+@media screen and (min-width: 801px) and (max-width: 1180px) {
+	
+  /* 2. Масштаб тултипа */
+  .tooltip {
+    transform: scale(1.0);
+    transform-origin: top left;
+  }
+	
+  /* Move the group left */
+  .top-bar .title-group {
+    left: 160px !important;
+  }
+  
+  /* Resize the title text */
+  .top-bar .site-title {
+    white-space: normal !important;
+    width: 150px !important;
+    font-size: 1.9em !important;
+    line-height: 1 !important;
+  }
+	
+  /* 1) Сдвинем кнопку «О сайте» правее */
+  .about-button {
+    left: 5px !important;     /* подвинуть от левого края */
+    /* при необходимости скорректируйте bottom/top */
+  }
+
+    /* Соответственно — панель модов (page-panel) тоже рядом с кнопкой */
+  .page-panel {
+    right: 301px !important; /* совпадает с позицией кнопки */
+    left: auto !important;
+  }
+  
+  .action-button {
+    position: relative !important;
+    left: 16px !important;
+  }
+  
+  /* Переопределяем фикс позишн для логотипа на планшете */
+  body.topbar-hidden .top-bar .logo,
+  .top-bar .logo {
+    position: fixed !important;
+    left: 80px !important;      /* новый отступ */
+    /* центр по высоте шапки в этом диапазоне (по-прежнему 60px) */
+    top: calc(var(--top-bar-height)/2 - 20px) !important;
+    transform: none !important;
+  }
+  
+    /* 3) Футер-кнопки фонов — по содержимому, прижаты внизу через margin-top:auto */
+  .side-panel .background-controls {
+    position: relative !important;
+    /* если фон или паддинги не нужны, можно удалить background/padding */
+    top: -51px;
+  }
+
+  /* 4) Футер-кнопки импорта */
+  .side-panel .import-controls {
+    position: relative !important;
+    top: -41px;
+  }
+  
+      /* 4. Растянуть search-decor по высоте (и не обрезать) */
+  .search-wrapper {
+    overflow: visible !important; /* чтобы декор не обрезался */
+
+	left: 20px;
+  }
+
+  /* делаем боковую панель шириной половину экрана */
+  .side-panel.open {
+    width: 50% !important;
+    right: 0 !important;
+  }
+  
+    /* 1) Перенастраиваем ширину панели через CSS‑переменную */
+  :root {
+    --panel-width: 50%;
+  }
+
+  /* 2) Когда у вас включён “докинг” (body.docked), добавляем отступ справа */
+  body.docked {
+    /* 20px — это ваш обычный отступ; если он отличается, скорректируйте */
+    padding-right: calc(var(--panel-width) + 20px) !important;
+  }
+  
+    .page-panel .mods-buttons {
+    top: 10px !important;   /* отступ от верха панели */
+  }
+}
+

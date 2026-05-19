@@ -1,0 +1,262 @@
+/* контейнер-панель */
+.page-panel {
+  position: fixed;
+  top: calc(-1 * (var(--page-panel-height) - var(--page-button-height)));
+     /* из-за экрана «спрятаны» все, кроме кнопки */
+  right: 650px;                   /* отступ от правого края */
+  width: var(--page-panel-width);
+  height: var(--page-panel-height);
+  overflow: visible;
+  transition: top 0.4s ease;
+  z-index: 3500;
+  pointer-events: none;
+}
+
+/* когда открываем — панель полностью на виду */
+.page-panel.open {
+  top: 0;
+  pointer-events: auto;
+}
+
+/* контент панели (фон или картинка) */
+.page-panel__content {
+  display: block;
+  width: 100%;
+  height: calc(var(--page-panel-height) - var(--page-button-height));
+  object-fit: cover;             /* или contain, как нужно */
+  pointer-events: none;
+}
+
+/* — контейнер двух кнопок — */
+.mods-buttons {
+  position: absolute;
+  top: 20px;    /* отступ от верха панели — подберите по своему дизайну */
+  left: 10px;   /* отступ от левого края */
+  right: 10px;  /* отступ от правого края */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;    /* расстояние между кнопками */
+  pointer-events: none; /* сам контейнер не блокирует клики — кнопки внутри возьмут события */
+}
+
+/* — общие стили для кнопок модов — */
+.mod-btn {
+  width: 100%;
+  height: 50px;            /* подберите нужную высоту */
+  border: none;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  cursor: pointer;
+  pointer-events: auto;    /* кнопки должны ловить клики */
+}
+
+/* — кнопка Evolv — */
+.Evolv-btn {
+  background-image: url('Evolv1.png');
+}
+.Evolv-btn:hover {
+  background-image: url('Evolv2.png');
+}
+.Evolv-btn:active {
+  background-image: url('Evolv3.png');
+}
+
+/* — кнопка Vanilla — */
+.Vanilla-btn {
+  background-image: url('Vanilla1.png');
+}
+.Vanilla-btn:hover {
+  background-image: url('Vanilla2.png');
+}
+.Vanilla-btn:active {
+  background-image: url('Vanilla3.png');
+}
+
+/* — кнопка Ragnar — */
+.Ragnar-btn {
+  background-image: url('Ragnar1.png');
+}
+.Ragnar-btn:hover {
+  background-image: url('Ragnar2.png');
+}
+.Ragnar-btn:active {
+  background-image: url('Ragnar3.png');
+}
+
+/* — кнопка Crusad — */
+.Crusad-btn {
+  background-image: url('Crusad1.png');
+}
+.Crusad-btn:hover {
+  background-image: url('Crusad2.png');
+}
+.Crusad-btn:active {
+  background-image: url('Crusad3.png');
+}
+
+/* — кнопка Classic — */
+.Classic-btn {
+  background-image: url('Classic1.png');
+}
+.Classic-btn:hover {
+  background-image: url('Classic2.png');
+}
+.Classic-btn:active {
+  background-image: url('Classic3.png');
+}
+
+/* — кнопка Old_Hor — */
+.Old_Hor-btn {
+  background-image: url('Old_Hor1.png');
+}
+.Old_Hor-btn:hover {
+  background-image: url('Old_Hor2.png');
+}
+.Old_Hor-btn:active {
+  background-image: url('Old_Hor3.png');
+}
+
+/* — кнопка Pravl — */
+.Pravl-btn {
+  background-image: url('Pravl1.png');
+}
+.Pravl-btn:hover {
+  background-image: url('Pravl2.png');
+}
+.Pravl-btn:active {
+  background-image: url('Pravl3.png');
+}
+
+/* — кнопка Discover — */
+.Discover-btn {
+  background-image: url('Discover1.png');
+}
+.Discover-btn:hover {
+  background-image: url('Discover2.png');
+}
+.Discover-btn:active {
+  background-image: url('Discover3.png');
+}
+
+/* — кнопка Orders — */
+.Orders-btn {
+  background-image: url('Orders1.png');
+}
+.Orders-btn:hover {
+  background-image: url('Orders2.png');
+}
+.Orders-btn:active {
+  background-image: url('Orders3.png');
+}
+
+/* с плюсиком, но экранирование */
+.KREST\+ {
+  background-image: url('KREST1.png');
+}
+.KREST\+:hover {
+  background-image: url('KREST2.png');
+}
+.KREST\+:active {
+  background-image: url('KREST3.png');
+}
+
+/* — кнопка Gift — */
+.Gift-btn {
+  background-image: url('Gift1.png');
+}
+.Gift-btn:hover {
+  background-image: url('Gift2.png');
+}
+.Gift-btn:active {
+  background-image: url('Gift3.png');
+}
+
+/* — кнопка Dement — */
+.Dement-btn {
+  background-image: url('Dement1.png');
+}
+.Dement-btn:hover {
+  background-image: url('Dement2.png');
+}
+.Dement-btn:active {
+  background-image: url('Dement3.png');
+}
+
+/* — кнопка Xxxx — */
+.Xxxx-btn {
+  background-image: url('Xxxx1.png');
+}
+.Xxxx-btn:hover {
+  background-image: url('Xxxx2.png');
+}
+.Xxxx-btn:active {
+  background-image: url('Xxxx3.png');
+}
+
+/* — кнопка New Mod — */
+.NewMod-btn {
+  background-image: url('Newmod1.png');
+}
+.NewMod-btn:hover {
+  background-image: url('Newmod2.png');
+}
+.NewMod-btn:active {
+  background-image: url('Newmod3.png');
+}
+
+/* ровно по спрайту, без растяжений */
+.page-toggle {
+  flex: none;             /* не растягиваться в .bar-controls */
+  width: 192px;            /* подберите под свой page.png */
+  height: 53px;
+  padding: 0;
+  margin: 0 8px;          /* отступ от соседних кнопок */
+  background: url('page.png') no-repeat center/contain;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  display: block;
+  box-sizing: content-box;
+  position: relative;     /* или absolute, если вы позиционировали её так */
+  top: -2px;              /* настроить чтобы центрировать в .top-bar */
+  right: -20px;            /* подвинуть от края по вкусу */
+  z-index: 2100;          /* над .top-bar */
+  pointer-events: auto;
+}
+
+/* Иконка режима слева от текста */
+.page-toggle .mode-icon {
+  width: 31px;
+  height: 31px;
+  margin-right: 146px;
+  vertical-align: middle;
+  pointer-events: none; /* клики должны проходить на кнопку */
+}
+
+.page-toggle-text {
+  font-family: 'BeauMarchaisC', sans-serif;
+  font-size: 3em;          /* подберите под свой дизайн */
+  color: #ffffff;            /* цвет надписи */
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+  pointer-events: none;      /* чтобы клики шли сквозь текст на кнопку */
+  user-select: none;         /* текст нельзя выделить */
+  left: 50px; top: 0px;
+  position: absolute;
+}
+
+/* — hover‑эффект: когда панель закрыта, при наведении чуть «выезжаем» вниз */
+.page-panel:not(.open):hover:not(.closing) {
+  /* смещаем на +5px от исходного «спрятанного» положения */
+  top: calc(
+    -1 * (var(--page-panel-height) - var(--page-button-height))
+    + 5px
+  ) !important;
+  /* моментально, без анимации */
+  transition: none !important;
+}
+
+.page-panel .mods-buttons {
+  top: 10px !important;   /* отступ от верха панели */
+}

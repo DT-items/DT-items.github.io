@@ -1,0 +1,592 @@
+/* выезжающая панель справа */
+.side-panel {
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: fixed;
+  top: var(--top-bar-height);
+  right: calc(-1 * var(--panel-width)); /* Скрыта: сдвинута вправо на свою ширину */
+  width: var(--panel-width);            /* Фиксированная ширина 400px */
+  height: calc(100vh - var(--top-bar-height));  /* на всю высоту экрана */
+  background: rgba(0,0,0,0.5) url('panel-bg.png') center/cover;
+  transition: right 0.3s ease;
+  z-index: 3000;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.3);
+}
+.side-panel.open {
+  right: 0;
+}
+
+/* при отключённом фоне убираем картинку, сохраняя полупрозрачный фон */
+.side-panel.no-bg {
+  background-image: none !important;
+  background-color: rgba(0,0,0,0.5) !important;
+}
+
+/* контролы внутри панели */
+.side-panel .scale-controls {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  align-Items: center;
+  gap: 12px;
+}
+.side-panel .scale-controls button {
+  width: 36px;
+  height: 36px;
+  font-size: 1.8em;
+  line-height: 1;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.side-panel .scale-controls span {
+  color: #ffffff;
+  font-size: 1.5em;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* кнопка докинга рядом со scale‑кнопками */
+.side-panel .scale-controls .dock-button {
+  width: 36px;
+  height: 36px;
+  font-size: 1.2em;
+  line-height: 1;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.side-panel .scale-controls .dock-button.active {
+  background: #ffcc00;
+}
+
+/* фильтры (под контролами масштаба) */
+.side-panel .filter-controls {
+  margin-top: 70px;        /* подняли ниже кнопок масштаба */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 10px;
+  color: #ffffff;
+  font-size: 1.1em;
+}
+.side-panel .filter-controls label {
+  display: flex;
+  align-Items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.side-panel .filter-controls input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+/* кнопка сортировки */
+.side-panel .filter-controls .sort-button {
+  width: 40px;                /* увеличили */
+  height: 40px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  border: none;
+  cursor: pointer;
+  align-self: flex-start;     /* влево */
+}
+/* делаем sort‑кнопки такими же, как attr‑фильтры */
+.side-panel .filter-controls .sort-price .sort-button {
+  flex: none;
+  padding: 6px;
+  font-size: 0.9em;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+  /* можно задать одинаковую ширину, если нужно: */
+  width: 40px;
+  text-align: center;
+}
+
+/* активное состояние совпадает с фильтрами */
+.side-panel .filter-controls .sort-price .sort-button.active {
+  background: #ffcc00;
+}
+.sort-button.sort-desc {
+  background-image: url('sort-desc.png');
+}
+.sort-button.sort-asc {
+  background-image: url('sort-asc.png');
+}
+
+/* кнопки фильтра по магии */
+.side-panel .filter-controls .magic-filter {
+  display: flex;
+  align-Items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.side-panel .filter-controls .magic-filter .filter-label {
+  flex: none;
+  /* при желании можно задать width: 100px; */
+}
+.side-panel .filter-controls .magic-filter button {
+  padding: 4px 6px; /* Было 6px, уменьшено на 2px из-за обводки */
+  font-size: 0.9em;
+  background: #ffffff;
+  border: 3px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.side-panel .filter-controls .magic-filter button.active {
+  background: #ffcc00;
+}
+.side-panel .filter-controls .magic-filter #filter-magic-death {
+  border-color: #000;
+}
+.side-panel .filter-controls .magic-filter #filter-magic-life {
+  border-color: #62B3F7;
+}
+.side-panel .filter-controls .magic-filter #filter-magic-elemental {
+  border-color: #22B14C;
+}
+
+/* --- Attribute Filter Rows --- */
+.side-panel .filter-controls .attr-filter-row {
+  display: flex;
+  align-Items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.side-panel .filter-controls .attr-filter-row .attr-filter-label {
+  flex: none;
+}
+
+/* стиль самих кнопок ровно как у magic-filter */
+.side-panel .filter-controls .attr-filter-row button {
+  flex: none;
+  padding: 6px;
+  font-size: 0.9em;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+/* активное состояние */
+.side-panel .filter-controls .attr-filter-row button.active {
+  background: #ffcc00;
+}
+
+.side-panel .scale-controls,
+.side-panel .filter-controls {
+  transform: scale(0.9);
+  transform-origin: top left;
+}
+
+/* —–– бонус‑фильтр —–– */
+.side-panel .bonus-filter {
+  display: flex;
+  flex-direction: column;
+  margin-top: 20px;
+  padding: 0 10px;
+  color: #ffffff;
+  font-size: 1.1em;
+}
+.side-panel .bonus-filter .filter-label {
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+.side-panel .bonus-filter .dropdown {
+  position: relative;
+}
+.side-panel .bonus-filter .dropdown-toggle {
+  width: 100%;
+  padding: 6px 8px;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
+  text-align: left;
+  cursor: pointer;
+
+}
+
+/* Ограничиваем размер клонированной иконки внутри кнопки */
+.side-panel .bonus-filter .dropdown-toggle img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.side-panel .bonus-filter .dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0; right: 0;
+  max-height: 500px;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  display: none;
+  z-index: 2500;
+}
+.side-panel .bonus-filter .dropdown-menu.show {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+  gap: 4px;
+  padding: 8px;
+  /* отменяем открытие вниз */
+  top: 100%;
+  bottom: auto;
+  /* небольшой отступ, чтобы меню не прилипало к кнопке */
+  margin-bottom: 4px;
+  overflow-y: auto;
+}
+
+/* В расширённом режиме (когда .side-panel содержит класс .advanced-open)
+   дропдаун открывается вверх */
+.side-panel.advanced-open .bonus-filter .dropdown-menu.show {
+  top: auto;
+  bottom: 100%;
+}
+/* Всегда открывать бонус-фильтр вверх (override) */
+.side-panel .bonus-filter .dropdown-menu.show {
+  top: auto !important;
+  bottom: 100% !important;
+}
+
+.side-panel .bonus-filter .dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.side-panel .bonus-filter .dropdown-item img {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  margin-right: 0;
+}
+.side-panel .bonus-filter .dropdown-item span {
+  flex: 1;
+  color: #000;
+}
+.side-panel .bonus-filter .dropdown-item.text-only {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  padding: 6px 8px;
+}
+.side-panel .bonus-filter .dropdown-item.active,
+.side-panel .bonus-filter .dropdown-item:hover {
+  background: #ffcc00;
+}
+
+/* Универсальный стиль “как у остальных кнопок” */
+.side-panel .filter-controls #toggle-advanced,
+.side-panel .filter-controls #reset-filters {
+  padding: 6px 8px;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background 0.2s;
+}
+
+/* Ховер-эффект общий */
+.side-panel .filter-controls #toggle-advanced:hover,
+.side-panel .filter-controls #reset-filters:hover {
+  background: #f0f0f0;
+}
+
+/* Специально для “Сбросить” — красный оттенок */
+.side-panel .filter-controls #reset-filters {
+  background: #f8d7da;       /* светло-красный фон */
+  color: #721c24;            /* темно-красный текст */
+}
+.side-panel .filter-controls #reset-filters:hover {
+  background: #f5c6cb;       /* чуть ярче при ховере */
+}
+
+/* сделать «Магия» и «Цена» чуть больше и жирным */
+.side-panel .filter-controls .filter-label,
+.side-panel .filter-controls .sort-price > span {
+  font-weight: 700;      /* или bold */
+  font-size: 1.0em;      /* подберите желаемый размер */
+}
+
+.side-panel .compare-select-wrapper .dropdown-menu.show {
+  top: 100% !important;
+  bottom: auto !important;
+}
+
+/* Переопределение списка для сравнения модов (вертикальный список с текстом) */
+.side-panel #compare-dropdown .dropdown-menu.show {
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 4px 0 !important;
+  gap: 0 !important;
+}
+
+.side-panel #compare-dropdown .dropdown-item {
+  justify-content: flex-start;
+  padding: 4px 7px;
+}
+
+.side-panel #compare-dropdown .dropdown-item span {
+  display: block !important;
+  margin-left: 10px;
+}
+
+/* ── Перестроим порядок внутри common-controls ── */
+.side-panel .filter-controls .common-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-Items: center;
+  gap: 12px;
+}
+
+/* 1) “Сравнить с” — первая строка */
+.side-panel .filter-controls .compare-select-wrapper {
+  order: 1;
+  flex-basis: 100%;       /* ← теперь на всю ширину */
+  display: inline-flex;
+  align-Items: center;
+  gap: 6px;
+  padding-left: 21px;
+}
+
+/* 2) “Только отличия” — вторая строка */
+.side-panel .filter-controls .diff-toggle-wrapper {
+  order: 2;
+  flex-basis: auto;
+  display: inline-flex;
+  align-Items: center;
+  gap: 6px;
+}
+
+/* 3) “Группировка” — рядом с “Только отличия” */
+.side-panel .filter-controls .group-toggle-wrapper {
+  order: 3;
+  flex-basis: auto;
+  display: inline-flex;
+  align-Items: center;
+  gap: 6px;
+  margin-left: 24px;
+}
+
+/* 4) “Цена” с кнопками — отдельная третья строка */
+.side-panel .filter-controls .sort-price {
+  order: 4;
+  flex-basis: 100%;      /* займёт всю строку */
+  display: flex;         /* кнопки останутся в ряд */
+  align-Items: center;
+  gap: 6px;
+  margin-top: 10px;      /* Исправлено: 10px вместо 33 */
+  margin-bottom: 1px;    /* Исправлено: 1px вместо 1 */
+}
+
+/* --- Новый контейнер для чекбоксов и кнопок --- */
+.side-panel .filter-controls .top-row-container {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    margin-bottom: 15px;
+    align-items: flex-start;
+}
+/* Левая колонка (кнопки) */
+.side-panel .filter-controls .top-row-buttons {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+/* Правая колонка (чекбоксы) */
+.side-panel .filter-controls .top-row-checkboxes {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+    padding-top: 5px; /* Выравнивание по вертикали относительно кнопок */
+}
+/* Кнопки теперь занимают всю ширину своей (левой) колонки */
+.side-panel .filter-controls #toggle-advanced,
+.side-panel .filter-controls #reset-filters {
+    width: 100%;
+    /* Добавляем скрытие текста если не влезет */
+    white-space: nowrap; 
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* Стиль для чекбоксов в новой правой колонке */
+.top-row-checkboxes .bg-toggle-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffffff;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+
+/* Простые фильтры (только характеристики) */
+#simple-filters {
+  display: grid !important;
+  grid-template-columns: max-content max-content;
+  grid-auto-rows: auto;
+  column-gap: 8px;  /* расстояние между колонками */
+  row-gap:    6px;  /* расстояние между строками */
+  margin-top: 10px;
+}
+#simple-filters button {
+  padding: 6px 8px;
+  background: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+#simple-filters button.active {
+  background: #ffcc00;
+}
+
+/* когда боковая панель в advanced-open (расширённом) режиме */
+.side-panel.advanced-open #simple-filters {
+  display: none !important;
+}
+/* а когда не в advanced-open, вернуть сетку */
+.side-panel:not(.advanced-open) #simple-filters {
+  display: grid !important;
+  grid-template-columns: max-content max-content;
+  grid-auto-rows: auto;
+  column-gap: 8px;
+  row-gap:    6px;
+  margin-top: 10px;
+}
+
+/* контейнер для режимных кнопок в простом режиме */
+#simple-mode-controls {
+  display: inline-flex;    /* вместо блок‑flex */
+  align-Items: center;
+  gap: 6px;
+  margin-bottom: 0;        /* убрали лишний отступ снизу */
+  margin-left: 12px;       /* небольшое расстояние от чекбокса */
+}
+
+/* сами кнопки — как в attr-filter-row */
+#simple-mode-controls button {
+  padding: 6px 8px;
+  background: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+  /* Увеличим сами кнопки */
+  padding: 8px 12px;
+  font-size: 1.2em;
+}
+#simple-mode-controls button.active {
+  background: #ffcc00;
+}
+
+/* Скрываем блок простых режимных кнопок в advanced-open */
+.side-panel.advanced-open #simple-mode-controls {
+  display: none !important;
+}
+
+/* И на случай, если нужен обратный явный показ в обычном режиме */
+.side-panel:not(.advanced-open) #simple-mode-controls {
+  display: flex; /* или inline-flex, как вам нужно */
+}
+
+/* контейнер с кнопками выбора фона */
+.side-panel .background-controls {
+  position: relative;
+  top: -51px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.3);
+}
+
+/* сами кнопки-фоны */
+.side-panel .background-controls .bg-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background-size: cover;
+  background-position: center;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: transform 0.2s;
+}
+.side-panel .background-controls .bg-btn:hover {
+  transform: scale(1.1);
+}
+
+/* в расширённом режиме отодвигаем bg-кнопки ниже, чтобы не налезали на фильтры */
+.side-panel.advanced-open .background-controls {
+  bottom: -180px; /* подберите значение под вашу высоту фильтров */
+}
+
+/* --- Контейнер кнопок импорта --- */
+.side-panel .import-controls {
+    position: relative;
+    top: -41px; /* Чуть ниже фонов */
+    left: 10px;
+    right: 10px;
+    display: flex;
+    gap: 10px;
+    padding-top: 10px;
+}
+
+/* Группа (инпут скрыт, лейбл как кнопка) */
+.import-group {
+    flex: 1;
+}
+
+.import-group input[type="file"] {
+    display: none;
+}
+
+.import-btn {
+    display: block;
+    width: 90%;
+    padding: 6px 1px; /* Matches standard buttons */
+    background: #807FCF;
+    color: #000; /* Contrast against white bg */
+    text-align: center;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background 0.2s;
+    user-select: none;
+    border: none;
+    box-sizing: border-box;
+}
+
+.import-btn:hover {
+    background: #f0f0f0;
+}
+
+/* В расширенном режиме сдвигаем импорт еще ниже, если нужно */
+.side-panel.advanced-open .import-controls {
+    bottom: -180px; /* Если фоны сдвигаются, это тоже может понадобиться сдвигать */
+}
+
+/* при докинге — подвинуть контент */
+body.docked {
+  /* прибавляем ширину панели к правому отступу */
+  padding-right: calc(var(--panel-width) + 20px);
+}

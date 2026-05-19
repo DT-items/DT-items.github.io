@@ -1,0 +1,1398 @@
+/* editor.css */
+
+/* Переменные цветов из примера */
+:root {
+    --top-bar-bg: #151515;
+    --control-bg: #252525;
+    --control-hover-bg: #333333;
+    --top-bar-border: #444;
+    --text-normal: #e0e0e0;
+    --text-muted: #888;
+    --primary-color: #674DF2; /* Синий акцент */
+    --special-stat-color: #ffd700; /* Orange/Gold header */
+    --col-bg: #1e1e1e; /* Darker bg for columns */
+}
+
+/* Оверлей */
+.editor-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background-color: rgba(0,0,0,0.7);
+  z-index: 5000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+.editor-overlay.visible {
+  display: flex;
+}
+
+/* Модальное окно */
+.unit-editor-modal {
+    background-color: var(--top-bar-bg);
+    border: 1px solid var(--top-bar-border);
+    border-radius: 8px;
+    width: 95vw;
+    max-width: 970px; 
+    height: 95vh;
+    max-height: 95vh;
+    display: flex;
+    flex-direction: row;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    position: relative;
+    color: var(--text-normal);
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* --- ЦЕНТРАЛЬНАЯ КОЛОНКА (Content) --- */
+.editor-content-column {
+    flex: 1;
+    padding: 10px; /* Было 20px */
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Было 15px */
+    background-color: var(--top-bar-bg);
+}
+
+/* --- ШАПКА РЕДАКТОРА (ICON + ID + NAME + DESC) --- */
+.editor-header-split {
+    display: flex;
+    gap: 10px; /* Было 20px */
+    align-items: flex-start;
+}
+
+.editor-visual-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px; /* Было 8px */
+    width: 62px; /* Было 75px, подгоняем под иконку 60px */
+    flex-shrink: 0;
+}
+
+.editor-text-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px; /* Было 10px */
+    position: relative; 
+    min-width: 0; /* Prevent flex overflow */
+}
+
+.editor-icon-wrapper {
+    width: 60px; /* Было 65px */
+    height: 60px; /* Было 65px */
+    border: 2px dashed #555;
+    border-radius: 8px;
+    background: url('2background.png') repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    align-self: center;
+}
+.editor-icon-wrapper:hover {
+    border-color: var(--primary-color);
+}
+.editor-icon-wrapper img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    /* Убрано pixelated, поставлено стандартное сглаживание */
+    image-rendering: auto; 
+}
+.editor-icon-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    color: white;
+    font-weight: bold;
+    font-size: 0.7rem;
+    transition: opacity 0.2s;
+}
+.editor-icon-wrapper:hover .editor-icon-overlay {
+    opacity: 1;
+}
+
+/* Обертка для ID и Цены */
+.ed-id-cost-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.ed-id-cost-wrapper label {
+    font-size: 0.65rem; /* Чуть уменьшил */
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: bold;
+    text-align: center;
+}
+.ed-id-cost-wrapper input {
+    text-align: center;
+    font-family: monospace;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    padding: 1px; /* Уменьшил паддинг */
+    background-color: var(--control-bg);
+    border: 1px solid var(--top-bar-border);
+    color: var(--text-muted);
+    width: 100%;
+    box-sizing: border-box;
+}
+.ed-id-cost-wrapper input.cost-input {
+    color: #f0a500; /* Gold color */
+    font-weight: bold;
+}
+
+.editor-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px; /* Было 4px */
+    position: relative; /* Для позиционирования счетчика внутри */
+}
+.editor-field label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+/* Обёртка для слова "Название" и новой кнопки Zoom */
+.label-zoom-wrapper {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+.label-zoom-wrapper label {
+    margin: 0;
+}
+.zoom-icon-btn {
+    width: 20px;
+    height: 20px;
+    min-height: 20px;
+    padding: 0;
+    color: var(--text-muted);
+}
+.zoom-icon-btn:hover {
+    color: var(--primary-color);
+}
+
+.editor-input {
+    background-color: var(--control-bg);
+    border: 1px solid var(--top-bar-border);
+    color: var(--text-normal);
+    padding: 5px 8px; /* Было 8px 10px */
+    border-radius: 4px;
+    font-size: 0.95rem; /* Чуть меньше */
+    width: 100%;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.editor-input:focus {
+    border-color: var(--primary-color);
+}
+.editor-input:read-only {
+    opacity: 0.7;
+    cursor: default;
+}
+
+textarea.compact-textarea {
+    resize: none;
+    min-height: 75px; /* Было 55px, увеличили как просили */
+    font-family: inherit;
+    line-height: 1.3;
+    font-size: 0.85rem;
+    padding-bottom: 15px; /* Место для счетчика */
+}
+
+/* Счетчик символов - внутри поля */
+.char-counter {
+    position: absolute;
+    bottom: 3px;
+    right: 5px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background-color: rgba(0,0,0,0.3);
+    padding: 1px 4px;
+    border-radius: 4px;
+    pointer-events: none; /* Чтобы можно было кликнуть сквозь него в поле */
+    z-index: 2;
+}
+
+/* --- ГРИД СВОЙСТВ (Fixed Columns) --- */
+.properties-grid {
+    display: grid;
+    grid-template-columns: 180px 180px 220px;
+    gap: 8px; /* Было 15px */
+    background-color: var(--control-bg);
+    padding: 8px; /* Было 15px */
+    border-radius: 6px;
+    border: 1px solid var(--top-bar-border);
+    align-items: end;
+    overflow-x: auto; 
+}
+
+.ed-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px; /* Было 4px */
+    min-width: 0;
+}
+.ed-field-group label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+
+/* --- ТАБЛИЦА ХАРАКТЕРИСТИК (STATS) - NEW LAYOUT --- */
+.editor-stats-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; 
+}
+
+/* Обертка для двух колонок */
+.stats-columns-wrapper {
+    display: flex;
+    gap: 10px; /* Было 15px */
+    margin-bottom: 8px; /* Было 20px */
+}
+
+.stats-column {
+    flex: 1;
+    background-color: var(--col-bg); /* Darker background */
+    border-radius: 6px;
+    border: 1px solid var(--top-bar-border);
+    padding: 6px; /* Было 10px */
+    display: flex;
+    flex-direction: column;
+}
+
+.stats-col-header {
+    margin: 0 0 5px 0; /* Было 10px */
+    color: var(--special-stat-color); /* Orange/Gold title */
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Внутренний грид в колонке */
+.stats-grid-compact {
+    display: grid;
+    /* УВЕЛИЧЕНА ШИРИНА ИНПУТОВ: было 38px -> стало 48px */
+    grid-template-columns: 1fr 48px 48px 48px;
+    gap: 2px 6px; /* Вертикальный гэп уменьшен до 2px */
+    align-items: center;
+}
+
+/* Заголовки столбцов грида */
+.sh-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+.sh-val {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* Строки */
+.stat-label-cell {
+    font-weight: bold;
+    color: var(--text-normal);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.85rem;
+    text-align: left; /* Align labels left */
+}
+
+/* Стандартные стили инпутов */
+.stat-input {
+    width: 100%;
+    background-color: #2b2b2b; /* Slightly lighter inside input */
+    border: 1px solid #444;
+    color: #fff;
+    padding: 1px 0; /* Уменьшен паддинг */
+    border-radius: 4px;
+    text-align: center;
+    font-family: monospace;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+    font-weight: bold;
+}
+.stat-input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+/* --- ЦВЕТА ЧИСЕЛ В ИНПУТАХ --- */
+/* Combat (Col 1) */
+.stat-attack { color: #ff6b6b; } /* Redish */
+.stat-defense { color: #69f0ae; } /* Greenish */
+.stat-magic { color: #ffd700; }   /* Gold */
+.stat-init { color: #536DD6; }    /* #9CD264 (Requested) */
+.stat-moves { color: #ffffff; }   /* White */
+
+/* Defense (Col 2) */
+.stat-life { color: #ffffff; }    /* White */
+.stat-res-life { color: #5C9FF3; } /* #5C9FF3 (Requested) */
+.stat-res-death { color: #AB8DCF; } /* #AB8DCF (Requested) */
+.stat-res-elem { color: #6BC169; } /* #6BC169 (Requested) */
+.stat-vamp { color: #ff6b6b; }    /* Redish */
+.stat-regen { color: #9CD264; }   /* #9CD264 (Requested) */
+
+
+/* --- PREVIEW AREA (BOTTOM) --- */
+.item-preview-area-bottom {
+    display: flex;
+    justify-content: center;
+    padding-top: 5px; /* Было 10px */
+    border-top: 1px solid var(--top-bar-border);
+}
+
+/* Статичный тултип */
+.static-tooltip-preview {
+    position: relative;
+    width: 300px;
+    background: url('tooltip-bg.png') top left/100% 100% no-repeat;
+    padding: 10px;
+    padding-bottom: 15px;
+    box-sizing: border-box;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    color: #e0e0e0;
+    text-align: center;
+    font-family: sans-serif;
+}
+.static-tooltip-preview h3 {
+    margin: 0 0 5px;
+    padding: 0 20px; /* Виртуальный отступ от краев */
+    font-size: 1em;
+    color: #ffffff;
+}
+.static-tooltip-preview p {
+    margin: 0.5em 0;
+    font-size: 0.9em;
+    color: #EBF083;
+    word-wrap: break-word;
+}
+.static-tooltip-preview .attrs {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.85em;
+}
+
+/* ИСПРАВЛЕНИЕ: Селектор только для обычных характеристик */
+.static-tooltip-preview .attrs li:not(.bonus-line):not(.magic-line):not(.spacer) {
+    margin: 2px 0;
+    color: #E7A64F;
+}
+
+.static-tooltip-preview .gold-icon {
+    display: inline-block;
+    vertical-align: middle;
+    width: 16px;
+    height: 16px;
+    margin-left: 2px;
+    object-fit: contain;
+}
+
+/* Бонус */
+.static-tooltip-preview .bonus-line { 
+    margin: 2px 0;
+    position: relative;
+    text-align: center;
+    color: #ffffff;
+}
+.static-tooltip-preview .bonus-line .bonus-text {
+  display: inline-block;
+  position: relative;
+}
+.static-tooltip-preview .bonus-line .bonus-text::before {
+  content: var(--bonus-icon);
+  position: absolute;
+  right: calc(100% + 4px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 25px;
+  height: 25px;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+/* Магия */
+.static-tooltip-preview .magic-line { 
+    margin: 2px 0;
+    text-align: center;
+    color: #62B3F7; 
+    display: block; 
+}
+.static-tooltip-preview .magic-line .bonus-text {
+    display: inline-block;
+    font-weight: bold;
+}
+
+.static-tooltip-preview .magic-line.magic-death { color: #000 !important; }
+.static-tooltip-preview .magic-line.magic-death .bonus-text { text-shadow: 0 0 2.3px #fff; }
+.static-tooltip-preview .magic-line.magic-elemental { color: #22B14C !important; }
+.static-tooltip-preview .magic-line.magic-life { color: #62B3F7 !important; }
+
+/* ИСПРАВЛЕНИЕ: Принудительно удаление тени для других типов магии */
+.static-tooltip-preview .magic-line.magic-life .bonus-text,
+.static-tooltip-preview .magic-line.magic-elemental .bonus-text {
+    text-shadow: none !important;
+}
+
+.static-tooltip-preview .tooltip-id {
+    position: absolute;
+    bottom: 10px;
+    left: 12px;
+    font-size: 0.9em;
+    color: #ffffff;
+}
+.static-tooltip-preview .tooltip-price {
+    position: absolute;
+    bottom: 10px;
+    right: 12px;
+    font-size: 1.1em;
+    color: #ffffff;
+}
+
+
+/* Footer Buttons */
+.editor-footer {
+    display: flex;
+    justify-content: flex-end; /* Изменено, чтобы элементы распределялись */
+    gap: 10px;
+    padding-top: 8px; /* Было 15px */
+    border-top: 1px solid var(--control-bg);
+    margin-top: auto; 
+    align-items: center;
+}
+
+.editor-btn {
+    padding: 4px 12px; /* Уменьшен паддинг */
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.8rem; /* Уменьшен шрифт с 0.9rem */
+    border: none;
+    transition: filter 0.2s;
+    height: 30px; /* Фиксированная высота для аккуратности */
+}
+.editor-btn:hover {
+    filter: brightness(1.15);
+}
+.btn-save {
+
+    background-color: var(--primary-color);
+    color: #fff;
+}
+.btn-cancel {
+    background-color: var(--control-bg);
+    color: var(--text-normal);
+    border: 1px solid var(--top-bar-border);
+}
+
+/* Стиль кнопки экспорта */
+.btn-export {
+    background-color: #2e7d32; /* Зеленый */
+    color: #fff;
+    margin-right: auto; /* Толкает все остальные кнопки вправо, если родитель flex */
+}
+
+
+/* Стиль кнопки создания */
+.btn-create {
+    background-color: #009688; /* Teal */
+    color: #fff;
+}
+
+/* --- ПРАВАЯ КОЛОНКА (Sidebar) --- */
+.editor-sidebar {
+    width: 250px;
+    background-color: var(--control-bg);
+    border-left: 1px solid var(--top-bar-border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    position: relative; /* Context for absolute children */
+}
+
+.editor-search {
+    padding: 10px;
+    border-bottom: 1px solid var(--top-bar-border);
+    background-color: var(--control-bg);
+    z-index: 20; /* Above scrolls */
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.editor-sort-btn {
+    background-color: var(--top-bar-bg);
+    border: 1px solid var(--top-bar-border);
+    color: var(--text-muted);
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.2s, color 0.2s;
+}
+.editor-sort-btn:hover {
+    background-color: var(--control-hover-bg);
+    color: var(--text-normal);
+}
+
+.search-input-wrapper {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0; /* Important for flex shrinking */
+}
+.search-input-wrapper input {
+    width: 100%;
+    background-color: var(--top-bar-bg);
+    border: 1px solid var(--top-bar-border);
+    color: var(--text-normal);
+    padding: 6px 28px 6px 8px; /* Extra padding right for clear button */
+    border-radius: 4px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.editor-search-clear {
+    position: absolute;
+    right: 4px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 50%;
+}
+.editor-search-clear:hover {
+    color: var(--text-normal);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+.editor-search-clear.visible { display: flex; }
+
+/* --- PHYSICS SCROLL LIST --- */
+.scroll-container-wrapper-inner {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    z-index: 0;
+    /* CSS Variables for Physics List */
+    --item-height: 52px;
+    --gap: 4px;
+}
+
+.selection-cursor {
+    position: absolute;
+    left: 4px; 
+    right: 22px; /* 14px Scrollbar + 8px Gap */
+    height: var(--item-height);
+    
+    /* Solid Fill */
+    /* OLD: background-color: var(--primary-color); */
+    /* NEW: Semi-transparent blue */
+    background-color: rgba(103, 77, 242, 0.2);
+    border: 1px solid var(--primary-color);
+    border-radius: 6px;
+    /* Glow REMOVED */
+    box-shadow: none;
+    
+    pointer-events: none; 
+    z-index: 1; /* Layer 1: Above background, below items */
+    top: 0;
+    transform-origin: center center;
+    transition: transform 0.05s linear; /* Smooth micro-adjustments */
+}
+
+.scroll-container {
+    height: 100%;
+    overflow-y: scroll;
+    padding: 0 12px 0 4px; /* Increased right padding for gap from scrollbar */
+    scroll-behavior: auto; 
+    position: relative;
+    z-index: 2; /* Layer 2: List items sit on top of cursor */
+    
+    /* Custom Scrollbar Styling */
+    scrollbar-width: auto; /* Firefox auto width */
+    scrollbar-color: var(--text-muted) transparent;
+}
+
+.scroll-container::-webkit-scrollbar { 
+    display: block;
+    width: 14px; /* Total track width */
+}
+
+.scroll-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scroll-container::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 7px;
+    border: 2px solid var(--control-bg); /* 14px width - 4px border = 10px thumb */
+}
+
+.scroll-container::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+.list-spacer {
+    height: 10px;
+}
+
+/* Gradient fades */
+.fade-overlay-top, .fade-overlay-bottom {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 40px;
+    z-index: 15;
+    pointer-events: none;
+}
+
+.fade-overlay-top {
+    top: 0;
+    background: linear-gradient(to bottom, var(--control-bg), transparent);
+}
+
+.fade-overlay-bottom {
+    bottom: 0;
+    background: linear-gradient(to top, var(--control-bg), transparent);
+}
+
+/* --- LIST ITEM STYLES --- */
+.ed-list-item {
+    height: var(--item-height); /* 52px */
+    margin-bottom: var(--gap); /* 4px */
+    padding: 0 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: 6px;
+    transition: opacity 0.2s;
+    background-color: transparent; /* No background by default */
+    box-sizing: border-box;
+    opacity: 1; /* Fully opaque */
+}
+.ed-list-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+.ed-list-item.selected {
+    opacity: 1;
+    background-color: transparent; /* Transparent so cursor shows through */
+}
+/* Font weight bold when selected, but no color change */
+.ed-list-item.selected .ed-list-name {
+    font-weight: bold;
+}
+
+.ed-list-icon {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    background-color: transparent; /* Changed from rgba(0,0,0,0.2) */
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.ed-list-name {
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-normal);
+}
+.ed-list-cost {
+    margin-left: 5px;
+    color: #f0a500; /* Restore Gold */
+    font-weight: bold;
+}
+
+
+
+/* --- CUSTOM SELECT --- */
+.ed-custom-select-container {
+    position: relative;
+    width: 100%;
+    min-width: 0; 
+}
+
+.ed-custom-select-head {
+    background-color: var(--top-bar-bg);
+    border: 1px solid var(--top-bar-border);
+    border-radius: 4px;
+    padding: 4px 10px; /* Немного компактнее */
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 30px; /* Было 34px */
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+    white-space: nowrap;
+}
+.ed-custom-select-head:hover {
+    border-color: #666;
+}
+
+.selected-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+    flex: 1;
+}
+.selected-content img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+.selected-content span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.9rem;
+}
+
+.ed-custom-select-arrow {
+    width: 0; 
+    height: 0; 
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid var(--text-muted);
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.ed-custom-select-options {
+    position: fixed;
+    background-color: var(--control-bg);
+    border: 1px solid var(--top-bar-border);
+    border-radius: 4px;
+    z-index: 6000;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+    display: none;
+    margin-top: 2px;
+}
+.ed-custom-select-options.open {
+    display: block;
+}
+
+.ed-custom-select-options.grid-layout {
+    display: none;
+}
+.ed-custom-select-options.grid-layout.open {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    min-width: 450px;
+}
+
+.ed-custom-option {
+    padding: 6px 10px; /* Компактнее */
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-normal);
+    font-size: 0.9rem;
+    transition: background 0.1s;
+}
+.ed-custom-option:hover {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+.ed-custom-option.selected {
+    background-color: rgba(255,255,255,0.1);
+}
+.ed-custom-option img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent; 
+}
+::-webkit-scrollbar-thumb {
+    background: #444; 
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #555; 
+}
+
+/* Context Menu */
+.custom-context-menu {
+    position: absolute;
+    background: var(--control-bg);
+    border: 1px solid var(--top-bar-border);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    border-radius: 4px;
+    padding: 5px 0;
+    display: none;
+    z-index: 9999;
+    min-width: 160px;
+}
+.custom-context-menu.visible { display: block; }
+.custom-context-menu .ctx-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #ffffff;
+    transition: background 0.1s;
+}
+.custom-context-menu .ctx-item:hover {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+
+/* --- VERTICAL SLIDER POPUP --- */
+.ed-slider-popup {
+    position: fixed;
+    width: 40px;  /* Ширина контейнера */
+    height: 420px; 
+    background: var(--control-bg);
+    border: 1px solid var(--top-bar-border);
+    border-radius: 4px;
+    z-index: 6000;
+    display: none;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+}
+.ed-slider-popup.visible {
+    display: block;
+}
+
+/* Визуальная рельса слайдера (отдельный элемент) */
+.slider-track-visual {
+    position: absolute;
+    top: 20px;
+    bottom: 20px;
+    left: 18px; /* (40px container - 4px width) / 2 = 18px */
+    width: 4px;
+    background: #444;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+input[type=range].vertical-slider {
+    position: absolute;
+    transform: rotate(-90deg);
+    /* 
+       Ширина слайдера (которая после поворота становится высотой) увеличена до 440px.
+       Это нужно, чтобы физический ход ползунка соответствовал визуальной высоте линейки (380px) 
+       с учетом размера самого ползунка.
+    */
+    width: 440px; 
+    height: 58px; /* Соответствует новому размеру ползунка */
+    
+    /* 
+       Центрирование:
+       Top = (ContainerHeight / 2) - (InputHeight / 2) = (420 / 2) - (58 / 2) = 210 - 29 = 181px.
+       Left = (ContainerWidth / 2) - (InputWidth / 2) = (40 / 2) - (440 / 2) = 20 - 220 = -200px.
+    */
+    top: 181px;
+    left: -200px;
+    
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    z-index: 1; /* Поверх визуальной рельсы */
+}
+
+/* Стилизация трека - делаем прозрачным, так как есть slider-track-visual */
+input[type=range].vertical-slider::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    background: transparent;
+    border-radius: 2px;
+    cursor: pointer;
+}
+input[type=range].vertical-slider::-moz-range-track {
+    width: 100%;
+    height: 4px;
+    background: transparent;
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+/* Стилизация ползунка */
+input[type=range].vertical-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    /* Уменьшено с 72px до 58px (~20%) */
+    height: 58px; 
+    width: 58px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    /* Бордер уменьшен, чтобы визуальная точка (16px) осталась прежней: 58 - (21*2) = 16 */
+    border: 21px solid transparent; 
+    background-clip: content-box;   
+    /* Margin-top = (trackHeight - thumbHeight) / 2 = (4 - 58) / 2 = -27px */
+    margin-top: -27px; 
+    cursor: pointer;
+    box-shadow: none;
+}
+
+input[type=range].vertical-slider::-moz-range-thumb {
+    height: 58px;
+    width: 58px;
+    border: 21px solid transparent;
+    border-radius: 50%;
+    background: var(--primary-color);
+    background-clip: content-box;
+    cursor: pointer;
+}
+
+/* Линейка */
+.slider-ruler {
+    position: absolute;
+    top: 20px;
+    bottom: 20px;
+    right: 0;   
+    width: 15px; 
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    pointer-events: none;
+    z-index: 0;
+}
+.slider-tick {
+    position: relative;
+    height: 1px;
+    background: #666;
+    width: 100%;
+}
+/* Цифры: выровнены влево, отступ справа увеличен до 20px (18+2) */
+.slider-tick::after {
+    content: attr(data-val);
+    position: absolute;
+    right: 14px; 
+    width: 25px; 
+    top: -6px;
+    font-size: 10px;
+    color: #888;
+    font-family: monospace;
+    text-align: left; 
+}
+.slider-tick.zero {
+    background: #fff;
+    height: 2px;
+}
+.slider-tick.zero::after {
+    color: #fff;
+    font-weight: bold;
+}
+
+/* --- ICON SELECTOR POPOVER --- */
+.icon-selector-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 6000; /* Выше всего */
+    display: none; /* Скрыт по умолчанию */
+    align-items: center;
+    justify-content: center;
+}
+.icon-selector-overlay.visible {
+    display: flex;
+}
+
+.icon-selector-modal {
+    background-color: var(--top-bar-bg);
+    border: 1px solid var(--top-bar-border);
+    border-radius: 8px;
+    width: 900px;
+    max-width: 95vw;
+    height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+}
+
+.icon-panels-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 20px;
+    padding: 0 20px 20px;
+    margin-top: 10px;
+}
+
+.icon-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--control-bg);
+    border-radius: 8px;
+    border: 1px solid var(--top-bar-border);
+    overflow: hidden;
+}
+
+.icon-panel h4 {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 1rem;
+    white-space: nowrap;
+}
+
+.icon-panel .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: rgba(0,0,0,0.2);
+    border-bottom: 1px solid var(--top-bar-border);
+    gap: 10px;
+}
+
+/* Поиск в шапке панели иконок */
+.header-search-wrapper {
+    position: relative;
+    flex: 1;
+    max-width: 200px; /* Limit width */
+}
+
+.header-search-wrapper input {
+    width: 100%;
+    background-color: var(--top-bar-bg);
+    border: 1px solid var(--top-bar-border);
+    color: var(--text-normal);
+    padding: 6px 30px 6px 10px; /* Right padding for clear button */
+    border-radius: 4px;
+    outline: none;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+}
+
+.header-search-wrapper input:focus {
+    border-color: var(--primary-color);
+}
+
+.search-clear-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: none; /* JS toggles flex */
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+}
+.search-clear-btn:hover {
+    color: var(--text-normal);
+}
+
+.icon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 10px;
+    overflow-y: auto;
+    padding: 15px;
+    flex: 1;
+    align-content: start; /* Fixes spacing when few items */
+}
+
+.icon-option {
+    width: 64px;
+    height: 64px;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background-color: transparent; /* Changed from rgba(0,0,0,0.2) */
+}
+
+.icon-option:hover {
+    border-color: var(--text-muted);
+    transform: scale(1.05);
+}
+
+.icon-option.selected {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 10px var(--primary-color);
+}
+
+.icon-option img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    /* Убрано pixelated, поставлено стандартное сглаживание для селектора тоже */
+    image-rendering: auto; 
+}
+
+/* --- Стили для модального окна "Несохраненные изменения" --- */
+.unsaved-modal {
+    background-color: #2b2b2b;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 20px;
+    width: 400px;
+    max-width: 90vw;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+}
+
+.unsaved-title {
+    margin: 0;
+    color: #ff6b6b; /* Красный заголовок */
+    font-size: 1.2rem;
+}
+
+.unsaved-text {
+    color: #e0e0e0;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.unsaved-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.uc-btn {
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: #fff;
+    transition: filter 0.2s;
+    flex: 1; /* Кнопки делят ширину */
+}
+
+.uc-btn:hover:not(:disabled) {
+    filter: brightness(1.15);
+}
+
+.uc-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-grey {
+    background-color: #333;
+    border: 1px solid #555;
+    color: #ccc;
+}
+
+.btn-red {
+    background-color: #d32f2f;
+}
+
+.btn-purple {
+    background-color: #674DF2;
+}
+
+/* --- Стили для динамической кнопки (К последнему / Удалить) --- */
+#ed-dynamic-btn {
+    /* Базовый стиль */
+    color: #fff;
+    border: none;
+    background-color: #444; /* Default fallback */
+}
+
+/* Синий (обычный режим навигации) -> Заменено на коричневый по запросу */
+#ed-dynamic-btn.btn-neutral {
+    background-color: #A8673C; /* Коричневый */
+}
+
+/* Красный (режим удаления) */
+#ed-dynamic-btn.btn-danger {
+    background-color: #d32f2f; 
+}
+
+/* --- Группа инпута в одну строку (Название + Кнопки) --- */
+.input-group-row {
+    display: flex;
+    gap: 5px;
+    width: 100%;
+}
+
+.input-group-row input {
+    flex: 1; /* Инпут занимает все доступное место */
+    min-width: 0; /* Important for flex shrinking */
+}
+
+/* Common style for icon buttons in groups */
+.icon-action-btn {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    background-color: var(--top-bar-bg);
+    border: 1px solid var(--top-bar-border);
+    border-radius: 4px;
+    color: var(--text-normal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    padding: 0;
+}
+
+.icon-action-btn:hover {
+    background-color: var(--control-hover-bg);
+}
+
+.icon-export-btn {
+    width: auto; /* Remove fixed width */
+    height: 32px; /* Под высоту инпута + паддинги */
+    flex-shrink: 0;
+    background-color: #2e7d32;
+    border: 1px solid var(--top-bar-border);
+    border-radius: 4px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: filter 0.2s;
+    padding: 0 12px; /* Add horizontal padding */
+    font-size: 0.9rem; /* Ensure text fits */
+    white-space: nowrap;
+}
+
+.icon-export-btn:hover {
+    filter: brightness(1.15);
+}
+
+/* --- Исправление отображения иконки бонуса в редакторе --- */
+/* Используем background-image вместо content для корректного отображения картинки из CSS переменной */
+.static-tooltip-preview .bonus-line .bonus-text.has-icon::before {
+  content: "";
+  background-image: var(--bonus-icon);
+  position: absolute;
+  right: calc(100% + 4px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 25px;
+  height: 25px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  display: block;
+}
+
+/* Скрываем псевдоэлемент, если нет класса has-icon (нет картинки) */
+.static-tooltip-preview .bonus-line .bonus-text:not(.has-icon)::before {
+    display: none;
+}
+
+/* --- Модальное окно ZOOM (Сравнение UGS сжатия) --- */
+.zoom-modal {
+    background-color: var(--top-bar-bg);
+    border: 1px solid var(--top-bar-border);
+    border-radius: 8px;
+    width: 900px; /* Увеличено в 1.5 раза (было 600) */
+    max-width: 95vw;
+    display: flex;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+.zoom-content-area {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+#zoom-title {
+    height: 50px; /* Жестко фиксируем высоту, чтобы избежать дерганий при смене текста */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    margin: 0;
+}
+.zoom-image-wrapper {
+    width: 212px; /* 53 * 4 = 212 */
+    height: 212px;
+    border: 2px dashed #555;
+    background: url('2background.png') repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+}
+.zoom-image-wrapper canvas {
+    width: 100%;
+    height: 100%;
+    /* Ключевое свойство для отключения сглаживания при увеличении */
+    image-rendering: pixelated; 
+}
+#zoom-compare-btn {
+    width: 50%; /* В два раза меньше контейнера */
+    padding: 6px 12px; /* Чуть меньше отступов для аккуратности */
+    font-size: 0.85rem;
+    min-height: 32px;
+}
+.zoom-info-sidebar {
+    width: 290px; /* Сайдбар тоже немного расширен пропорционально */
+    background-color: var(--control-bg);
+    border-left: 1px solid var(--top-bar-border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    color: var(--text-normal);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+.zoom-info-sidebar h4 {
+    margin: 0;
+    color: var(--special-stat-color);
+    font-size: 1rem;
+}

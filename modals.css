@@ -1,0 +1,256 @@
+
+
+/* ==== Оверлей ==== */
+.about-overlay,
+.about-popup {
+  opacity: 0;
+  visibility: hidden;
+  /* сначала 0.5s меняем opacity, а visibility меняем мгновенно с задержкой 0.5s */
+  transition:
+    opacity 0.5s ease,
+    visibility 0s linear 0.5s;
+}
+
+.about-overlay.visible,
+.about-popup.visible {
+  opacity: 1;
+  visibility: visible;
+  /* когда показываем, visibility устанавливаем сразу (delay 0), а потом плывёт opacity */
+  transition:
+    opacity 0.5s ease,
+    visibility 0s;
+}
+
+/* overlay */
+.about-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background-color: rgba(0,0,0,0.5);
+  z-index: 4000;
+  pointer-events: none;    /* пока скрыт — не мешает кликам */
+}
+.about-overlay.visible {
+  pointer-events: auto;    /* когда показываем — перехватывает клики */
+}
+
+/* popup */
+.about-popup {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 330px;       /* подберите под свой дизайн */
+  padding: 20px;
+  box-sizing: border-box;
+  background: none;        /* фон теперь в ::before */
+  z-index: 4001;
+  text-align: center;
+  pointer-events: none;  /* пока скрыто — клики проходят сквозь */
+}
+
+.about-popup::before {
+  content: "";
+  position: absolute;         /* чтобы не влиять на .about-popup */
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 395px;            /* нужный вам размер картинки */
+  height: 378px;           /* подгоняйте под пропорции */
+  background: url('abwindow.png') no-repeat center/contain;
+  background-size: contain;
+  pointer-events: none;    /* не мешает кликам */
+  z-index: -1;           /* чуть ниже текста */
+}
+
+.about-popup.visible {
+  pointer-events: auto;  /* когда показываем — клики внутри обрабатываются */
+}
+/* картинка внутри окна */
+.about-popup__image {
+  display: block;
+  margin: 0 auto 10px;
+  max-width: 80%;
+  height: auto;
+}
+/* текст внутри окна */
+.about-popup__text {
+  color: #fff;                /* или ваш цвет */
+  font-size: 1em;
+  line-height: 1.4;
+}
+
+/* ==== Пасхальное оверлей-изображение ==== */
+.egg-overlay {
+  position: fixed;
+  top:    0;
+  left:   0;
+  width:  100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.8);
+  display: none;
+  align-Items:    center;
+  justify-content: center;
+  z-index: 5000; /* выше всего */
+}
+.egg-overlay.visible {
+  display: flex;
+}
+.egg-overlay img {
+  width: 700px;
+  object-fit: contain;
+}
+
+/* === NOTIFICATIONS (TOASTS) === */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none; /* Allows clicks to pass through gaps */
+}
+
+.toast {
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 1rem;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform: translateY(-20px);
+    pointer-events: auto;
+    font-family: sans-serif;
+}
+
+.toast.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast.success {
+    border-left: 4px solid #2e7d32; /* Green */
+}
+
+.toast.error {
+    border-left: 4px solid #d32f2f; /* Red */
+}
+
+/* === Loading Overlay === */
+.loading-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.7);
+  z-index: 9999; /* Очень высокий z-index */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease;
+  backdrop-filter: blur(2px);
+}
+.loading-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(255, 255, 255, 0.3);
+  border-top: 5px solid #674DF2; /* Primary color */
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+.loading-text {
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: bold;
+  font-family: sans-serif;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* === Bonus Help Modal === */
+.bonus-help-modal {
+    background-color: #151515;
+    border: 1px solid #444;
+    border-radius: 8px;
+    width: 900px;
+    max-width: 95vw;
+    height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    position: relative;
+    color: #e0e0e0;
+}
+
+.bonus-help-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #444;
+    display: flex;
+    align-items: center;
+}
+
+.bonus-help-header h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 1.2rem;
+}
+
+.bonus-help-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    align-content: start;
+}
+
+.bonus-list-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 10px;
+    background-color: #252525;
+    border: 1px solid #333;
+    border-radius: 6px;
+    margin-bottom: 0;
+}
+
+.bonus-list-item img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.bonus-item-content {
+    flex: 1;
+}
+
+.bonus-item-title {
+    font-weight: bold;
+    color: #ffd700;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.bonus-item-desc {
+    font-size: 0.9em;
+    color: #ccc;
+    line-height: 1.4;
+}

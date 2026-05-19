@@ -1,0 +1,373 @@
+
+/* группы */
+.group {
+  margin-bottom: var(--group-gap);
+  /* Добавляем динамический отступ для поддержки масштабирования */
+  margin-bottom: var(--group-margin-dynamic, var(--group-gap));
+}
+.group h2 {
+  margin-bottom: calc(var(--group-gap) * 0.25);
+  color: #ffffff;
+  font-family: 'BeauMarchaisC', sans-serif;
+  /* Размер шрифта теперь зависит от масштаба (база 2em при 0.8) */
+  font-size: calc(2em * var(--header-scale-ratio, 1));
+}
+
+/* контейнер иконок */
+.Items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* карточка */
+.item {
+  position: relative;
+  width: calc(var(--thumb-size) * var(--global-scale));
+  height: calc(var(--thumb-size) * var(--global-scale));
+  cursor: pointer;
+}
+.item img {
+  width: 100%;
+  height: 100%;
+  transition: transform var(--transition);
+  /* картинки не выделяются и не перетаскиваются */
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+  -webkit-user-drag: none;
+}
+/* Применяем скейл ТОЛЬКО к непосредственному изображению предмета, 
+   чтобы не увеличивать иконки внутри тултипа (золото, бонусы) */
+.item:hover > img,
+.item.selected > img {
+  transform: scale(var(--thumb-hover-scale));
+}
+
+/* тултип */
+.tooltip {
+  position: fixed;
+  box-sizing: border-box;
+  width: var(--tooltip-width);
+  background: var(--tooltip-bg);
+  background-size: 100% 100%;
+  padding: 10px;
+  /* Увеличен нижний отступ */
+  padding-bottom: 15px; 
+  border-radius: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition);
+  z-index: 1000;
+  text-align: center;
+}
+.tooltip.visible,
+.item.selected .tooltip {
+  opacity: 1;
+}
+
+.tooltip h3 {
+  margin: 0 0 5px;
+  padding: 0 20px; /* Виртуальный отступ от краев, чтобы не наслаивалось на иконки */
+  font-size: 1em;
+  color: #ffffff;
+  font-family: sans-serif;
+}
+
+.tooltip p {
+  margin: 0.5em 0;
+  font-size: 0.9em;
+  color: #EBF083;
+  word-wrap: break-word;
+}
+
+/* Иконка типа в левом верхнем углу тултипа */
+.tooltip .type-icon {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  pointer-events: none;
+  opacity: 0.8;
+  z-index: 5;
+}
+
+/* Иконка мода в правом верхнем углу тултипа */
+.tooltip .mod-icon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  pointer-events: none;
+  opacity: 0.8;
+  z-index: 5;
+  display: none; /* скрыта по умолчанию */
+}
+
+/* Показываем при сравнении модов */
+body.compare-mode-active .tooltip .mod-icon {
+  display: block;
+}
+
+/* Показываем для закрепленных предметов из других модов */
+.pinned-item .tooltip .mod-icon.force-visible,
+.grid-tooltip-detached .mod-icon.force-visible {
+  display: block;
+}
+
+/* ID предмета */
+.tooltip .tooltip-id {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  font-size: 0.9em;
+  color: #ffffff;
+}
+
+/* цена */
+.tooltip .tooltip-price {
+  position: absolute;
+  bottom: 10px;
+  right: 12px;
+  font-size: 1.1em;
+  color: #ffffff;
+}
+.tooltip .tooltip-price .gold-icon {
+  display: inline-block;
+  vertical-align: middle;
+  width: 16px;
+  height: 16px;
+  margin-left: 2px;
+  object-fit: contain;
+}
+
+/* атрибуты */
+.tooltip .attrs {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.85em;
+}
+.tooltip .attrs li:not(.bonus-line):not(.magic-line):not(.spacer) {
+  margin: 2px 0;
+  color: #E7A64F;
+  /* Добавляем transition для плавной смены цвета */
+  transition: color 0.1s; 
+}
+
+/* --- Индикатор фильтра (зеленая точка) --- */
+.filter-dot {
+  display: none; /* Скрыто по умолчанию! */
+  width: 6px;
+  height: 6px;
+  background-color: #88ff88;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+  box-shadow: 0 0 4px #88ff88;
+  /* Для красивого позиционирования относительно текста */
+  position: relative;
+  top: -1px;
+}
+
+/* Показываем индикатор только если у родителя есть класс filtered */
+li.filtered .filter-dot {
+  display: inline-block;
+}
+
+/* --- Цвета для сравнения (НОВЫЙ СТИЛЬ: Скобки) --- */
+.comp-diff {
+  font-weight: bold;
+  /* Уменьшен отступ для компактности до 1px */
+  margin-left: 1px;
+}
+/* Стиль для сравнения бонуса с новой строки */
+.comp-diff-newline {
+  display: block;
+  margin-top: 2px;
+}
+
+.comp-green {
+  color: #88ff88 !important; /* Зеленоватый (лучше/добавлено) */
+}
+
+.comp-red {
+  color: #d00 !important; /* Красноватый (хуже/убрано) */
+}
+
+/* Стили для магии внутри сравнения */
+.comp-diff.magic-death {
+  color: #000 !important;
+  text-shadow: 0 0 2.3px #fff;
+}
+.comp-diff.magic-elemental {
+  color: #22B14C !important;
+}
+.comp-diff.magic-life {
+  color: #62B3F7 !important;
+}
+
+/* Иконка бонуса внутри сравнения */
+.comp-bonus-img {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+/* --- Глобальная подсветка знаков --- */
+.sign-plus {
+  color: #88ff88;
+  font-weight: normal; /* или bold, если хотите */
+}
+.sign-minus {
+  color: #d00 !important; /* !important чтобы цвет сохранялся даже внутри сравнения */
+  font-weight: bold;
+}
+
+/* --- ОТКЛЮЧЕНИЕ ЦВЕТА ЗНАКОВ (когда чекбокс выключен) --- */
+body.no-color-signs .sign-plus,
+body.no-color-signs .sign-minus {
+  color: inherit !important;
+  font-weight: inherit !important;
+}
+
+/* бонус */
+.tooltip .attrs li.bonus-line {
+  margin: 2px 0;
+  position: relative;
+  text-align: center;
+  color: #ffffff;
+}
+
+/* Указатель для бонуса в замороженном тултипе */
+.item.selected .tooltip .attrs li.bonus-line {
+  cursor: help;
+  /* Делаем кликабельной/наводимой ТОЛЬКО строчку бонуса, остальной тултип остается прозрачным для курсора */
+  pointer-events: auto;
+}
+
+/* Сдвигаем зеленую точку левее, не смещая при этом текст с иконкой */
+.tooltip .attrs li.bonus-line .filter-dot {
+  position: relative;
+  left: -40px; /* Визуально отодвигаем точку влево на 40px */
+  margin-right: -6px; /* Убираем физическую ширину точки (6px), чтобы текст оставался по центру */
+}
+
+.tooltip .attrs li.bonus-line .bonus-text {
+  display: inline-block;
+  position: relative;
+}
+.tooltip .attrs li.bonus-line .bonus-text::before {
+  content: var(--bonus-icon);
+  position: absolute;
+  right: calc(100% + 4px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 25px;
+  height: 25px;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+/* магия */
+.tooltip .attrs li.magic-line {
+  margin: 2px 0;
+  text-align: center;
+  color: #62B3F7;
+}
+.tooltip .attrs li.magic-line.magic-death { color: #000; }
+.tooltip .attrs li.magic-line.magic-elemental { color: #22B14C; }
+
+/* Цвет текста "Нет" для фантомных строк магии делаем белым, чтобы не красился в цвет магии */
+.tooltip .attrs li.comp-ghost-li.magic-line .bonus-text {
+  color: #ffffff;
+}
+
+.tooltip .attrs li.magic-line .bonus-text {
+  display: inline-block;
+  font-weight: bold;
+}
+
+/* Применяем обводку ТОЛЬКО к тексту внутри магии смерти, а не ко всей строке */
+.tooltip .attrs li.magic-line.magic-death .bonus-text {
+  text-shadow: 0 0 2.3px #fff;
+}
+
+/* ИСПРАВЛЕНИЕ: Принудительно убираем тень для других видов магии, чтобы избежать наследования */
+.tooltip .attrs li.magic-line.magic-life .bonus-text,
+.tooltip .attrs li.magic-line.magic-elemental .bonus-text {
+  text-shadow: none !important;
+}
+
+/* пустой спейсер */
+.tooltip .attrs li.spacer {
+  height: 1em;
+}
+
+/* по умолчанию все тултипы на уровне 1000 */
+.tooltip {
+  z-index: 1000;
+}
+/* тултип у hovered‑карточки — всегда выше */
+.item.hovered .tooltip {
+  z-index: 1100;
+}
+
+/* “Все предметы” контейнер */
+#group-all {
+  display: none;
+}
+
+/* скрытый класс */
+.item.hidden {
+  display: none !important;
+}
+
+/* Полупрозрачность для закрепленных предметов */
+.item.is-pinned {
+  opacity: 0.4;
+}
+.item.is-pinned:hover,
+.item.is-pinned.selected {
+  opacity: 1; /* При наведении и выделении возвращаем полную видимость */
+}
+
+/* --- Всплывающее описание бонуса (Hover на замороженном) --- */
+#bonus-desc-tooltip {
+  position: fixed;
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid #E7A64F;
+  color: #fff;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  max-width: 280px;
+  z-index: 10000;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+  font-family: sans-serif;
+}
+#bonus-desc-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
+}
+#bonus-desc-tooltip .bd-name {
+  display: block;
+  color: #ffd700;
+  font-weight: bold;
+  margin-bottom: 5px;
+  font-size: 1.05em;
+}

@@ -182,17 +182,24 @@ function setupBonusFilter(bonusList, container, onChange) {
     const item = document.createElement('div');
     item.className = 'dropdown-item';
     item.dataset.bonus = b.key;
+    item.title = b.label; // Добавлено: имя при наведении
+    
     if (b.icon) {
       const img = document.createElement('img');
       img.src = b.icon;
       img.alt = '';
-      img.width = 20; img.height = 20;
-      img.style.marginRight = '6px';
       item.append(img);
+      
+      const span = document.createElement('span');
+      span.textContent = b.label;
+      span.style.display = 'none'; // Скрываем текст, оставляем только иконку
+      item.append(span);
+    } else {
+      const span = document.createElement('span');
+      span.textContent = b.label;
+      item.append(span);
+      item.classList.add('text-only'); // Специальный класс для элементов без иконок
     }
-    const span = document.createElement('span');
-    span.textContent = b.label;
-    item.append(span);
 
     // клик по пункту
     item.addEventListener('click', e => {
