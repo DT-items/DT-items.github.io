@@ -3097,6 +3097,11 @@ exportAllBtn.addEventListener('click', async () => {
         // 5. Скачиваем
         downloadBlob(content, fileName, 'application/zip');
         
+        // 6. Сбрасываем флаг несохраненных изменений (так как данные только что были скачаны)
+        if (typeof savedData1 !== 'undefined') {
+            window.originalData1 = JSON.parse(JSON.stringify(savedData1));
+        }
+        
     } catch (e) {
         console.error("Ошибка экспорта:", e);
         alert("Произошла ошибка при генерации файлов экспорта.");
@@ -3109,6 +3114,21 @@ exportAllBtn.addEventListener('click', async () => {
             loader.classList.remove('visible');
             if (loaderText) loaderText.textContent = originalLoaderText;
         }
+    }
+});
+
+// --- ПРЕДУПРЕЖДЕНИЕ ПРИ ЗАКРЫТИИ/ОБНОВЛЕНИИ ВКЛАДКИ ---
+window.addEventListener('beforeunload', function (e) {
+    // Проверяем: есть ли несохраненные изменения в открытой форме редактора 
+    // ИЛИ есть ли глобальные изменения в памяти (модифицирован весь набор данных)
+    const isEditorDirty = typeof hasUnsavedChanges === 'function' ? hasUnsavedChanges() : false;
+    const isDataDirty = typeof isGlobalDirty === 'function' ? isGlobalDirty() : false;
+
+    if (isEditorDirty || isDataDirty) {
+        // Стандартный способ вызова встроенного браузерного окна подтверждения
+        e.preventDefault();
+        e.returnValue = ''; // Требуется для Chrome и современных браузеров
+        return ''; // Требуется для старых браузеров
     }
 });
 
