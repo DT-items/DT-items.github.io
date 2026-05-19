@@ -259,6 +259,31 @@ body.compare-grid-active .toggle-grid-btn:hover {
   background-image: url('delcompare3.png');
 }
 
+/* Переключатель подсветки в компараторе */
+.compare-diff-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+  font-size: 0.9em;
+  cursor: pointer;
+  user-select: none;
+}
+.compare-diff-toggle input {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  background: url('ChkCompareOn.png') no-repeat center center;
+  background-size: contain;
+  cursor: pointer;
+  margin: 0;
+}
+.compare-diff-toggle input:not(:checked) {
+  background-image: url('ChkCompareOf.png');
+}
+
 .compare-toggle-wrapper {
   display: none;
   align-Items: center;

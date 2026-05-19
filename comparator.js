@@ -4,6 +4,7 @@
 // и управление левой панелью закрепленных предметов.
 
 window.pinnedItemIds = window.pinnedItemIds || new Set();
+window.compareDiffEnabled = true;
 
 /**
  * Утилита для раскраски знаков + и -
@@ -271,6 +272,8 @@ window.clearComparison = function() {
 window.applyComparison = function(hoveredCard) {
   // Сначала всегда чистим всё, чтобы не накладывались старые скобки
   window.clearComparison();
+
+  if (!window.compareDiffEnabled) return;
 
   // Ищем все закрепленные предметы
   const pinnedItems = document.querySelectorAll('.compare-panel-content .pinned-item');

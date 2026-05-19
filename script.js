@@ -1047,6 +1047,19 @@ document.getElementById('diff-only')
     renderItems();
   });
 
+// --- Чекбокс "Подсветка" в левой панели компаратора ---
+const compareDiffCheckbox = document.getElementById('compare-diff-checkbox');
+if (compareDiffCheckbox) {
+  compareDiffCheckbox.addEventListener('change', e => {
+    window.compareDiffEnabled = e.target.checked;
+    if (!window.compareDiffEnabled) {
+      window.clearComparison();
+    } else {
+      const hovered = document.querySelector('.item.hovered') || document.querySelector('.pinned-item.hovered');
+      if (hovered) window.applyComparison(hovered);
+    }
+  });
+}
 
 // Сначала уберём все метки active
 Items.forEach(it => it.classList.remove('active'));
