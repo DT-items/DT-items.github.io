@@ -259,6 +259,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const tableCloseBtn = document.getElementById('ct-close-btn');
     const tableContainer = document.getElementById('ct-table-container');
 
+    let isHighlightEnabled = true;
+    const highlightToggle = document.getElementById('ct-highlight-toggle');
+    if (highlightToggle) {
+        highlightToggle.checked = isHighlightEnabled;
+        highlightToggle.addEventListener('change', (e) => {
+            isHighlightEnabled = e.target.checked;
+            // Перерисовываем таблицу при клике, чтобы сразу обновить цвета
+            const pinnedNodes = document.querySelectorAll('.compare-panel-content .pinned-item');
+            if (pinnedNodes.length > 0) renderTable();
+        });
+    }
+
     if (!tableBtn || !tableOverlay) return;
 
     // Вспомогательная функция парсинга статов для таблицы
@@ -570,8 +582,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Правило для "=": подсвечиваем только если "=" есть хотя бы у двух предметов
                         if (type === 'eq' && c.count <= 1) return;
 
-                        if (num === c.max) cellComp[type] = 'best';
-                        if (num === c.min) cellComp[type] = 'worst';
+                        if (isHighlightEnabled) {
+                            if (num === c.max) cellComp[type] = 'best';
+                            if (num === c.min) cellComp[type] = 'worst';
+                        }
                     }
                 });
 

@@ -491,7 +491,13 @@
 <div id="compare-table-overlay" class="editor-overlay" style="z-index: 7500;">
     <div class="compare-table-modal" onClick="event.stopPropagation()">
         <div class="ct-header">
-            <h3>Сравнение характеристик</h3>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <h3>Сравнение характеристик</h3>
+                <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer;">
+                    <input type="checkbox" id="ct-highlight-toggle" checked>
+                    <span style="font-size: 0.85rem; color: #aaa;">Подсветка</span>
+                </label>
+            </div>
             <button id="ct-close-btn" class="search-clear-btn" style="display:flex; position:relative; right:0; transform:none; font-size:24px;">×</button>
         </div>
         <div class="ct-content" id="ct-table-container">

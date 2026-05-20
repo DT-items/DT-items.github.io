@@ -56,7 +56,8 @@
 /* Используем общий стиль для всех чекбоксов с одинаковой структурой */
 #bg-toggle,
 #color-sign-toggle,
-#comparator-toggle {
+#comparator-toggle,
+#ct-highlight-toggle {
   /* убираем дефолтный вид */
   -webkit-appearance: none;
      -moz-appearance: none;
@@ -74,7 +75,8 @@
 /* состояние “выключено” */
 #bg-toggle:not(:checked),
 #color-sign-toggle:not(:checked),
-#comparator-toggle:not(:checked) {
+#comparator-toggle:not(:checked),
+#ct-highlight-toggle:not(:checked) {
   background-image: url('ChkBxOff.png');
 }
 
