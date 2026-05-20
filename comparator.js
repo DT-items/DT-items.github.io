@@ -574,7 +574,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cellComp = { eq: null, plus: null, pct: null };
 
                 ['eq', 'plus', 'pct'].forEach(type => {
-                    const num = parseNum(stat[type], type);
+                    const rawVal = stat[type];
+                    const num = parseNum(rawVal, type);
                     const c = comp[type];
 
                     // Подсвечиваем только если есть разница (max > min)
@@ -582,7 +583,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Правило для "=": подсвечиваем только если "=" есть хотя бы у двух предметов
                         if (type === 'eq' && c.count <= 1) return;
 
-                        if (isHighlightEnabled) {
+                        // ВАЖНО: не подсвечиваем пустые ячейки (где значение '-')
+                        if (isHighlightEnabled && rawVal !== '-') {
                             if (num === c.max) cellComp[type] = 'best';
                             if (num === c.min) cellComp[type] = 'worst';
                         }

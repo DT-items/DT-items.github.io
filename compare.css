@@ -649,10 +649,6 @@ body > .tooltip.grid-tooltip-detached {
   font-weight: normal;
 }
 
-/* Если пустая ячейка оказалась лучшей/худшей - делаем её заметнее */
-.ct-val.empty.ct-best { color: #a5d6a7; }
-.ct-val.empty.ct-worst { color: #ef9a9a; }
-
 /* Окраска значений */
 .ct-val.eq { color: #fff; }
 .ct-val.plus { color: #88ff88; }
