@@ -277,12 +277,14 @@
     left: 160px !important;
   }
   
-  /* Resize the title text */
+  /* Resize the title9 text */
   .top-bar .site-title {
     white-space: normal !important;
     width: 150px !important;
     font-size: 1.9em !important;
     line-height: 1 !important;
+    position: relative !important;
+    left: 20px !important; /* Сдвигаем текст на 20px правее */
   }
 	
   /* 1) Сдвинем кнопку «О сайте» правее */
