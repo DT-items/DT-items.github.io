@@ -980,6 +980,7 @@ input[type=range].vertical-slider::-moz-range-thumb {
     background: var(--primary-color);
     background-clip: content-box;
     cursor: pointer;
+    box-sizing: border-box; /* ИСПРАВЛЕНИЕ: Ограничиваем размер для Firefox */
 }
 
 /* Линейка */

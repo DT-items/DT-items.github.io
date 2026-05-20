@@ -157,6 +157,110 @@
   .bonus-help-content {
     grid-template-columns: 1fr !important;
   }
+
+  /* === Адаптация Редактора (Мобильный режим) === */
+
+  /* Стек сетки свойств (Тип, Магия, Бонус) друг над другом */
+  .properties-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    flex: none !important;
+  }
+
+  /* Левые и правые блоки параметров друг над другом */
+  .stats-columns-wrapper {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  /* Исправление шапки с названием и кнопками */
+  #name-editor-field {
+    display: flex !important;
+    flex-direction: row !important; /* Принудительно делаем строкой */
+    flex-wrap: wrap !important;     /* Разрешаем перенос */
+    align-items: center;
+    justify-content: flex-end;      /* Прижимаем кнопки вправо */
+    gap: 5px;
+  }
+  
+  #name-editor-field .label-zoom-wrapper {
+    margin-right: auto !important;  /* Отталкивает надпись влево, а кнопки вправо */
+    margin-bottom: 0 !important;
+  }
+  
+  /* "Распаковываем" контейнер кнопок, чтобы они стали flex-элементами родителя */
+  #name-editor-field .input-group-row {
+    display: contents !important;
+  }
+  
+  #name-editor-field .editor-input {
+    order: 10 !important;           /* Поле ввода всегда будет последним (внизу) */
+    flex-basis: 100% !important;    /* Жестко заставляет инпут перенестись на новую строку */
+    width: 100% !important;
+    margin-top: 2px !important;
+  }
+
+  /* Удерживаем порядок кнопок */
+  #name-editor-field #ed-paste-btn { order: 1 !important; } 
+  #name-editor-field #ed-copy-btn { order: 2 !important; }
+  #name-editor-field #ed-icon-export-btn { order: 3 !important; }
+
+  /* Исправление футера (чтобы не висел по центру) */
+  .editor-stats-wrapper {
+    flex: none !important;          /* Снимаем флекс-ограничения высоты */
+    height: auto !important;        /* Позволяем блоку растягиваться по контенту */
+  }
+  
+  /* Смещение нижней границы, чтобы длинный тултип не обрезался и не налазил на кнопки */
+  .item-preview-area-bottom {
+    padding-bottom: 20px !important;
+    margin-bottom: 15px !important;
+  }
+  
+  /* Разрешаем перенос кнопок в самом низу модального окна */
+  .editor-footer {
+    flex-wrap: wrap !important;
+    margin-top: auto !important;
+  }
+
+  /* --- Превращение списка бонусов в модальное окно на мобильных --- */
+  #ed-bonus-container .ed-custom-select-options.grid-layout.open {
+    position: fixed !important;
+    top: 10vh !important;
+    left: 5vw !important;
+    width: 90vw !important;
+    min-width: 0 !important;        /* Сбрасываем десктопные 450px */
+    height: 80vh !important;
+    max-height: 80vh !important;
+    display: flex !important;
+    flex-direction: column !important; /* Выстраиваем в один список */
+    
+    background-color: var(--control-bg) !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--top-bar-border) !important;
+    z-index: 9999 !important;
+    
+    /* Огромная тень, создающая эффект затемнения экрана вокруг меню */
+    box-shadow: 0 0 0 100vw rgba(0,0,0,0.8), 0 10px 40px rgba(0,0,0,0.9) !important;
+  }
+
+  /* Увеличиваем элементы списка для удобного тапа пальцем */
+  #ed-bonus-container .ed-custom-option {
+    padding: 14px 12px !important;
+    font-size: 1.05rem !important;
+    border-bottom: 1px solid #333 !important;
+  }
+  
+  #ed-bonus-container .ed-custom-option:last-child {
+    border-bottom: none !important;
+  }
+
+  #ed-bonus-container .ed-custom-option img {
+    width: 28px !important;
+    height: 28px !important;
+  }
 }
 
 /* === Tablet Overrides === */
