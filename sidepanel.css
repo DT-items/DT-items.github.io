@@ -389,10 +389,65 @@
   order: 4;
   flex-basis: 100%;      /* займёт всю строку */
   display: flex;         /* кнопки останутся в ряд */
+ // flex-wrap: wrap;       /* Разрешаем перенос для инпутов на узких экранах */
   align-Items: center;
   gap: 6px;
   margin-top: 10px;      /* Исправлено: 10px вместо 33 */
   margin-bottom: 1px;    /* Исправлено: 1px вместо 1 */
+}
+
+/* --- Инпуты для мин/макс цены --- */
+.price-filter-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.price-filter-inputs label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85em;
+  color: #fff;
+}
+.price-filter-inputs input[type="number"] {
+  width: 46px;
+  height: 24px;
+  padding: 0 4px;
+  background: #ffffff;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 1.1em;
+  font-family: monospace;
+}
+.price-filter-inputs input[type="number"]:focus {
+  outline: none;
+  border-color: #ffcc00;
+}
+/* Скрываем дефолтные стрелочки у инпутов */
+.price-filter-inputs input[type="number"]::-webkit-inner-spin-button,
+.price-filter-inputs input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.price-filter-inputs input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.price-clear-btn {
+  background: transparent;
+  border-radius: 4px;
+  color: #999;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  margin-left: 2px;
+  transition: color 0.2s;
+}
+.price-clear-btn:hover {
+  color: #d00;
 }
 
 /* --- Новый контейнер для чекбоксов и кнопок --- */

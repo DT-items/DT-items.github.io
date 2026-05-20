@@ -102,6 +102,8 @@ let simpleFilterKey = null;
 let bonusFilter= 'all';
 let magicFilter= 'all';
 let searchQuery    = '';
+let priceMin = null;
+let priceMax = null;
 
 // общий фон для всех НЕ-Ragnar и отдельный фон для Ragnar
 let regBg = Math.random() < 0.5 ? '2background.png' : '7background.png';   // фон «обычных» модов
@@ -708,6 +710,11 @@ sidePanel.innerHTML = `
         <button id="sort-none" class="sort-button sort-none active">—</button>
         <button id="sort-desc" class="sort-button sort-desc">↓</button>
         <button id="sort-asc"  class="sort-button sort-asc">↑</button>
+        <div class="price-filter-inputs">
+          <label>min: <input type="number" id="price-min" class="price-input"></label>
+          <label>max: <input type="number" id="price-max" class="price-input"></label>
+          <button id="price-clear" class="price-clear-btn" title="Очистить цены">×</button>
+        </div>
       </div>
 
  <label class="group-toggle-wrapper" for="group-toggle">
@@ -1512,6 +1519,9 @@ advToggle.addEventListener('click', e => {
     const btnNone     = document.getElementById('sort-none');
     const btnDesc     = document.getElementById('sort-desc');
     const btnAsc      = document.getElementById('sort-asc');
+    const priceMinInput = document.getElementById('price-min');
+    const priceMaxInput = document.getElementById('price-max');
+    const priceClearBtn = document.getElementById('price-clear');
     const groupToggle = document.getElementById('group-toggle');
     const magicBtns   = {
       all:       document.getElementById('filter-magic-all'),
@@ -1523,10 +1533,33 @@ advToggle.addEventListener('click', e => {
 	// ← Восстанавливаем подсветку magic-фильтра
 Object.values(magicBtns).forEach(b => b.classList.remove('active'));
 if (magicBtns[magicFilter]) {
-  magicBtns[magicFilter].classList.add('active');
-}
+      magicBtns[magicFilter].classList.add('active');
+    }
+    
+    // восстанавливаем фильтры цены
+    if (priceMin !== null && priceMinInput) priceMinInput.value = priceMin;
+    if (priceMax !== null && priceMaxInput) priceMaxInput.value = priceMax;
 
-	
+    priceMinInput.addEventListener('input', e => {
+      priceMin = e.target.value === '' ? null : parseInt(e.target.value);
+      renderItems();
+    });
+    priceMaxInput.addEventListener('input', e => {
+      priceMax = e.target.value === '' ? null : parseInt(e.target.value);
+      renderItems();
+    });
+
+    if (priceClearBtn) {
+      priceClearBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        priceMin = null;
+        priceMax = null;
+        if (priceMinInput) priceMinInput.value = '';
+        if (priceMaxInput) priceMaxInput.value = '';
+        renderItems();
+      });
+    }
+
     const resetBtn    = document.getElementById('reset-filters');
 
     const searchInput = document.querySelector('.search-input');
@@ -1693,6 +1726,12 @@ compareToggle.dispatchEvent(new Event('change'));
     // Скрываем крестик при сбросе
     searchClearBtn.classList.remove('visible');
   }
+
+  // сброс полей цены при клике на "Сбросить"
+  priceMin = null;
+  priceMax = null;
+  if (priceMinInput) priceMinInput.value = '';
+  if (priceMaxInput) priceMaxInput.value = '';
 
 	  renderItems();
 	});
@@ -3208,6 +3247,16 @@ if (toggleBtn) {
       let visible = ItemsData.filter(c=>
         magicFilter==='all' || c.dataset.magicType===magicFilter
       );
+      
+      // фильтр цены
+      visible = visible.filter(c => {
+        const cost = parseInt(c.dataset.cost);
+        if (isNaN(cost)) return true;
+        if (priceMin !== null && cost < priceMin) return false;
+        if (priceMax !== null && cost > priceMax) return false;
+        return true;
+      });
+
       // сортировка цены (ТОЛЬКО ЕСЛИ НЕ TIER MODE)
       if (!tierMode) {
           if (sortState===1) visible.sort((a,b)=>b.dataset.cost - a.dataset.cost);
