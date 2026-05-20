@@ -264,7 +264,7 @@
 }
 
 /* === Tablet Overrides === */
-@media screen and (min-width: 801px) and (max-width: 1180px) {
+@media screen and (min-width: 801px) and (max-width: 1580px) {
 	
   /* 2. Масштаб тултипа */
   .tooltip {
@@ -312,44 +312,13 @@
     transform: none !important;
   }
   
-    /* 3) Футер-кнопки фонов — по содержимому, прижаты внизу через margin-top:auto */
-  .side-panel .background-controls {
-    position: relative !important;
-    /* если фон или паддинги не нужны, можно удалить background/padding */
-    top: -51px;
-  }
-
-  /* 4) Футер-кнопки импорта */
-  .side-panel .import-controls {
-    position: relative !important;
-    top: -41px;
-  }
-  
-      /* 4. Растянуть search-decor по высоте (и не обрезать) */
+  /* 4. Растянуть search-decor по высоте (и не обрезать) */
   .search-wrapper {
     overflow: visible !important; /* чтобы декор не обрезался */
-
 	left: 20px;
   }
 
-  /* делаем боковую панель шириной половину экрана */
-  .side-panel.open {
-    width: 50% !important;
-    right: 0 !important;
-  }
-  
-    /* 1) Перенастраиваем ширину панели через CSS‑переменную */
-  :root {
-    --panel-width: 50%;
-  }
-
-  /* 2) Когда у вас включён “докинг” (body.docked), добавляем отступ справа */
-  body.docked {
-    /* 20px — это ваш обычный отступ; если он отличается, скорректируйте */
-    padding-right: calc(var(--panel-width) + 20px) !important;
-  }
-  
-    .page-panel .mods-buttons {
+  .page-panel .mods-buttons {
     top: 10px !important;   /* отступ от верха панели */
   }
 }
