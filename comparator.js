@@ -534,27 +534,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const statComparisons = {};
         sortedStatKeys.forEach(key => {
             statComparisons[key] = {
-                eq: { max: -Infinity, min: Infinity, count: 0 },
-                plus: { max: -Infinity, min: Infinity, count: 0 },
-                pct: { max: -Infinity, min: Infinity, count: 0 }
+                eq: { max: -Infinity, min: Infinity, realCount: 0 },
+                plus: { max: -Infinity, min: Infinity, realCount: 0 },
+                pct: { max: -Infinity, min: Infinity, realCount: 0 }
             };
 
             columnsData.forEach(col => {
-                const stat = col.stats[key];
-                if (!stat) {
-                    // Пустые статы считаются как 0 для +/- и %
-                    ['plus', 'pct'].forEach(type => {
-                        statComparisons[key][type].count++;
-                        if (0 > statComparisons[key][type].max) statComparisons[key][type].max = 0;
-                        if (0 < statComparisons[key][type].min) statComparisons[key][type].min = 0;
-                    });
-                    return;
-                }
+                const stat = col.stats[key] || { eq: '-', plus: '-', pct: '-' };
 
                 ['eq', 'plus', 'pct'].forEach(type => {
-                    const num = parseNum(stat[type], type);
+                    const rawVal = stat[type];
+                    
+                    // Считаем, сколько предметов реально имеют это значение (не прочерк)
+                    if (rawVal !== '-') {
+                        statComparisons[key][type].realCount++;
+                    }
+
+                    // Для plus и pct пустая ячейка математически считается как 0
+                    const num = parseNum(rawVal, type);
                     if (num !== null) {
-                        statComparisons[key][type].count++;
                         if (num > statComparisons[key][type].max) statComparisons[key][type].max = num;
                         if (num < statComparisons[key][type].min) statComparisons[key][type].min = num;
                     }
@@ -580,10 +578,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Подсвечиваем только если есть разница (max > min)
                     if (num !== null && c.max > c.min) {
-                        // Правило для "=": подсвечиваем только если "=" есть хотя бы у двух предметов
-                        if (type === 'eq' && c.count <= 1) return;
+                        // ВАЖНО: Если реальное значение есть только у ОДНОГО предмета - не подсвечиваем его
+                        if (c.realCount <= 1) return;
 
-                        // ВАЖНО: не подсвечиваем пустые ячейки (где значение '-')
+                        // Также не подсвечиваем пустые ячейки (где значение '-')
                         if (isHighlightEnabled && rawVal !== '-') {
                             if (num === c.max) cellComp[type] = 'best';
                             if (num === c.min) cellComp[type] = 'worst';
