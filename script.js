@@ -383,6 +383,7 @@ observer.observe(document.body, { attributes: true });
     './extend1.png', './extend2.png', './extend3.png', './extend4.png',
     './desc1.png', './desc2.png', './desc3.png', './desc4.png',
     './Grid1.png', './Grid2.png', './Grid3.png', './Grid4.png',
+    './Tabl1.png', './Tabl2.png', './Tabl3.png', 
     
     // Чекбоксы и другие мелкие детали
     './ChkBxOn.png', './ChkBxOff.png', './ChkBxBlock.png',
