@@ -93,7 +93,7 @@ window.addToComparePanel = function(originalCard) {
     // ДВОЙНОЙ РЕЖИМ
     pinnedItem.classList.add('double');
   } else {
-    // ОДИНАРНЫЙ РЕЖИМ
+  // ОДИНАРНЫЙ РЕЖИМ
     pinnedItem.classList.add('single');
   }
 
@@ -103,6 +103,19 @@ window.addToComparePanel = function(originalCard) {
       pinnedItem.dataset.uid = uid;
       window.pinnedItemIds.add(uid);
       originalCard.classList.add('is-pinned');
+      
+      // Копируем все необходимые данные для таблицы сравнения
+      const copyData = ['attrs', 'attrs2', 'bonus', 'bonus2', 'magicType', 'magicType2', 'cost', 'cost2', 'type', 'type2', 'icon2'];
+      copyData.forEach(key => {
+          if (originalCard.dataset[key]) {
+              pinnedItem.dataset[key] = originalCard.dataset[key];
+          }
+      });
+      // Сохраняем моды
+      pinnedItem.dataset.mod = window.mod1;
+      if (tt2 && window.compareMode) {
+          pinnedItem.dataset.mod2 = window.mod2;
+      }
   }
 
   // Создаем контейнер для иконок (одной или двух)
@@ -367,12 +380,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         pinnedNodes.forEach(node => {
             const uid = node.dataset.uid;
-            const mainItem = document.querySelector(`.item[data-uid="${uid}"]`);
-            if (!mainItem) return;
 
             // Функция извлечения данных в колонку
             const extractCol = (mod, isMod2) => {
-                const attrsRaw = isMod2 ? mainItem.dataset.attrs2 : mainItem.dataset.attrs;
+                const attrsRaw = isMod2 ? node.dataset.attrs2 : node.dataset.attrs;
                 const stats = parseStatsForTable(attrsRaw);
                 
                 // 1.1 Распаковываем локально сгруппированные статы перед общим анализом
@@ -384,29 +395,35 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                const bonus = isMod2 ? mainItem.dataset.bonus2 : mainItem.dataset.bonus;
-                const magic = isMod2 ? mainItem.dataset.magicType2 : mainItem.dataset.magicType;
-                const cost = isMod2 ? mainItem.dataset.cost2 : mainItem.dataset.cost;
-                const type = isMod2 ? mainItem.dataset.type2 : mainItem.dataset.type;
+                const bonus = isMod2 ? node.dataset.bonus2 : node.dataset.bonus;
+                const cost = isMod2 ? node.dataset.cost2 : node.dataset.cost;
+                const type = isMod2 ? node.dataset.type2 : node.dataset.type;
+
+                // Достаем имя и магию из правильного тултипа
+                const ttClass = isMod2 ? '.tooltip-2' : '.tooltip-1';
+                const h3 = node.querySelector(`${ttClass} h3`);
+                const rawName = h3 ? h3.textContent.replace(/ \[.*\]$/, '') : '???';
+                
+                const magicEl = node.querySelector(`${ttClass} .magic-line .bonus-text`);
+                const magicText = magicEl ? magicEl.textContent.trim() : 'Нет';
 
                 if (bonus && bonus !== 'all') hasBonus = true;
-                if (magic && magic !== 'Нет') hasMagic = true;
+                if (magicText !== 'Нет') hasMagic = true;
                 if (cost && parseFloat(cost) > 0) hasCost = true;
                 if (type) hasType = true;
 
-                // Достаем имя из правильного тултипа
-                const ttClass = isMod2 ? '.tooltip-2' : '.tooltip-1';
-                const h3 = mainItem.querySelector(`${ttClass} h3`);
-                const rawName = h3 ? h3.textContent.replace(/ \[.*\]$/, '') : '???';
-
                 // Иконка
                 let iconSrc = '';
-                if (isMod2 && node.dataset.icon2) iconSrc = node.dataset.icon2;
-                else iconSrc = mainItem.querySelector('img').src;
+                if (isMod2 && node.dataset.icon2) {
+                    iconSrc = node.dataset.icon2;
+                } else {
+                    const img = node.querySelector('.pinned-icon-container img');
+                    iconSrc = img ? img.src : '';
+                }
 
                 // Для бонуса попытаемся достать иконку из DOM (если она была)
                 let bonusIconSrc = '';
-                const bonusEl = mainItem.querySelector(`${ttClass} .bonus-line .bonus-text`);
+                const bonusEl = node.querySelector(`${ttClass} .bonus-line .bonus-text`);
                 if (bonusEl && bonusEl.style.getPropertyValue('--bonus-icon')) {
                     // Extract url('...') -> ...
                     const bg = bonusEl.style.getPropertyValue('--bonus-icon');
@@ -423,16 +440,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     stats: stats,
                     bonus: bonus === 'all' ? 'Нет' : bonus,
                     bonusIcon: bonusIconSrc,
-                    magic: magic || 'Нет',
+                    magic: magicText,
                     cost: cost || '0',
                     type: window.EDITOR_GROUPS ? (window.EDITOR_GROUPS.find(g => g.id === type)?.name || type) : type
                 });
             };
 
-            extractCol(window.mod1, false);
+            extractCol(node.dataset.mod || 'Unknown', false);
             // Если режим двойной - добавляем вторую колонку
-            if (node.classList.contains('double') && mainItem.dataset.attrs2) {
-                extractCol(window.mod2, true);
+            if (node.classList.contains('double') && node.dataset.attrs2) {
+                extractCol(node.dataset.mod2 || 'Unknown', true);
             }
         });
 
@@ -599,11 +616,16 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<tr><td>Тип магии</td>`;
             columnsData.forEach(col => {
                 let color = '#e0e0e0';
-                if (col.magic.includes('Смерти')) color = '#aaa';
-                if (col.magic.includes('Жизни')) color = '#62B3F7';
-                if (col.magic.includes('Стихий')) color = '#22B14C';
+                let textShadow = 'none';
                 
-                const display = col.magic === 'Нет' ? `<span class="ct-val empty">-</span>` : `<span style="color: ${color}; font-weight: bold;">${col.magic}</span>`;
+                if (col.magic.includes('смерти') || col.magic.includes('Смерти')) {
+                    color = '#000';
+                    textShadow = '0 0 2.3px #fff';
+                }
+                else if (col.magic.includes('жизни') || col.magic.includes('Жизни')) color = '#62B3F7';
+                else if (col.magic.includes('стихий') || col.magic.includes('Стихий')) color = '#22B14C';
+                
+                const display = col.magic === 'Нет' ? `<span class="ct-val empty">-</span>` : `<span style="color: ${color}; text-shadow: ${textShadow}; font-weight: bold;">${col.magic}</span>`;
                 html += `<td><div class="ct-sub-cols"><div class="ct-merged-cell">${display}</div></div></td>`;
             });
             html += `</tr>`;
