@@ -241,6 +241,23 @@ body.compare-grid-active .toggle-grid-btn:hover {
   background-image: url('desc3.png');
 }
 
+/* НОВАЯ КНОПКА ТАБЛИЦЫ СРАВНЕНИЯ */
+.compare-table-btn {
+  width: 80px; 
+  height: 40px; 
+  border: none;
+  cursor: pointer;
+  background: url('Tabl1.png') no-repeat center/contain;
+  background-color: transparent;
+  flex-shrink: 0;
+}
+.compare-table-btn:hover {
+  background-image: url('Tabl2.png');
+}
+.compare-table-btn:active {
+  background-image: url('Tabl3.png');
+}
+
 /* Кнопка удаления/очистки */
 .del-compare-btn {
   /* Уменьшили высоту до 40px (было 80px) чтобы футер был компактным */
@@ -257,31 +274,6 @@ body.compare-grid-active .toggle-grid-btn:hover {
 }
 .del-compare-btn:active {
   background-image: url('delcompare3.png');
-}
-
-/* Переключатель подсветки в компараторе */
-.compare-diff-toggle {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: #fff;
-  font-size: 0.9em;
-  cursor: pointer;
-  user-select: none;
-}
-.compare-diff-toggle input {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  width: 24px;
-  height: 24px;
-  background: url('ChkCompareOn.png') no-repeat center center;
-  background-size: contain;
-  cursor: pointer;
-  margin: 0;
-}
-.compare-diff-toggle input:not(:checked) {
-  background-image: url('ChkCompareOf.png');
 }
 
 .compare-toggle-wrapper {
@@ -442,4 +434,241 @@ body > .tooltip.grid-tooltip-detached {
   margin: 0 !important;
   padding-bottom: 15px;
   border-left: none !important;
+}
+
+/* --- СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА ТАБЛИЦЫ СРАВНЕНИЯ --- */
+.compare-table-modal {
+  background-color: var(--top-bar-bg);
+  border: 1px solid var(--top-bar-border);
+  border-radius: 8px;
+  width: max-content;
+  max-width: 95vw;
+  height: 95vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+  overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--text-normal);
+}
+
+.ct-header {
+  padding: 6px 20px;
+  border-bottom: 1px solid var(--top-bar-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0,0,0,0.2);
+}
+
+.ct-header h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+}
+
+.ct-content {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+  background-color: #1a1a1a;
+}
+
+/* Дизайн самой таблицы */
+.ct-table {
+  width: max-content;
+  margin: 0 auto;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+/* Стики-заголовки для удобного скролла огромной таблицы */
+.ct-table thead {
+  position: sticky;
+  top: -20px; /* Учитываем padding контейнера */
+  z-index: 10;
+}
+
+.ct-table th {
+  background-color: #252525;
+  border: 1px solid #333;
+  padding: 10px 4px;
+  text-align: center;
+  font-weight: normal;
+}
+
+.ct-table td {
+  border: 1px solid #333;
+  padding: 6px 4px;
+  background-color: #2b2b2b;
+  text-align: center;
+}
+
+/* Строки таблицы при наведении */
+.ct-table tbody tr:hover td {
+  background-color: #333;
+}
+
+/* Первая колонка (Названия характеристик) - фиксированная слева */
+.ct-table th:first-child,
+.ct-table td:first-child {
+  position: sticky;
+  left: -20px;
+  background-color: #222;
+  z-index: 11;
+  text-align: left;
+  font-weight: bold;
+  color: #aaa;
+  width: 130px;
+  min-width: 130px;
+  max-width: 130px;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+}
+/* Перекрестие заголовков выше всех */
+.ct-table th:first-child {
+  z-index: 12; 
+  background-color: #1e1e1e;
+}
+
+/* Фиксированная ширина для колонок предметов */
+.ct-item-header,
+.ct-table td:not(:first-child) {
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
+}
+
+/* Шапка конкретного предмета */
+.ct-item-header {
+  position: relative;
+}
+
+.ct-item-header-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.ct-item-icon {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  margin-bottom: 5px;
+  border: 1px solid transparent;
+  transition: transform 0.2s;
+}
+
+.ct-item-header:hover .ct-item-icon {
+  transform: scale(1.1);
+}
+
+.ct-item-name {
+  color: #fff;
+  font-weight: bold;
+  font-size: 0.95rem;
+  max-width: 140px;
+  
+  /* Разрешаем перенос в 2 строки с дефисами */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  hyphens: auto;
+  line-height: 1.2;
+}
+
+/* Маленький крестик удаления */
+.ct-item-remove {
+  position: absolute;
+  top: -10px;
+  right: 10px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid #555;
+  color: #aaa;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 14px;
+  line-height: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 5;
+}
+
+.ct-item-remove:hover {
+  background: #d32f2f;
+  color: #fff;
+  border-color: #ff6b6b;
+}
+
+/* --- Внутреннее разделение ячеек статов на 3 части (=, +/-, %) --- */
+.ct-sub-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0px;
+  align-items: center;
+}
+
+.ct-sub-head {
+  color: #777;
+  font-size: 0.75rem;
+  border-top: 1px solid #444;
+  margin-top: 8px;
+  padding-top: 4px;
+}
+
+.ct-val {
+  font-family: monospace;
+  font-size: 0.95rem;
+  font-weight: bold;
+  /* Добавлено для подсветки */
+  display: inline-block;
+  min-width: 32px;
+  padding: 2px 0;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+/* Мягкая подсветка фона лучших и худших значений */
+.ct-val.ct-best {
+  background-color: rgba(76, 175, 80, 0.25);
+}
+.ct-val.ct-worst {
+  background-color: rgba(244, 67, 54, 0.25);
+}
+
+/* Пустые значения почти незаметны */
+.ct-val.empty {
+  color: #444;
+  font-weight: normal;
+}
+
+/* Если пустая ячейка оказалась лучшей/худшей - делаем её заметнее */
+.ct-val.empty.ct-best { color: #a5d6a7; }
+.ct-val.empty.ct-worst { color: #ef9a9a; }
+
+/* Окраска значений */
+.ct-val.eq { color: #fff; }
+.ct-val.plus { color: #88ff88; }
+.ct-val.minus { color: #ff6b6b; }
+
+/* Особые строки (Тип, Бонус, Цена) - объединяют 3 колонки в одну */
+.ct-merged-cell {
+  grid-column: 1 / -1;
+  color: #e0e0e0;
+  font-family: inherit;
+}
+
+/* Иконки в таблице для бонуса */
+.ct-bonus-icon {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  margin-right: 5px;
 }

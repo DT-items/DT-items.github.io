@@ -24,6 +24,7 @@ const ATTR_ORDER = [
   'Инициатива',
   'Количество действий'
 ];
+window.ATTR_ORDER = ATTR_ORDER; // Экспортируем глобально для таблицы сравнения
 
 // Иконки типов для тултипов
 const TOOLTIP_TYPE_ICONS = {
@@ -1053,20 +1054,6 @@ document.getElementById('diff-only')
     diffOnly = e.target.checked;
     renderItems();
   });
-
-// --- Чекбокс "Подсветка" в левой панели компаратора ---
-const compareDiffCheckbox = document.getElementById('compare-diff-checkbox');
-if (compareDiffCheckbox) {
-  compareDiffCheckbox.addEventListener('change', e => {
-    window.compareDiffEnabled = e.target.checked;
-    if (!window.compareDiffEnabled) {
-      window.clearComparison();
-    } else {
-      const hovered = document.querySelector('.item.hovered') || document.querySelector('.pinned-item.hovered');
-      if (hovered) window.applyComparison(hovered);
-    }
-  });
-}
 
 // Сначала уберём все метки active
 Items.forEach(it => it.classList.remove('active'));
@@ -2639,9 +2626,6 @@ if (supportsHover) {
 card.addEventListener('mouseenter', () => {
   card.classList.add('hovered');
   
-  // ЗАПУСКАЕМ СРАВНЕНИЕ (через window)
-  window.applyComparison(card);
-  
   // В режиме Tier: если мы тащим предмет, подсвечиваем цель
   if (tierMode && floatingItem) {
       // Логика визуального призрака
@@ -2665,9 +2649,6 @@ card.addEventListener('mouseenter', () => {
 // mouseleave
 card.addEventListener('mouseleave', () => {
   card.classList.remove('hovered');
-  
-  // СБРАСЫВАЕМ СРАВНЕНИЕ (через window)
-  window.clearComparison();
   
   if (card.classList.contains('selected')) return;
 

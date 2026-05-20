@@ -210,15 +210,11 @@
   <div class="compare-panel-footer">
     <!-- Кнопка сетки (вместо заглушки) -->
     <button id="toggle-grid-btn" class="toggle-grid-btn" aria-label="Сетка"></button>
+    <!-- НОВАЯ КНОПКА ТАБЛИЦЫ СРАВНЕНИЯ -->
+    <button id="compare-table-btn" class="compare-table-btn" aria-label="Таблица сравнения"></button>
     <!-- Кнопка описания (вместо заглушки) -->
     <button id="toggle-desc-btn" class="toggle-desc-btn" aria-label="Описание"></button>
     
-    <!-- Переключатель подсветки -->
-    <label class="compare-diff-toggle" title="Включить/выключить подсветку отличий">
-      <input type="checkbox" id="compare-diff-checkbox" checked>
-      <span>Подсветка</span>
-    </label>
-
     <!-- Кнопка очистки -->
     <button id="del-compare-btn" class="del-compare-btn" aria-label="Очистить"></button>
   </div>
@@ -489,6 +485,19 @@
           <button id="mod-switch-confirm" class="uc-btn btn-red">Перейти (сбросить)</button>
       </div>
   </div>
+</div>
+
+<!-- НОВОЕ: Модальное окно Таблицы Сравнения -->
+<div id="compare-table-overlay" class="editor-overlay" style="z-index: 7500;">
+    <div class="compare-table-modal" onClick="event.stopPropagation()">
+        <div class="ct-header">
+            <h3>Сравнение характеристик</h3>
+            <button id="ct-close-btn" class="search-clear-btn" style="display:flex; position:relative; right:0; transform:none; font-size:24px;">×</button>
+        </div>
+        <div class="ct-content" id="ct-table-container">
+            <!-- Таблица генерируется через JS -->
+        </div>
+    </div>
 </div>
 
 <!-- Container for notifications -->

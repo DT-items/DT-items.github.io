@@ -181,49 +181,6 @@ li.filtered .filter-dot {
   display: inline-block;
 }
 
-/* --- Цвета для сравнения (НОВЫЙ СТИЛЬ: Скобки) --- */
-.comp-diff {
-  font-weight: bold;
-  /* Уменьшен отступ для компактности до 1px */
-  margin-left: 1px;
-}
-/* Стиль для сравнения бонуса с новой строки */
-.comp-diff-newline {
-  display: block;
-  margin-top: 2px;
-}
-
-.comp-green {
-  color: #88ff88 !important; /* Зеленоватый (лучше/добавлено) */
-}
-
-.comp-red {
-  color: #d00 !important; /* Красноватый (хуже/убрано) */
-}
-
-/* Стили для магии внутри сравнения */
-.comp-diff.magic-death {
-  color: #000 !important;
-  text-shadow: 0 0 2.3px #fff;
-}
-.comp-diff.magic-elemental {
-  color: #22B14C !important;
-}
-.comp-diff.magic-life {
-  color: #62B3F7 !important;
-}
-
-/* Иконка бонуса внутри сравнения */
-.comp-bonus-img {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    vertical-align: middle;
-    margin-right: 4px;
-}
-
 /* --- Глобальная подсветка знаков --- */
 .sign-plus {
   color: #88ff88;
@@ -287,11 +244,6 @@ body.no-color-signs .sign-minus {
 }
 .tooltip .attrs li.magic-line.magic-death { color: #000; }
 .tooltip .attrs li.magic-line.magic-elemental { color: #22B14C; }
-
-/* Цвет текста "Нет" для фантомных строк магии делаем белым, чтобы не красился в цвет магии */
-.tooltip .attrs li.comp-ghost-li.magic-line .bonus-text {
-  color: #ffffff;
-}
 
 .tooltip .attrs li.magic-line .bonus-text {
   display: inline-block;
