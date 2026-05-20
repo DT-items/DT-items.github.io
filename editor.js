@@ -51,6 +51,12 @@ const sizeWarningOverlay = document.getElementById('size-warning-overlay');
 const swCancelBtn        = document.getElementById('sw-cancel');
 const swResizeBtn        = document.getElementById('sw-resize');
 
+// --- Элементы окна "Ручная вставка" (мобильный) ---
+const manualPasteOverlay = document.getElementById('manual-paste-overlay');
+const manualPasteInput   = document.getElementById('manual-paste-input');
+const mpCancelBtn        = document.getElementById('mp-cancel');
+const mpConfirmBtn       = document.getElementById('mp-confirm');
+
 // --- Элементы окна Zoom (Сравнение UGS) ---
 const zoomOverlay    = document.getElementById('zoom-overlay');
 const zoomCanvas     = document.getElementById('zoom-canvas');
@@ -315,6 +321,27 @@ delConfirmBtn.addEventListener('click', () => {
     hideDeleteModal();
     performDelete();
 });
+
+// --- Обработчики для окна ручной вставки ---
+if (mpCancelBtn) {
+    mpCancelBtn.addEventListener('click', () => {
+        manualPasteOverlay.classList.remove('visible');
+    });
+}
+if (manualPasteOverlay) {
+    manualPasteOverlay.addEventListener('click', (e) => {
+        if (e.target === manualPasteOverlay) manualPasteOverlay.classList.remove('visible');
+    });
+}
+if (mpConfirmBtn) {
+    mpConfirmBtn.addEventListener('click', () => {
+        const text = manualPasteInput.value.trim();
+        if (text) {
+            manualPasteOverlay.classList.remove('visible');
+            processPasteData(text);
+        }
+    });
+}
 
 function performDelete() {
     if (!savedData1 || selectedListItemIndex === -1) return;
@@ -2128,35 +2155,7 @@ edCopyBtn.addEventListener('click', async () => {
     }
 });
 
-edPasteBtn.addEventListener('click', async () => {
-    let text = '';
-    
-    // 1. Пытаемся прочитать из буфера обмена
-    try {
-        if (navigator.clipboard && navigator.clipboard.readText) {
-            text = await navigator.clipboard.readText();
-        }
-    } catch (err) {
-        console.warn('Ошибка чтения буфера обмена, пробую запасной вариант:', err);
-    }
-
-    text = text.trim();
-
-    // 2. Запасной вариант: если буфер недоступен или пуст, берем из поля поиска
-    if (!text && edSearchInput) {
-        text = edSearchInput.value.trim();
-    }
-
-    // 3. Если ничего не нашли
-    if (!text) {
-        if (typeof showNotification === 'function') {
-            showNotification('Дайте разрешение на чтение буфера или вставьте данные предмета в поле поиска.', 'error');
-        } else {
-            alert('Дайте разрешение на чтение буфера или вставьте данные предмета в поле поиска.');
-        }
-        return;
-    }
-
+function processPasteData(text) {
     attemptAction(() => {
         try {
             let clipboardObj;
@@ -2164,7 +2163,7 @@ edPasteBtn.addEventListener('click', async () => {
                 clipboardObj = JSON.parse(text);
             } catch (e) {
                 if (typeof showNotification === 'function') {
-                    showNotification('Невалидный JSON в буфере обмена или поле поиска.', 'error');
+                    showNotification('Невалидный JSON в буфере обмена или текстовом поле.', 'error');
                 }
                 return;
             }
@@ -2252,8 +2251,10 @@ edPasteBtn.addEventListener('click', async () => {
         savedData1[objectKey] = newItem;
 
         // 5. Очищаем поле поиска, чтобы увидеть список
-        edSearchInput.value = '';
-        updateSearchClearBtn();
+        if (edSearchInput) {
+            edSearchInput.value = '';
+            updateSearchClearBtn();
+        }
         
         // 6. Обновляем UI
         populateItemList();
@@ -2280,6 +2281,47 @@ edPasteBtn.addEventListener('click', async () => {
         }
     }
     }); // <- Закрывающая скобка attemptAction
+}
+
+edPasteBtn.addEventListener('click', async () => {
+    let text = '';
+    
+    // 1. Пытаемся прочитать из буфера обмена
+    try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            text = await navigator.clipboard.readText();
+        }
+    } catch (err) {
+        console.warn('Ошибка чтения буфера обмена, пробую запасной вариант:', err);
+    }
+
+    text = (text || '').trim();
+
+    // 2. Запасной вариант: если буфер недоступен или пуст, берем из поля поиска
+    if (!text && edSearchInput) {
+        text = edSearchInput.value.trim();
+    }
+
+    // 3. Если ничего не нашли
+    if (!text) {
+        // Открываем модалку для ручной вставки ИСКЛЮЧИТЕЛЬНО на мобильных (ширина <= 800px)
+        if (window.innerWidth <= 800) {
+            if (manualPasteOverlay) {
+                manualPasteInput.value = '';
+                manualPasteOverlay.classList.add('visible');
+            }
+            return;
+        }
+
+        if (typeof showNotification === 'function') {
+            showNotification('Дайте разрешение сайту на чтение буфера обмена либо вставьте данные предмета в поле поиска.', 'error');
+        } else {
+            alert('Дайте разрешение сайту на чтение буфера обмена либо вставьте данные предмета в поле поиска.');
+        }
+        return;
+    }
+
+    processPasteData(text);
 });
 
 // --- NEW CREATE BUTTON LOGIC ---

@@ -1251,6 +1251,9 @@ btn.addEventListener('click', () => {
           <label for="import-ugs" class="import-btn">Импорт .ugs</label>
           <input type="file" id="import-ugs" accept=".ugs">
       </div>
+     <div class="import-group">
+          <button id="import-create" class="import-btn">Новый мод</button>
+      </div>
   `;
   sidePanel.append(importContainer);
   
@@ -1268,23 +1271,21 @@ btn.addEventListener('click', () => {
               const btnNewMod = document.getElementById('btn-NewMod');
               if (btnNewMod) btnNewMod.hidden = false;
               
-              // Очищаем инпут чтобы можно было выбрать тот же файл снова
-              document.getElementById('import-ini').value = '';
-              
-              // Если мы уже в режиме NewMod, принудительно обновляем данные
-              if (currentMode === 'NewMod') {
-                  // Явно сбрасываем сохраненные данные, чтобы forced reload сработал
-                  savedData1 = null; 
-                  // Вызываем proceedSwitchMode напрямую, чтобы обойти проверку "тот же мод"
-                  proceedSwitchMode('NewMod');
-              } else {
-                  // Переключаемся на Новый мод
-                  switchMode('NewMod');
-              }
-              
-              // Уведомление об успехе
-              showNotification('Rus_Artefacts.ini успешно импортирован!', 'success');
-          } catch (err) {
+            // Очищаем инпут чтобы можно было выбрать тот же файл снова
+            document.getElementById('import-ini').value = '';
+            
+            // Если мы уже в режиме NewMod, принудительно обновляем данные
+            if (currentMode === 'NewMod') {
+                // Явно сбрасываем сохраненные данные, чтобы forced reload сработал
+                savedData1 = null; 
+            }
+            
+            // Переходим в новый мод принудительно
+            proceedSwitchMode('NewMod');
+            
+            // Уведомление об успехе
+            showNotification('Rus_Artefacts.ini успешно импортирован!', 'success');
+        } catch (err) {
               console.error(err);
               showNotification('Ошибка импорта INI файла.', 'error');
           }
@@ -1361,6 +1362,50 @@ btn.addEventListener('click', () => {
       };
       
       reader.readAsArrayBuffer(file);
+  });
+
+  // Логика создания нового мода
+  window.processCreateNewMod = function() {
+      customModData = {
+          "NewItem_1": {
+              GlobalIndex: "1",
+              Name: "Новый предмет",
+              Descript: "",
+              Cost: "0",
+              Type: "BlowWeapon",
+              Icon: "../NewmodIcon.png",
+              _attrs: []
+          }
+      };
+      
+      // Очищаем UGS для нового мода
+      window.modUGS['NewMod'] = null;
+      if (window.modUGSCache['NewMod']) {
+          window.modUGSCache['NewMod'] = {};
+      }
+      
+      const btnNewMod = document.getElementById('btn-NewMod');
+      if (btnNewMod) btnNewMod.hidden = false;
+      
+      if (currentMode === 'NewMod') {
+          savedData1 = null; 
+      }
+      
+      // Переходим принудительно без повторных проверок
+      proceedSwitchMode('NewMod');
+      
+      showNotification('Новый мод успешно создан!', 'success');
+  };
+
+  document.getElementById('import-create').addEventListener('click', (e) => {
+      // Проверка на несохраненные изменения ДЛЯ ВСЕХ МОДОВ
+      if (typeof isGlobalDirty === 'function' && isGlobalDirty()) {
+          pendingCreateMod = true;
+          const overlay = document.getElementById('mod-switch-overlay');
+          if (overlay) overlay.classList.add('visible');
+          return;
+      }
+      window.processCreateNewMod();
   });
 
 })();
@@ -1683,6 +1728,12 @@ searchClearBtn.addEventListener('click', () => {
 		.querySelector('#simple-mode-controls button[data-mode="any"]')
 		.classList.add('active');
 
+      // сброс полей цены ДО пересоздания UI (чтобы сработало с 1-го клика)
+      priceMin = null;
+      priceMax = null;
+      if (priceMinInput) priceMinInput.value = '';
+      if (priceMaxInput) priceMaxInput.value = '';
+
   // Сброс сравнения модов:
   mod2 = '';
   compareMode = false;
@@ -1726,12 +1777,6 @@ compareToggle.dispatchEvent(new Event('change'));
     // Скрываем крестик при сбросе
     searchClearBtn.classList.remove('visible');
   }
-
-  // сброс полей цены при клике на "Сбросить"
-  priceMin = null;
-  priceMax = null;
-  if (priceMinInput) priceMinInput.value = '';
-  if (priceMaxInput) priceMaxInput.value = '';
 
 	  renderItems();
 	});
@@ -3561,6 +3606,7 @@ window.refreshApp = function() {
 
 let pendingSwitchMode = null;
 let pendingImportFile = null; // Файл, который ждет подтверждения импорта
+let pendingCreateMod = false; // Флаг для создания нового мода
 const modSwitchOverlay = document.getElementById('mod-switch-overlay');
 const modSwitchCancel = document.getElementById('mod-switch-cancel');
 const modSwitchConfirm = document.getElementById('mod-switch-confirm');
@@ -3571,6 +3617,7 @@ if (modSwitchCancel) {
         modSwitchOverlay.classList.remove('visible');
         pendingSwitchMode = null;
         pendingImportFile = null;
+        pendingCreateMod = false;
         // Очищаем инпут импорта, чтобы можно было снова выбрать тот же файл снова
         document.getElementById('import-ini').value = '';
     });
@@ -3586,6 +3633,9 @@ if (modSwitchConfirm) {
             // Если подтвердили импорт - запускаем обработку через глобальную функцию
             window.processImportINI(pendingImportFile);
             pendingImportFile = null;
+        } else if (pendingCreateMod) {
+            window.processCreateNewMod();
+            pendingCreateMod = false;
         }
     });
 }

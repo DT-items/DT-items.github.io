@@ -441,6 +441,19 @@
       </div>
   </div>
   
+  <!-- Модальное окно ручной вставки (резерв для мобильных) -->
+  <div id="manual-paste-overlay" class="editor-overlay" style="z-index: 6020;">
+      <div class="unsaved-modal">
+          <h3 class="unsaved-title" style="color: #62B3F7;">Вставка предмета</h3>
+          <p class="unsaved-text">Дайте разрешение сайту на чтение из буфера обмена, либо вставьте данные скопированного предмета в поле ниже:</p>
+          <textarea id="manual-paste-input" class="editor-input" style="height: 100px; resize: none; margin-top: 10px;"></textarea>
+          <div class="unsaved-buttons">
+              <button id="mp-cancel" class="uc-btn btn-grey">Отмена</button>
+              <button id="mp-confirm" class="uc-btn btn-purple">Вставить</button>
+          </div>
+      </div>
+  </div>
+  
   <!-- Модальное окно Zoom (Сравнение сжатия) -->
   <div id="zoom-overlay" class="editor-overlay" style="z-index: 6050;">
       <div class="zoom-modal" onClick="event.stopPropagation()">
