@@ -3,3 +3,6 @@ dist
 .env
 .ide_order.json
 .meta.json
+preview.png
+*.sqlite
+*.sqlite-journal
