@@ -1,4 +1,3 @@
-
 // comparator.js
 // Модуль отвечает за логику сравнения предметов, вычисление разницы характеристик
 // и управление левой панелью закрепленных предметов.
@@ -272,6 +271,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const tableCloseBtn = document.getElementById('ct-close-btn');
     const tableContainer = document.getElementById('ct-table-container');
 
+    // Глобальное состояние активной сортировки в таблице сравнения
+    let activeSort = null; // { key: string, type: 'eq' | 'plus' | 'pct' }
+
     let isHighlightEnabled = true;
     const highlightToggle = document.getElementById('ct-highlight-toggle');
     if (highlightToggle) {
@@ -347,6 +349,29 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     };
 
+    // Вспомогательная функция для проверки, есть ли у предмета сортируемое значение
+    const hasSortedValue = (col) => {
+        if (!activeSort) return false;
+        const key = activeSort.key;
+        const type = activeSort.type;
+
+        if (key === 'Категория') {
+            return !!col.type;
+        }
+        if (key === 'Стоимость') {
+            return parseFloat(col.cost) > 0;
+        }
+        if (key === 'Тип магии') {
+            return col.magic && col.magic !== 'Нет';
+        }
+        if (key === 'Бонус') {
+            return col.bonus && col.bonus !== 'Нет';
+        }
+        // Характеристика
+        const stat = col.stats[key];
+        return stat && stat[type] !== '-';
+    };
+
     // Основная функция рендера таблицы
     const renderTable = () => {
         const pinnedNodes = document.querySelectorAll('.compare-panel-content .pinned-item');
@@ -378,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let hasCost = false;
         let hasType = false;
 
-        pinnedNodes.forEach(node => {
+        pinnedNodes.forEach((node, nodeIdx) => {
             const uid = node.dataset.uid;
 
             // Функция извлечения данных в колонку
@@ -443,7 +468,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     magic: magicText,
                     cost: cost || '0',
                     type: window.EDITOR_GROUPS ? (window.EDITOR_GROUPS.find(g => g.id === type)?.name || type) : type,
-                    rawType: type
+                    rawType: type,
+                    originalIndex: columnsData.length // Для стабильной сортировки
                 });
             };
 
@@ -486,6 +512,74 @@ document.addEventListener('DOMContentLoaded', () => {
         const uniqueTypes = new Set(columnsData.map(col => col.type).filter(Boolean));
         const showTypeRow = uniqueTypes.size > 1;
 
+        // --- ЛОГИКА СОРТИРОВКИ СТОЛБЦОВ ---
+        if (activeSort) {
+            columnsData.sort((a, b) => {
+                let valA, valB;
+                const key = activeSort.key;
+                const type = activeSort.type;
+
+                if (key === 'Категория') {
+                    valA = a.type || '';
+                    valB = b.type || '';
+                } else if (key === 'Стоимость') {
+                    valA = parseFloat(a.cost) || 0;
+                    valB = parseFloat(b.cost) || 0;
+                } else if (key === 'Тип магии') {
+                    valA = a.magic === 'Нет' ? '' : a.magic;
+                    valB = b.magic === 'Нет' ? '' : b.magic;
+                } else if (key === 'Бонус') {
+                    valA = a.bonus === 'Нет' ? '' : a.bonus;
+                    valB = b.bonus === 'Нет' ? '' : b.bonus;
+                } else {
+                    // Обычная характеристика
+                    const statA = a.stats[key];
+                    const statB = b.stats[key];
+
+                    const getVal = (s) => {
+                        if (!s) return -Infinity;
+                        const valStr = s[type];
+                        if (!valStr || valStr === '-' || valStr === '—') return -Infinity;
+                        const clean = valStr.replace(/[=%]/g, '').trim();
+                        const num = parseFloat(clean);
+                        return isNaN(num) ? -Infinity : num;
+                    };
+                    valA = getVal(statA);
+                    valB = getVal(statB);
+                }
+
+                if (typeof valA === 'string' && typeof valB === 'string') {
+                    // Алфавитная сортировка по возрастанию, но пустые строки всегда в конце (справа)
+                    if (valA === '' && valB !== '') return 1;
+                    if (valB === '' && valA !== '') return -1;
+                    const cmp = valA.localeCompare(valB);
+                    if (cmp !== 0) return cmp;
+                } else {
+                    // Числовая сортировка по убыванию (максимум слева, отсутствие/минус справа)
+                    if (valB !== valA) {
+                        return valB - valA;
+                    }
+                }
+                // Если равны - возвращаем первоначальный порядок закрепления
+                return a.originalIndex - b.originalIndex;
+            });
+        }
+
+        // Вычисляем индекс последнего элемента, имеющего сортируемое значение
+        let separatorIndex = -1;
+        if (activeSort) {
+            for (let i = columnsData.length - 1; i >= 0; i--) {
+                if (hasSortedValue(columnsData[i])) {
+                    separatorIndex = i;
+                    break;
+                }
+            }
+            // Линия нужна только если есть как предметы со статом, так и без него
+            if (separatorIndex === columnsData.length - 1) {
+                separatorIndex = -1;
+            }
+        }
+
         // 2. Сортируем ключи характеристик (используем эталонный порядок из тултипов)
         const ATTR_ORDER = window.ATTR_ORDER || [
             'Жизнь (хиты)',
@@ -521,8 +615,9 @@ document.addEventListener('DOMContentLoaded', () => {
         html += `<thead><tr>`;
         html += `<th>Параметр</th>`;
         columnsData.forEach((col, idx) => {
+            const isSeparator = (separatorIndex !== -1 && idx === separatorIndex);
             html += `
-                <th class="ct-item-header">
+                <th class="ct-item-header ${isSeparator ? 'ct-col-separator' : ''}">
                     <div class="ct-item-header-inner">
                         <button class="ct-item-remove" data-uid="${col.uid}" title="Убрать из сравнения">×</button>
                         <img src="${col.icon}" class="ct-item-icon" alt="${col.name}">
@@ -552,10 +647,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Строка: Тип предмета (если есть) - перемещена в начало
         if (showTypeRow) {
-            html += `<tr><td>Категория</td>`;
-            columnsData.forEach(col => {
+            const isCategorySorted = activeSort && activeSort.key === 'Категория';
+            html += `<tr><td class="ct-sortable-header ${isCategorySorted ? 'ct-active-sorted' : ''}" data-sort-key="Категория">Категория</td>`;
+            columnsData.forEach((col, idx) => {
                 const color = CATEGORY_COLORS[col.rawType] || '#aaa';
-                html += `<td><div class="ct-sub-cols"><div class="ct-merged-cell" style="color:${color};">${col.rawType}</div></div></td>`;
+                const isSeparator = (separatorIndex !== -1 && idx === separatorIndex);
+                html += `<td class="${isSeparator ? 'ct-col-separator' : ''}"><div class="ct-sub-cols"><div class="ct-merged-cell" style="color:${color};">${col.rawType}</div></div></td>`;
             });
             html += `</tr>`;
         }
@@ -597,14 +694,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Строки статов
         sortedStatKeys.forEach(key => {
+            const isSorted = activeSort && activeSort.key === key;
+            const cleanKeyName = key.replace(/-/g, ' ');
+            let sortIndicator = '';
+            if (isSorted) {
+                const typeLabels = { 'eq': '=', 'plus': '+/-', 'pct': '%' };
+                sortIndicator = ` (${typeLabels[activeSort.type]})`;
+            }
+
             html += `<tr>`;
-            html += `<td>${key.replace(/-/g, ' ')}</td>`;
+            html += `<td class="ct-sortable-header ${isSorted ? 'ct-active-sorted' : ''}" data-sort-key="${key}" data-triple="true">${cleanKeyName}${sortIndicator}</td>`;
             
             const comp = statComparisons[key];
 
-            columnsData.forEach(col => {
+            columnsData.forEach((col, idx) => {
                 const stat = col.stats[key] || { eq: '-', plus: '-', pct: '-' };
                 const cellComp = { eq: null, plus: null, pct: null };
+                const isSeparator = (separatorIndex !== -1 && idx === separatorIndex);
 
                 ['eq', 'plus', 'pct'].forEach(type => {
                     const rawVal = stat[type];
@@ -624,17 +730,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
-                html += `<td>${generateTripleCell(stat, cellComp, key)}</td>`;
+                html += `<td class="${isSeparator ? 'ct-col-separator' : ''}">${generateTripleCell(stat, cellComp, key)}</td>`;
             });
             html += `</tr>`;
         });
 
         // Строка: Магия (если есть)
         if (hasMagic) {
-            html += `<tr><td>Тип магии</td>`;
-            columnsData.forEach(col => {
+            const isMagicSorted = activeSort && activeSort.key === 'Тип магии';
+            html += `<tr><td class="ct-sortable-header ${isMagicSorted ? 'ct-active-sorted' : ''}" data-sort-key="Тип магии">Тип магии</td>`;
+            columnsData.forEach((col, idx) => {
                 let color = '#e0e0e0';
                 let textShadow = 'none';
+                const isSeparator = (separatorIndex !== -1 && idx === separatorIndex);
                 
                 if (col.magic.includes('смерти') || col.magic.includes('Смерти')) {
                     color = '#000';
@@ -644,37 +752,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 else if (col.magic.includes('стихий') || col.magic.includes('Стихий')) color = '#22B14C';
                 
                 const display = col.magic === 'Нет' ? `<span class="ct-val empty">-</span>` : `<span style="color: ${color}; text-shadow: ${textShadow}; font-weight: bold;">${col.magic}</span>`;
-                html += `<td><div class="ct-sub-cols"><div class="ct-merged-cell">${display}</div></div></td>`;
+                html += `<td class="${isSeparator ? 'ct-col-separator' : ''}"><div class="ct-sub-cols"><div class="ct-merged-cell">${display}</div></div></td>`;
             });
             html += `</tr>`;
         }
 
         // Строка: Бонус (если есть)
         if (hasBonus) {
-            html += `<tr><td>Бонус</td>`;
-            columnsData.forEach(col => {
+            const isBonusSorted = activeSort && activeSort.key === 'Бонус';
+            html += `<tr><td class="ct-sortable-header ${isBonusSorted ? 'ct-active-sorted' : ''}" data-sort-key="Бонус">Бонус</td>`;
+            columnsData.forEach((col, idx) => {
                 let display = `<span class="ct-val empty">-</span>`;
+                const isSeparator = (separatorIndex !== -1 && idx === separatorIndex);
                 if (col.bonus !== 'Нет') {
                     const iconHtml = col.bonusIcon ? `<img src="${col.bonusIcon}" class="ct-bonus-icon">` : '';
                     display = `<span style="color: #fff;">${iconHtml}${col.bonus}</span>`;
                 }
-                html += `<td><div class="ct-sub-cols"><div class="ct-merged-cell">${display}</div></div></td>`;
+                html += `<td class="${isSeparator ? 'ct-col-separator' : ''}"><div class="ct-sub-cols"><div class="ct-merged-cell">${display}</div></div></td>`;
             });
             html += `</tr>`;
         }
 
         // Строка: Цена (если есть)
         if (hasCost) {
-            html += `<tr><td>Стоимость</td>`;
-            columnsData.forEach(col => {
+            const isCostSorted = activeSort && activeSort.key === 'Стоимость';
+            html += `<tr><td class="ct-sortable-header ${isCostSorted ? 'ct-active-sorted' : ''}" data-sort-key="Стоимость">Стоимость</td>`;
+            columnsData.forEach((col, idx) => {
+                const isSeparator = (separatorIndex !== -1 && idx === separatorIndex);
                 const display = col.cost === '0' ? `<span class="ct-val empty">-</span>` : `<span style="color: #ffd700; font-weight: bold;">${col.cost} <img src="gold.png" style="width:14px; vertical-align:middle;"></span>`;
-                html += `<td><div class="ct-sub-cols"><div class="ct-merged-cell">${display}</div></div></td>`;
+                html += `<td class="${isSeparator ? 'ct-col-separator' : ''}"><div class="ct-sub-cols"><div class="ct-merged-cell">${display}</div></div></td>`;
             });
             html += `</tr>`;
         }
 
         html += `</tbody></table>`;
         tableContainer.innerHTML = html;
+
+        // Навешиваем клики на левую колонку для сортировки
+        tableContainer.querySelectorAll('.ct-sortable-header').forEach(td => {
+            const key = td.dataset.sortKey;
+            const isTriple = td.dataset.triple === 'true';
+
+            const handleInteraction = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Повторный клик по уже активной категории отменяет сортировку
+                if (activeSort && activeSort.key === key) {
+                    activeSort = null;
+                    renderTable();
+                    return;
+                }
+
+                if (isTriple) {
+                    showSortDropdown(e, key, columnsData);
+                } else {
+                    // Прямая сортировка для простых строк
+                    activeSort = { key, type: 'eq' };
+                    renderTable();
+                }
+            };
+
+            td.addEventListener('click', handleInteraction);
+            td.addEventListener('contextmenu', handleInteraction);
+        });
 
         // Навешиваем события на крестики
         tableContainer.querySelectorAll('.ct-item-remove').forEach(btn => {
@@ -709,6 +850,62 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    // Вспомогательная функция отрисовки меню выбора под-колонки для сортировки
+    const showSortDropdown = (e, key, columnsData) => {
+        const existing = document.getElementById('ct-sort-dropdown');
+        if (existing) existing.remove();
+
+        const dropdown = document.createElement('div');
+        dropdown.id = 'ct-sort-dropdown';
+        dropdown.className = 'ct-sort-dropdown';
+
+        // Проверяем наличие хотя бы одного реального значения для каждого типа во всех колонках
+        const hasEqValue = columnsData.some(col => col.stats[key] && col.stats[key].eq !== '-');
+        const hasPlusValue = columnsData.some(col => col.stats[key] && col.stats[key].plus !== '-');
+        const hasPctValue = columnsData.some(col => col.stats[key] && col.stats[key].pct !== '-');
+
+        const items = [];
+        if (hasEqValue) items.push({ text: 'Сортировать по "="', type: 'eq' });
+        if (hasPlusValue) items.push({ text: 'Сортировать по "+/-"', type: 'plus' });
+        if (hasPctValue) items.push({ text: 'Сортировать по "%"', type: 'pct' });
+
+        // Если сортировать нечего — не открываем пустое меню
+        if (items.length === 0) return;
+
+        items.forEach(item => {
+            const menuItem = document.createElement('div');
+            menuItem.className = 'ct-sort-dropdown-item';
+            if (activeSort && activeSort.key === key && activeSort.type === item.type) {
+                menuItem.classList.add('active');
+            }
+            menuItem.textContent = item.text;
+            menuItem.addEventListener('click', (evt) => {
+                evt.stopPropagation();
+                activeSort = { key, type: item.type };
+                dropdown.remove();
+                renderTable();
+            });
+            dropdown.appendChild(menuItem);
+        });
+
+        document.body.appendChild(dropdown);
+
+        dropdown.style.left = `${e.clientX}px`;
+        dropdown.style.top = `${e.clientY}px`;
+
+        const closeDropdown = (evt) => {
+            if (!dropdown.contains(evt.target)) {
+                dropdown.remove();
+                document.removeEventListener('mousedown', closeDropdown);
+                document.removeEventListener('contextmenu', closeDropdown);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('mousedown', closeDropdown);
+            document.addEventListener('contextmenu', closeDropdown);
+        }, 0);
+    };
+
     // Открытие модалки
     tableBtn.addEventListener('click', () => {
         renderTable();
@@ -719,7 +916,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Закрытие
-    const closeTable = () => tableOverlay.classList.remove('visible');
+    const closeTable = () => {
+        tableOverlay.classList.remove('visible');
+        const dropdown = document.getElementById('ct-sort-dropdown');
+        if (dropdown) dropdown.remove();
+    };
     
     tableCloseBtn.addEventListener('click', closeTable);
     tableOverlay.addEventListener('click', (e) => {

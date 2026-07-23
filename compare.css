@@ -488,14 +488,14 @@ body > .tooltip.grid-tooltip-detached {
 .ct-content {
   flex: 1;
   overflow: auto;
-  padding: 20px;
+  padding: 0; /* Убран внутренний отступ для предотвращения просвечивания при скролле */
   background-color: #1a1a1a;
 }
 
 /* Дизайн самой таблицы */
 .ct-table {
   width: max-content;
-  margin: 0 auto;
+  margin: 20px auto; /* Смещение и отступы перенесены во внешние границы таблицы */
   border-collapse: collapse;
   font-size: 0.9rem;
 }
@@ -503,7 +503,7 @@ body > .tooltip.grid-tooltip-detached {
 /* Стики-заголовки для удобного скролла огромной таблицы */
 .ct-table thead {
   position: sticky;
-  top: -20px; /* Учитываем padding контейнера */
+  top: 0; /* Выровнено к верху viewport */
   z-index: 10;
 }
 
@@ -531,16 +531,20 @@ body > .tooltip.grid-tooltip-detached {
 .ct-table th:first-child,
 .ct-table td:first-child {
   position: sticky;
-  left: -20px;
+  left: 0; /* Прижата к левой границе scrollable viewport */
   background-color: #222;
   z-index: 11;
   text-align: left;
   font-weight: bold;
   color: #aaa;
-  width: 130px;
-  min-width: 130px;
-  max-width: 130px;
+  width: 160px; 
+  min-width: 160px; 
+  max-width: 160px; 
   box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+  box-sizing: border-box;
+  white-space: normal; /* Разрешаем перенос длинного текста на новые строки */
+  word-break: break-word; /* Безопасный перенос слогов */
+  padding: 3px 6px; /* Оптимальные внутренние поля */
 }
 /* Перекрестие заголовков выше всех */
 .ct-table th:first-child {
@@ -684,4 +688,63 @@ body > .tooltip.grid-tooltip-detached {
   height: 18px;
   vertical-align: middle;
   margin-right: 5px;
+}
+
+/* Стили для выпадающего меню сортировки в таблице сравнения */
+.ct-sort-dropdown {
+  position: fixed;
+  background-color: #252525;
+  border: 1px solid #444;
+  border-radius: 4px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+  z-index: 100000;
+  padding: 4px 0;
+  min-width: 200px;
+  font-family: sans-serif;
+}
+
+.ct-sort-dropdown-item {
+  padding: 8px 12px;
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.ct-sort-dropdown-item:hover {
+  background-color: var(--primary-color, #674DF2);
+  color: #fff;
+}
+
+.ct-sort-dropdown-item.active {
+  font-weight: bold;
+  color: #ffcc00;
+}
+
+/* Индикатор сортировки на заголовке параметра */
+.ct-table td:first-child.ct-sortable-header {
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.ct-table td:first-child.ct-sortable-header:hover {
+  background-color: #333 !important;
+  color: #fff !important;
+}
+
+.ct-table td:first-child.ct-sortable-header.ct-active-sorted {
+  color: #ffcc00 !important;
+  background-color: #2a2718 !important; /* Насыщенный непрозрачный фон для исключения просвечивания */
+}
+
+.ct-table td:first-child.ct-sortable-header.ct-active-sorted::after {
+  content: ' ⇅';
+  font-size: 0.85em;
+  color: #ffcc00;
+}
+
+/* Желтая разделительная линия для колонок при сортировке */
+.ct-table th.ct-col-separator,
+.ct-table td.ct-col-separator {
+  border-right: 2px solid #CEA500 !important;
 }
