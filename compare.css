@@ -467,6 +467,28 @@ body > .tooltip.grid-tooltip-detached {
   overflow: hidden;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   color: var(--text-normal);
+  position: relative; /* Добавлено для позиционирования Monaco-подобного маркера */
+}
+
+/* Monaco-like scrollbar marker for sorted columns */
+.ct-scrollbar-marker-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 12px; /* Под высоту горизонтального скроллбара */
+  pointer-events: none;
+  z-index: 100;
+  background: transparent;
+}
+
+.ct-scrollbar-marker {
+  position: absolute;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  background-color: #CEA500;
+  box-shadow: 0 0 5px #CEA500;
+  opacity: 0.85;
 }
 
 .ct-header {
@@ -570,6 +592,7 @@ body > .tooltip.grid-tooltip-detached {
   flex-direction: column;
   align-items: center;
   position: relative;
+  cursor: pointer; /* Делаем курсор кликабельным на всей области заголовка для удобства */
 }
 
 .ct-item-icon {
@@ -747,4 +770,15 @@ body > .tooltip.grid-tooltip-detached {
 .ct-table th.ct-col-separator,
 .ct-table td.ct-col-separator {
   border-right: 2px solid #CEA500 !important;
+}
+
+/* Специальный класс для оторванных тултипов в таблице сравнения (чтобы были видны поверх модалки 7500) */
+body > .tooltip.ct-tooltip-detached {
+  width: var(--tooltip-width);
+  z-index: 8000; /* Должен быть выше модального окна (.compare-table-overlay имеет 7500) */
+  pointer-events: none;
+  transform: scale(1) !important;
+  margin: 0 !important;
+  padding-bottom: 15px;
+  border-left: none !important;
 }

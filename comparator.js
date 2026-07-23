@@ -273,6 +273,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Глобальное состояние активной сортировки в таблице сравнения
     let activeSort = null; // { key: string, type: 'eq' | 'plus' | 'pct' }
+    let activeTableTooltips = []; // Массив для отслеживания открытых тултипов при наведении в модалке
+
+    const updateScrollbarMarker = () => {
+        let markerTrack = document.getElementById('ct-scrollbar-marker-track');
+        if (!markerTrack && tableContainer && tableContainer.parentNode) {
+            markerTrack = document.createElement('div');
+            markerTrack.id = 'ct-scrollbar-marker-track';
+            markerTrack.className = 'ct-scrollbar-marker-track';
+            tableContainer.parentNode.appendChild(markerTrack);
+        }
+        if (!markerTrack) return;
+
+        const separatorEl = tableContainer.querySelector('th.ct-col-separator');
+        if (separatorEl) {
+            const tableEl = tableContainer.querySelector('.ct-table');
+            if (!tableEl) return;
+            const rectTable = tableEl.getBoundingClientRect();
+            const rectSep = separatorEl.getBoundingClientRect();
+            const separatorX = rectSep.right - rectTable.left;
+            const totalScrollWidth = tableContainer.scrollWidth;
+            const trackWidth = tableContainer.clientWidth;
+            
+            const ratio = separatorX / totalScrollWidth;
+            const markerX = ratio * trackWidth;
+
+            markerTrack.style.display = 'block';
+            markerTrack.style.width = `${trackWidth}px`;
+            
+            let marker = markerTrack.querySelector('.ct-scrollbar-marker');
+            if (!marker) {
+                marker = document.createElement('div');
+                marker.className = 'ct-scrollbar-marker';
+                markerTrack.appendChild(marker);
+            }
+            marker.style.left = `${markerX}px`;
+        } else {
+            markerTrack.style.display = 'none';
+        }
+    };
+
+    window.addEventListener('resize', updateScrollbarMarker);
 
     let isHighlightEnabled = true;
     const highlightToggle = document.getElementById('ct-highlight-toggle');
@@ -374,6 +415,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Основная функция рендера таблицы
     const renderTable = () => {
+        // Очищаем активные тултипы перед перерендером
+        activeTableTooltips.forEach(t => t.remove());
+        activeTableTooltips = [];
+
         const pinnedNodes = document.querySelectorAll('.compare-panel-content .pinned-item');
         if (pinnedNodes.length === 0) {
             if (typeof showNotification === 'function') {
@@ -555,7 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const cmp = valA.localeCompare(valB);
                     if (cmp !== 0) return cmp;
                 } else {
-                    // Числовая сортировка по убыванию (максимум слева, отсутствие/минус справа)
+                    // Числовой способ сортировки по убыванию
                     if (valB !== valA) {
                         return valB - valA;
                     }
@@ -787,6 +832,140 @@ document.addEventListener('DOMContentLoaded', () => {
 
         html += `</tbody></table>`;
         tableContainer.innerHTML = html;
+        updateScrollbarMarker();
+
+        // --- ЛОГИКА ДЛЯ ПОЯВЛЕНИЯ ТУЛТИПОВ ПРИ НАВЕДЕНИИ НА ИКОНКУ ПРЕДМЕТА В ТАБЛИЦЕ (ОТКРЫВАЮТСЯ ВПРАВО/ВЛЕВО) ---
+        const headers = tableContainer.querySelectorAll('.ct-item-header');
+        headers.forEach((header, idx) => {
+            const col = columnsData[idx];
+            if (!col) return;
+
+            const headerInner = header.querySelector('.ct-item-header-inner');
+            if (!headerInner) return;
+
+            headerInner.addEventListener('mouseenter', (e) => {
+                // Пытаемся найти оригинальный закрепленный предмет в левой панели для клонирования тултипов
+                const pinnedNode = document.querySelector(`.compare-panel-content .pinned-item[data-uid="${col.uid}"]`);
+                if (!pinnedNode) return;
+
+                // Быстро убираем старые тултипы
+                activeTableTooltips.forEach(t => t.remove());
+                activeTableTooltips = [];
+
+                // Клонируем Tooltip-1
+                const tt1 = pinnedNode.querySelector('.tooltip-1');
+                let tt1Clone = null;
+                if (tt1) {
+                    tt1Clone = tt1.cloneNode(true);
+                    tt1Clone.classList.add('ct-tooltip-detached');
+                    tt1Clone.classList.remove('visible');
+                    document.body.appendChild(tt1Clone);
+                    activeTableTooltips.push(tt1Clone);
+                }
+
+                // Клонируем Tooltip-2 (если активен режим сравнения)
+                const tt2 = pinnedNode.querySelector('.tooltip-2');
+                let tt2Clone = null;
+                if (tt2 && window.compareMode) {
+                    tt2Clone = tt2.cloneNode(true);
+                    tt2Clone.classList.add('ct-tooltip-detached');
+                    tt2Clone.classList.remove('visible');
+                    document.body.appendChild(tt2Clone);
+                    activeTableTooltips.push(tt2Clone);
+                }
+
+                if (activeTableTooltips.length === 0) return;
+
+                const rect = headerInner.getBoundingClientRect();
+                const gap = 10;
+                const tooltipWidth = 300;
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+
+                // Вычисляем оптимальную позицию по вертикали: выравниваем по верху шапки
+                let topPos = rect.top;
+                const testHeight = tt1Clone ? tt1Clone.offsetHeight : 400;
+                
+                // Проверяем верхнюю и нижнюю границы видимой области экрана
+                const isTopbarHidden = document.body.classList.contains('topbar-hidden');
+                const topBarHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--top-bar-height')) || 60;
+                const topBoundary = isTopbarHidden ? 5 : topBarHeight + 23;
+
+                if (topPos < topBoundary) {
+                    topPos = topBoundary;
+                } else if (topPos + testHeight > viewportHeight) {
+                    topPos = Math.max(topBoundary, viewportHeight - testHeight - 10);
+                }
+
+                if (activeTableTooltips.length === 1 && tt1Clone) {
+                    // По умолчанию открываем тултип вправо
+                    let leftPos = rect.right + gap;
+                    // Если справа не помещается, открываем влево от шапки
+                    if (leftPos + tooltipWidth > viewportWidth - 10) {
+                        leftPos = rect.left - tooltipWidth - gap;
+                    }
+                    // Защитное ограничение координат в пределах экрана
+                    leftPos = Math.max(10, Math.min(leftPos, viewportWidth - tooltipWidth - 10));
+
+                    tt1Clone.style.left = `${leftPos}px`;
+                    tt1Clone.style.top = `${topPos}px`;
+                    void tt1Clone.offsetWidth;
+                    tt1Clone.classList.add('visible');
+                } else if (activeTableTooltips.length === 2 && tt1Clone && tt2Clone) {
+                    // Два тултипа: по умолчанию оба справа side-by-side
+                    let leftPos1 = rect.right + gap;
+                    let leftPos2 = rect.right + gap + tooltipWidth + gap;
+
+                    // Если справа не помещаются оба, переносим оба влево
+                    if (leftPos2 + tooltipWidth > viewportWidth - 10) {
+                        // Tooltip 1 дальше влево, Tooltip 2 ближе к шапке для сохранения порядка чтения (Left-to-Right)
+                        leftPos1 = rect.left - 2 * tooltipWidth - gap * 2;
+                        leftPos2 = rect.left - tooltipWidth - gap;
+
+                        // Если и слева не помещаются оба, разделяем их: один слева, другой справа
+                        if (leftPos1 < 10) {
+                            leftPos1 = rect.left - tooltipWidth - gap;
+                            leftPos2 = rect.right + gap;
+
+                            // Зажимаем в границы экрана
+                            if (leftPos1 < 10) leftPos1 = 10;
+                            if (leftPos2 + tooltipWidth > viewportWidth - 10) {
+                                leftPos2 = viewportWidth - tooltipWidth - 10;
+                            }
+                        }
+                    }
+
+                    tt1Clone.style.left = `${leftPos1}px`;
+                    tt1Clone.style.top = `${topPos}px`;
+
+                    const testHeight2 = tt2Clone.offsetHeight || testHeight;
+                    let topPos2 = rect.top;
+                    if (topPos2 < topBoundary) {
+                        topPos2 = topBoundary;
+                    } else if (topPos2 + testHeight2 > viewportHeight) {
+                        topPos2 = Math.max(topBoundary, viewportHeight - testHeight2 - 10);
+                    }
+                    tt2Clone.style.left = `${leftPos2}px`;
+                    tt2Clone.style.top = `${topPos2}px`;
+
+                    void tt1Clone.offsetWidth;
+                    void tt2Clone.offsetWidth;
+                    tt1Clone.classList.add('visible');
+                    tt2Clone.classList.add('visible');
+                }
+            });
+
+            headerInner.addEventListener('mouseleave', () => {
+                const tooltipsToRemove = [...activeTableTooltips];
+                tooltipsToRemove.forEach(t => {
+                    t.classList.remove('visible');
+                    setTimeout(() => {
+                        t.remove();
+                    }, 200);
+                });
+                activeTableTooltips = [];
+            });
+        });
 
         // Навешиваем клики на левую колонку для сортировки
         tableContainer.querySelectorAll('.ct-sortable-header').forEach(td => {
@@ -912,6 +1091,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pinnedNodes = document.querySelectorAll('.compare-panel-content .pinned-item');
         if (pinnedNodes.length > 0) {
             tableOverlay.classList.add('visible');
+            setTimeout(updateScrollbarMarker, 50);
         }
     });
 
@@ -920,6 +1100,12 @@ document.addEventListener('DOMContentLoaded', () => {
         tableOverlay.classList.remove('visible');
         const dropdown = document.getElementById('ct-sort-dropdown');
         if (dropdown) dropdown.remove();
+        
+        // Очищаем активные тултипы при закрытии
+        activeTableTooltips.forEach(t => t.remove());
+        activeTableTooltips = [];
+        const markerTrack = document.getElementById('ct-scrollbar-marker-track');
+        if (markerTrack) markerTrack.style.display = 'none';
     };
     
     tableCloseBtn.addEventListener('click', closeTable);
