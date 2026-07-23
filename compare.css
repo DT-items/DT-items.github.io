@@ -358,6 +358,23 @@ body.compare-grid-active .toggle-grid-btn:hover {
   background-image: url('ChkCompareOn.png');
 }
 
+/* Выделение лассо для группового выбора */
+#selection-lasso {
+  position: fixed;
+  border: 1.5px dashed #ffcc00;
+  background: rgba(255, 204, 0, 0.12);
+  pointer-events: none;
+  z-index: 10000;
+  display: none;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+}
+
+.item.lasso-hover > img {
+  transform: scale(var(--thumb-hover-scale)) !important;
+  filter: brightness(1.2) !important;
+}
+
 /* --- РЕЖИМ СЕТКИ ДЛЯ ПАНЕЛИ СРАВНЕНИЯ --- */
 .compare-panel-content.grid-view {
   flex-direction: row;

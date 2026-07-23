@@ -442,7 +442,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     bonusIcon: bonusIconSrc,
                     magic: magicText,
                     cost: cost || '0',
-                    type: window.EDITOR_GROUPS ? (window.EDITOR_GROUPS.find(g => g.id === type)?.name || type) : type
+                    type: window.EDITOR_GROUPS ? (window.EDITOR_GROUPS.find(g => g.id === type)?.name || type) : type,
+                    rawType: type
                 });
             };
 
@@ -481,6 +482,9 @@ document.addEventListener('DOMContentLoaded', () => {
         columnsData.forEach(col => {
             Object.keys(col.stats).forEach(k => allStatKeys.add(k));
         });
+
+        const uniqueTypes = new Set(columnsData.map(col => col.type).filter(Boolean));
+        const showTypeRow = uniqueTypes.size > 1;
 
         // 2. Сортируем ключи характеристик (используем эталонный порядок из тултипов)
         const ATTR_ORDER = window.ATTR_ORDER || [
@@ -533,11 +537,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         html += `</tr></thead><tbody>`;
 
+        const CATEGORY_COLORS = {
+            'BlowWeapon': '#FF7676', // Светло-красный
+            'ShotWeapon': '#50E57D', // Зеленый
+            'Armor':      '#B0BEC5', // Стальной / Серебристо-серый
+            'Helm':       '#90CAF9', // Небесно-голубой
+            'Shield':     '#FFF59D', // Пастельно-желтый
+            'Staff':      '#FFB74D', // Светло-оранжевый
+            'Amulet':     '#E0B0FF', // Сиреневый
+            'Ring':       '#80DEEA', // Бирюзовый
+            'Potion':     '#81C784', // Мятный
+            'Item':       '#E0D4C3'  // Бежевый / Пергаментный
+        };
+
         // Строка: Тип предмета (если есть) - перемещена в начало
-        if (hasType) {
+        if (showTypeRow) {
             html += `<tr><td>Категория</td>`;
             columnsData.forEach(col => {
-            html += `<td><div class="ct-sub-cols"><div class="ct-merged-cell" style="color:#aaa;">${col.type}</div></div></td>`;
+                const color = CATEGORY_COLORS[col.rawType] || '#aaa';
+                html += `<td><div class="ct-sub-cols"><div class="ct-merged-cell" style="color:${color};">${col.rawType}</div></div></td>`;
             });
             html += `</tr>`;
         }
@@ -1045,20 +1063,142 @@ window.compareTooltips = function(targetTt, sourceTt) {
   const sPrice = getPrice(sourceTt);
 
   if (tPrice && sPrice) {
-      if (tPrice.val !== sPrice.val) {
-          const span = document.createElement('span');
-          span.className = 'comp-diff';
-          // Space before parenthesis
-          span.textContent = ` (${sPrice.raw})`;
+          if (tPrice.val !== sPrice.val) {
+              const span = document.createElement('span');
+              span.className = 'comp-diff';
+              // Space before parenthesis
+              span.textContent = ` (${sPrice.raw})`;
 
-          // Для цены: Меньше = Лучше (Зеленый)
-          if (sPrice.val < tPrice.val) {
-              span.classList.add('comp-green');
-          } else {
-              span.classList.add('comp-red');
+              // Для цены: Меньше = Лучше (Зеленый)
+              if (sPrice.val < tPrice.val) {
+                  span.classList.add('comp-green');
+              } else {
+                  span.classList.add('comp-red');
+              }
+              
+              tPrice.el.appendChild(span);
           }
-          
-          tPrice.el.appendChild(span);
       }
-  }
-};
+    };
+
+    // --- MULTI-SELECTION LASSO LOGIC ---
+    document.addEventListener('DOMContentLoaded', () => {
+        let startX = 0;
+        let startY = 0;
+        let lassoEl = null;
+        let isDragging = false;
+        let wasDragging = false;
+        let activeButtons = new Set();
+
+        const handleMouseDown = (e) => {
+            if (e.button !== 0 && e.button !== 2) return;
+            if (!document.body.classList.contains('compare-open')) return;
+
+            // Игнорируем клики по элементам интерфейса
+            const isUI = e.target.closest('.top-bar, .side-panel, #compare-panel, .page-panel, .editor-overlay, .about-popup, .about-overlay, #toast-container, .custom-context-menu, .compare-table-modal, .bonus-help-modal');
+            if (isUI) return;
+
+            activeButtons.add(e.button);
+            startX = e.clientX;
+            startY = e.clientY;
+            isDragging = false;
+            wasDragging = false;
+
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        };
+
+        const handleMouseMove = (e) => {
+            const currentX = e.clientX;
+            const currentY = e.clientY;
+            const dist = Math.hypot(currentX - startX, currentY - startY);
+
+            // Активируем лассо только при сдвиге мыши более чем на 10 пикселей
+            if (!isDragging && dist > 10) {
+                isDragging = true;
+                lassoEl = document.createElement('div');
+                lassoEl.id = 'selection-lasso';
+                document.body.appendChild(lassoEl);
+            }
+
+            if (isDragging && lassoEl) {
+                const x1 = Math.min(startX, currentX);
+                const y1 = Math.min(startY, currentY);
+                const x2 = Math.max(startX, currentX);
+                const y2 = Math.max(startY, currentY);
+
+                lassoEl.style.left = `${x1}px`;
+                lassoEl.style.top = `${y1}px`;
+                lassoEl.style.width = `${x2 - x1}px`;
+                lassoEl.style.height = `${y2 - y1}px`;
+                lassoEl.style.display = 'block';
+
+                const cards = document.querySelectorAll('.Items .item');
+                cards.forEach(card => {
+                    const rect = card.getBoundingClientRect();
+                    const overlap = !(rect.right < x1 || rect.left > x2 || rect.bottom < y1 || rect.top > y2);
+                    if (overlap && !card.classList.contains('is-pinned') && !card.classList.contains('hidden')) {
+                        card.classList.add('lasso-hover');
+                    } else {
+                        card.classList.remove('lasso-hover');
+                    }
+                });
+            }
+        };
+
+        const handleMouseUp = (e) => {
+            activeButtons.delete(e.button);
+            if (activeButtons.size > 0) return;
+
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+
+            wasDragging = isDragging;
+            setTimeout(() => { wasDragging = false; }, 50);
+
+            if (isDragging && lassoEl) {
+                const currentX = e.clientX;
+                const currentY = e.clientY;
+                const x1 = Math.min(startX, currentX);
+                const y1 = Math.min(startY, currentY);
+                const x2 = Math.max(startX, currentX);
+                const y2 = Math.max(startY, currentY);
+
+                const cards = document.querySelectorAll('.Items .item');
+                let addedCount = 0;
+
+                cards.forEach(card => {
+                    card.classList.remove('lasso-hover');
+                    const rect = card.getBoundingClientRect();
+                    const overlap = !(rect.right < x1 || rect.left > x2 || rect.bottom < y1 || rect.top > y2);
+                    
+                    if (overlap && !card.classList.contains('hidden')) {
+                        const uid = card.dataset.uid;
+                        if (uid && window.pinnedItemIds && !window.pinnedItemIds.has(uid)) {
+                            window.addToComparePanel(card);
+                            addedCount++;
+                        }
+                    }
+                });
+
+                if (addedCount > 0 && typeof showNotification === 'function') {
+                    showNotification(`Добавлено предметов в сравнение: ${addedCount}`, 'success');
+                }
+
+                lassoEl.remove();
+                lassoEl = null;
+            }
+
+            isDragging = false;
+        };
+
+        // Блокируем контекстное меню при завершении перетаскивания правой кнопкой мыши
+        window.addEventListener('contextmenu', (e) => {
+            if (wasDragging) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+
+        document.addEventListener('mousedown', handleMouseDown);
+    });

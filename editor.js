@@ -162,6 +162,7 @@ const EDITOR_GROUPS = [
     { id: 'Potion',     name: 'Зелья' },
     { id: 'Item',       name: 'Предметы' }
 ];
+window.EDITOR_GROUPS = EDITOR_GROUPS;
 
 const TYPE_ICONS_MAP = {
   'BlowWeapon': './Vanilla/Items/1.png',
