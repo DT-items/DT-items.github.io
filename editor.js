@@ -987,6 +987,20 @@ function resizeImageTo53(img) {
     return canvas.toDataURL('image/png');
 }
 
+function padImageTo53(img) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 53;
+    canvas.height = 53;
+    const ctx = canvas.getContext('2d');
+    
+    // Центрируем изображение на прозрачном холсте 53x53
+    const dx = Math.floor((53 - img.width) / 2);
+    const dy = Math.floor((53 - img.height) / 2);
+    
+    ctx.drawImage(img, dx, dy);
+    return canvas.toDataURL('image/png');
+}
+
 // --- Size Warning Modal Helper ---
 function showSizeWarning() {
     return new Promise((resolve) => {
@@ -1074,6 +1088,9 @@ async function handleIconUpload(e) {
                 } else if (decision === 'resize') {
                     finalUrl = resizeImageTo53(img);
                 }
+            } else if (img.width < 53 || img.height < 53) {
+                // Если картинка меньше 53x53, дополняем пустоту прозрачностью
+                finalUrl = padImageTo53(img);
             }
 
             // 4. НОВОЕ: Применяем игровое сжатие (17 цветов) к итоговой картинке
@@ -2887,13 +2904,8 @@ function makeIniText(dataObj) {
         if (item.Descript) output += `Descript=${item.Descript}\r\n`;
         
         if (item.GlobalIndex) {
-            if (item.Icon && !item.Icon.startsWith('data:')) {
-                 const iconVal = item.Icon.replace('.png', '').replace('.tga', '');
-                 output += `Icon=${iconVal}\r\n`;
-            } else {
-                 const paddedId = String(item.GlobalIndex).padStart(3, '0');
-                 output += `Icon=A${paddedId}\r\n`;
-            }
+             const paddedId = String(item.GlobalIndex).padStart(3, '0');
+             output += `Icon=A${paddedId}\r\n`;
         } else {
             output += `Icon=empty\r\n`;
         }

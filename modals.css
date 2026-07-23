@@ -48,6 +48,16 @@
   pointer-events: none;  /* пока скрыто — клики проходят сквозь */
 }
 
+.about-popup__version {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: sans-serif;
+  user-select: none;
+}
+
 .about-popup::before {
   content: "";
   position: absolute;         /* чтобы не влиять на .about-popup */
