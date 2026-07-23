@@ -1822,6 +1822,37 @@ function selectItemByIndex(index) {
 function populateItemList() {
     if (typeof savedData1 === 'undefined') return;
     let items = Object.values(savedData1);
+    const rawQuery = edSearchInput.value.trim();
+    
+    let isJsonQuery = false;
+    if (rawQuery.startsWith('{') && rawQuery.endsWith('}')) {
+        try {
+            JSON.parse(rawQuery);
+            isJsonQuery = true;
+        } catch (e) {}
+    }
+
+    if (isJsonQuery) {
+        currentItemsList = [];
+        selectedListItemIndex = -1;
+        if (edSelectionCursor) edSelectionCursor.style.display = 'none';
+        edList.innerHTML = `
+            <div class="list-spacer"></div>
+            <div class="ed-paste-placeholder-btn" id="ed-paste-placeholder-btn">
+                Нажмите сюда, чтобы вставить предмет
+            </div>
+            <div class="list-spacer"></div>
+        `;
+        const pBtn = document.getElementById('ed-paste-placeholder-btn');
+        if (pBtn) {
+            pBtn.addEventListener('click', () => {
+                processPasteData(rawQuery);
+            });
+        }
+        return;
+    }
+
+    if (edSelectionCursor) edSelectionCursor.style.display = 'block';
     const query = edSearchInput.value.toLowerCase();
     if (query) {
         items = items.filter(it => 

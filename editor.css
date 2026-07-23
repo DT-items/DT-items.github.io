@@ -741,7 +741,29 @@ textarea.compact-textarea {
     font-weight: bold;
 }
 
-
+.ed-paste-placeholder-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    margin: 15px 8px;
+    padding: 24px 12px;
+    background-color: rgba(103, 77, 242, 0.15);
+    border: 2px dashed var(--primary-color);
+    border-radius: 8px;
+    color: #fff;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.95rem;
+    transition: background-color 0.2s, transform 0.1s;
+}
+.ed-paste-placeholder-btn:hover {
+    background-color: rgba(103, 77, 242, 0.3);
+    transform: scale(1.02);
+}
+.ed-paste-placeholder-btn:active {
+    transform: scale(0.98);
+}
 
 /* --- CUSTOM SELECT --- */
 .ed-custom-select-container {
