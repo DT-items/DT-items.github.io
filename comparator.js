@@ -1475,21 +1475,29 @@ window.compareTooltips = function(targetTt, sourceTt) {
         let lassoEl = null;
         let isDragging = false;
         let wasDragging = false;
-        let activeButtons = new Set();
+        let isLassoActive = false; // Флаг активной сессии лассо
 
         const handleMouseDown = (e) => {
             if (e.button !== 0 && e.button !== 2) return;
             if (!document.body.classList.contains('compare-open')) return;
+            if (isLassoActive) return; // Если уже тянем — игнорируем новые нажатия
 
             // Игнорируем клики по элементам интерфейса
             const isUI = e.target.closest('.top-bar, .side-panel, #compare-panel, .page-panel, .editor-overlay, .about-popup, .about-overlay, #toast-container, .custom-context-menu, .compare-table-modal, .bonus-help-modal');
             if (isUI) return;
 
-            activeButtons.add(e.button);
+            // Предотвращаем дефолтное выделение и драг в браузере (критично для Firefox)
+            e.preventDefault();
+
+            isLassoActive = true;
             startX = e.clientX;
             startY = e.clientY;
             isDragging = false;
             wasDragging = false;
+
+            // Удаляем старый зависший лассо-элемент, если он остался в DOM
+            const oldLasso = document.getElementById('selection-lasso');
+            if (oldLasso) oldLasso.remove();
 
             document.addEventListener('mousemove', handleMouseMove);
             document.addEventListener('mouseup', handleMouseUp);
@@ -1503,6 +1511,10 @@ window.compareTooltips = function(targetTt, sourceTt) {
             // Активируем лассо только при сдвиге мыши более чем на 10 пикселей
             if (!isDragging && dist > 10) {
                 isDragging = true;
+                
+                const oldLasso = document.getElementById('selection-lasso');
+                if (oldLasso) oldLasso.remove();
+
                 lassoEl = document.createElement('div');
                 lassoEl.id = 'selection-lasso';
                 document.body.appendChild(lassoEl);
@@ -1534,11 +1546,10 @@ window.compareTooltips = function(targetTt, sourceTt) {
         };
 
         const handleMouseUp = (e) => {
-            activeButtons.delete(e.button);
-            if (activeButtons.size > 0) return;
-
+            // Удаляем слушатели в любом случае, чтобы избежать утечек и наслоений
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
+            isLassoActive = false;
 
             wasDragging = isDragging;
             setTimeout(() => { wasDragging = false; }, 50);
@@ -1574,10 +1585,26 @@ window.compareTooltips = function(targetTt, sourceTt) {
 
                 lassoEl.remove();
                 lassoEl = null;
+            } else {
+                document.querySelectorAll('.Items .item').forEach(card => card.classList.remove('lasso-hover'));
             }
 
             isDragging = false;
         };
+
+        // Безопасный сброс лассо при потере фокуса окна (например, Alt+Tab)
+        window.addEventListener('blur', () => {
+            if (isLassoActive) {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+                const oldLasso = document.getElementById('selection-lasso');
+                if (oldLasso) oldLasso.remove();
+                document.querySelectorAll('.Items .item').forEach(card => card.classList.remove('lasso-hover'));
+                isLassoActive = false;
+                isDragging = false;
+                lassoEl = null;
+            }
+        });
 
         // Блокируем контекстное меню при завершении перетаскивания правой кнопкой мыши
         window.addEventListener('contextmenu', (e) => {

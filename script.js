@@ -3768,6 +3768,13 @@ document.getElementById('btn-Dement')
 loadData();
 loadGlobalBonusDescriptions(); // Загружаем справочник бонусов
 
+// Отключаем нативный drag-and-drop изображений и предметов (критично для Firefox)
+document.addEventListener('dragstart', (e) => {
+  if (e.target.tagName === 'IMG' || e.target.closest('.item')) {
+    e.preventDefault();
+  }
+});
+
 // === Автоматически скрыть шапку на мобилках через 5 сек после загрузки ===
 window.addEventListener('load', () => {
   // проверяем мобильный breakpoint
