@@ -760,6 +760,15 @@ body > .tooltip.grid-tooltip-detached {
   background-color: #2a2718 !important; /* Насыщенный непрозрачный фон для исключения просвечивания */
 }
 
+/* Подсветка всей строки при активной сортировке по этому параметру */
+.ct-row-active-sorted td {
+  background-color: #35311a !important; /* Легкое золотисто-темное выделение */
+}
+
+// .ct-table tbody tr.ct-row-active-sorted:hover td {
+//  background-color: #423f24 !important; /* Чуть ярче при наведении */
+// }
+
 .ct-table td:first-child.ct-sortable-header.ct-active-sorted::after {
   content: ' ⇅';
   font-size: 0.85em;

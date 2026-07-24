@@ -693,7 +693,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Строка: Тип предмета (если есть) - перемещена в начало
         if (showTypeRow) {
             const isCategorySorted = activeSort && activeSort.key === 'Категория';
-            html += `<tr><td class="ct-sortable-header ${isCategorySorted ? 'ct-active-sorted' : ''}" data-sort-key="Категория">Категория</td>`;
+            html += `<tr class="${isCategorySorted ? 'ct-row-active-sorted' : ''}"><td class="ct-sortable-header ${isCategorySorted ? 'ct-active-sorted' : ''}" data-sort-key="Категория">Категория</td>`;
             columnsData.forEach((col, idx) => {
                 const color = CATEGORY_COLORS[col.rawType] || '#aaa';
                 const isSeparator = (separatorIndex !== -1 && idx === separatorIndex);
@@ -747,7 +747,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 sortIndicator = ` (${typeLabels[activeSort.type]})`;
             }
 
-            html += `<tr>`;
+            html += `<tr class="${isSorted ? 'ct-row-active-sorted' : ''}">`;
             html += `<td class="ct-sortable-header ${isSorted ? 'ct-active-sorted' : ''}" data-sort-key="${key}" data-triple="true">${cleanKeyName}${sortIndicator}</td>`;
             
             const comp = statComparisons[key];
@@ -783,7 +783,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Строка: Магия (если есть)
         if (hasMagic) {
             const isMagicSorted = activeSort && activeSort.key === 'Тип магии';
-            html += `<tr><td class="ct-sortable-header ${isMagicSorted ? 'ct-active-sorted' : ''}" data-sort-key="Тип магии">Тип магии</td>`;
+            html += `<tr class="${isMagicSorted ? 'ct-row-active-sorted' : ''}"><td class="ct-sortable-header ${isMagicSorted ? 'ct-active-sorted' : ''}" data-sort-key="Тип магии">Тип магии</td>`;
             columnsData.forEach((col, idx) => {
                 let color = '#e0e0e0';
                 let textShadow = 'none';
@@ -805,7 +805,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Строка: Бонус (если есть)
         if (hasBonus) {
             const isBonusSorted = activeSort && activeSort.key === 'Бонус';
-            html += `<tr><td class="ct-sortable-header ${isBonusSorted ? 'ct-active-sorted' : ''}" data-sort-key="Бонус">Бонус</td>`;
+            html += `<tr class="${isBonusSorted ? 'ct-row-active-sorted' : ''}"><td class="ct-sortable-header ${isBonusSorted ? 'ct-active-sorted' : ''}" data-sort-key="Бонус">Бонус</td>`;
             columnsData.forEach((col, idx) => {
                 let display = `<span class="ct-val empty">-</span>`;
                 const isSeparator = (separatorIndex !== -1 && idx === separatorIndex);
@@ -821,7 +821,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Строка: Цена (если есть)
         if (hasCost) {
             const isCostSorted = activeSort && activeSort.key === 'Стоимость';
-            html += `<tr><td class="ct-sortable-header ${isCostSorted ? 'ct-active-sorted' : ''}" data-sort-key="Стоимость">Стоимость</td>`;
+            html += `<tr class="${isCostSorted ? 'ct-row-active-sorted' : ''}"><td class="ct-sortable-header ${isCostSorted ? 'ct-active-sorted' : ''}" data-sort-key="Стоимость">Стоимость</td>`;
             columnsData.forEach((col, idx) => {
                 const isSeparator = (separatorIndex !== -1 && idx === separatorIndex);
                 const display = col.cost === '0' ? `<span class="ct-val empty">-</span>` : `<span style="color: #ffd700; font-weight: bold;">${col.cost} <img src="gold.png" style="width:14px; vertical-align:middle;"></span>`;
