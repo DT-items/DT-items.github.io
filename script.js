@@ -46,6 +46,18 @@ let currentMode = 'Vanilla';
 // для режима сравнения: mod1 — активный, mod2 — второй для сравнения
 let mod1 = 'Vanilla';
 let mod2 = '';
+
+Object.defineProperty(window, 'mod1', {
+  get: () => mod1,
+  set: (v) => { mod1 = v; }
+});
+Object.defineProperty(window, 'mod2', {
+  get: () => mod2,
+  set: (v) => { mod2 = v; }
+});
+Object.defineProperty(window, 'modLabelMap', {
+  get: () => modLabelMap
+});
 //////////////
 
 // Хранилище для импортированного мода

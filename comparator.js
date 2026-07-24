@@ -396,6 +396,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const key = activeSort.key;
         const type = activeSort.type;
 
+        if (key === 'Модификация') {
+            return !!col.mod;
+        }
         if (key === 'Категория') {
             return !!col.type;
         }
@@ -556,6 +559,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const uniqueTypes = new Set(columnsData.map(col => col.type).filter(Boolean));
         const showTypeRow = uniqueTypes.size > 1;
+        const uniqueMods = new Set(columnsData.map(col => col.mod).filter(m => m && m !== 'Unknown'));
+        const showModRow = uniqueMods.size > 1;
 
         // --- ЛОГИКА СОРТИРОВКИ СТОЛБЦОВ ---
         if (activeSort) {
@@ -564,7 +569,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const key = activeSort.key;
                 const type = activeSort.type;
 
-                if (key === 'Категория') {
+                if (key === 'Модификация') {
+                    valA = window.modLabelMap ? window.modLabelMap[a.mod] || a.mod : a.mod;
+                    valB = window.modLabelMap ? window.modLabelMap[b.mod] || b.mod : b.mod;
+                } else if (key === 'Категория') {
                     valA = a.type || '';
                     valB = b.type || '';
                 } else if (key === 'Стоимость') {
@@ -689,6 +697,19 @@ document.addEventListener('DOMContentLoaded', () => {
             'Potion':     '#81C784', // Мятный
             'Item':       '#E0D4C3'  // Бежевый / Пергаментный
         };
+
+        // Строка: Модификация (если сравниваются разные моды)
+        if (showModRow) {
+            const isModSorted = activeSort && activeSort.key === 'Модификация';
+            html += `<tr class="${isModSorted ? 'ct-row-active-sorted' : ''}">`;
+            html += `<td class="ct-sortable-header ${isModSorted ? 'ct-active-sorted' : ''}" data-sort-key="Модификация">Модификация</td>`;
+            columnsData.forEach((col, idx) => {
+                const isSeparator = (separatorIndex !== -1 && idx === separatorIndex);
+                const modName = window.modLabelMap ? window.modLabelMap[col.mod] || col.mod : col.mod;
+                html += `<td class="${isSeparator ? 'ct-col-separator' : ''}"><div class="ct-sub-cols"><div class="ct-merged-cell" style="color: #A9B9D3; font-weight: bold;">${modName}</div></div></td>`;
+            });
+            html += `</tr>`;
+        }
 
         // Строка: Тип предмета (если есть) - перемещена в начало
         if (showTypeRow) {
