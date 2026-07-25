@@ -1,7 +1,7 @@
 /* 1) Делаем правильный inline‑ряд для чекбокса + текста */
 .common-controls .group-toggle-wrapper {
   display: inline-flex;
-  align-Items: center;
+  align-items: center;
   gap: 6px;
   cursor: pointer;
 }
@@ -37,7 +37,7 @@
 /* контейнер чекбокса рядом с масштабом */
 .side-panel .scale-controls .bg-toggle-wrapper {
   display: inline-flex;
-  align-Items: center;
+  align-items: center;
   gap: 6px;
   margin-left: 12px;              /* отступ от кнопок масштаба */
   color: #ffffff;                 /* надпись белая, как все в шапке */
@@ -52,12 +52,13 @@
   cursor: pointer;
 }
 
-/* ────────── Кастомные чекбоксы (Фон, Цвет +/-, Компаратор) ────────── */
+/* ────────── Кастомные чекбоксы (Фон, Цвет +/-, Компаратор, Сортировка пула) ────────── */
 /* Используем общий стиль для всех чекбоксов с одинаковой структурой */
 #bg-toggle,
 #color-sign-toggle,
 #comparator-toggle,
-#ct-highlight-toggle {
+#ct-highlight-toggle,
+#tier-sort-type-toggle {
   /* убираем дефолтный вид */
   -webkit-appearance: none;
      -moz-appearance: none;
@@ -76,7 +77,8 @@
 #bg-toggle:not(:checked),
 #color-sign-toggle:not(:checked),
 #comparator-toggle:not(:checked),
-#ct-highlight-toggle:not(:checked) {
+#ct-highlight-toggle:not(:checked),
+#tier-sort-type-toggle:not(:checked) {
   background-image: url('ChkBxOff.png');
 }
 
@@ -113,4 +115,48 @@
   /* просто меняем картинку у самого input */
   background-image: url('ChkBxBlock.png');
   cursor: not-allowed;
+}
+
+/* Кнопка экспорта тир-листа в PNG */
+.tier-export-btn {
+  display: inline-block;
+  padding: 6px 12px;
+  background-color: #2e7d32; /* Зеленый */
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: bold;
+  margin-left: 12px;
+  transition: background-color 0.2s;
+  vertical-align: middle;
+}
+.tier-export-btn:hover {
+  background-color: #388e3c;
+}
+.tier-export-btn:active {
+  background-color: #1b5e20;
+}
+
+/* Кнопка случайного заполнения тир-листа для отладки */
+.tier-random-btn {
+  display: inline-block;
+  padding: 6px 12px;
+  background-color: #d32f2f; /* Красный */
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: bold;
+  margin-left: 6px;
+  transition: background-color 0.2s;
+  vertical-align: middle;
+}
+.tier-random-btn:hover {
+  background-color: #f44336;
+}
+.tier-random-btn:active {
+  background-color: #b71c1c;
 }

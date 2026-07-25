@@ -374,8 +374,9 @@
   gap: 6px;
 }
 
-/* 3) “Группировка” — рядом с “Только отличия” */
-.side-panel .filter-controls .group-toggle-wrapper {
+/* 3) “Группировка” или “Сортировка пула” — рядом с “Только отличия” */
+.side-panel .filter-controls .group-toggle-wrapper,
+.side-panel .filter-controls .tier-sort-wrapper {
   order: 3;
   flex-basis: auto;
   display: inline-flex;

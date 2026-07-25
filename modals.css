@@ -1,5 +1,3 @@
-
-
 /* ==== Оверлей ==== */
 .about-overlay,
 .about-popup {
@@ -97,7 +95,7 @@
   height: 100vh;
   background: rgba(0,0,0,0.8);
   display: none;
-  align-Items:    center;
+  align-items:    center;
   justify-content: center;
   z-index: 5000; /* выше всего */
 }
@@ -263,4 +261,134 @@
     font-size: 0.9em;
     color: #ccc;
     line-height: 1.4;
+}
+
+/* === Tier List Export Modal (80% Height) === */
+.tier-export-modal {
+    background-color: var(--top-bar-bg);
+    border: 1px solid var(--top-bar-border);
+    border-radius: 8px;
+    width: 95vw;
+    max-width: 1100px;
+    height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--text-normal);
+    position: relative;
+}
+
+.tier-export-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--top-bar-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0,0,0,0.2);
+}
+
+.tier-export-header h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 1.1rem;
+}
+
+.tier-export-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    flex-direction: row;
+}
+
+.tier-export-sidebar {
+    width: 280px;
+    background-color: var(--control-bg);
+    border-right: 1px solid var(--top-bar-border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    flex-shrink: 0;
+}
+
+.te-option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.te-option-group label {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-weight: bold;
+}
+
+/* Стили для явных кнопок выбора фона */
+.te-bg-btn-container {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.te-bg-btn {
+    flex: 1;
+    height: 38px;
+    border: 2px solid var(--top-bar-border);
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-normal);
+    font-weight: bold;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    user-select: none;
+}
+
+.te-bg-btn-dark {
+    background-color: #1a1a1a;
+}
+
+.te-bg-btn-tile {
+    background: url('2background.png') repeat;
+    background-size: 24px 24px;
+    text-shadow: 0 0 3px #000, 0 0 3px #000;
+}
+
+.te-bg-btn:hover {
+    border-color: #777;
+    transform: scale(1.02);
+}
+
+.te-bg-btn:active {
+    transform: scale(0.98);
+}
+
+.te-bg-btn.active {
+    border-color: #ffcc00;
+    box-shadow: 0 0 8px rgba(255, 204, 0, 0.4);
+    color: #ffcc00;
+    font-weight: 900;
+}
+
+.tier-export-preview-container {
+    flex: 1;
+    background-color: #111;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+#tier-export-preview-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    background: url('2background.png') repeat;
 }

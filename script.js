@@ -69,6 +69,7 @@ window.bonusDescriptions = bonusDescriptions;
 
 // --- TIER LIST VARIABLES ---
 let tierMode = false;
+window.tierSortByType = window.tierSortByType || false;
 // Структура: { 'ModName': { 1: [GlobalIndex, ...], 2: [], ..., 10: [] } }
 let tierDataStorage = {}; 
 // Текущий перемещаемый предмет { id, originGroup, ghostElement }
@@ -704,7 +705,7 @@ sidePanel.innerHTML = `
   <!-- A.2) панель фильтров -->
   <div class="filter-controls">
 
-    <!-- Верхний ряд: Кнопки (слева) и Чекбоксы (справа) -->
+    <!-- ... -->
     <div class="top-row-container">
         <!-- Кнопки: расширенные фильтры и сброс -->
         <div class="top-row-buttons">
@@ -737,6 +738,11 @@ sidePanel.innerHTML = `
    <span class="group-toggle-label">Группировка</span>
  </label>
 
+ <label class="tier-sort-wrapper" id="tier-sort-wrapper" for="tier-sort-type-toggle" style="display: none;">
+   <input type="checkbox" id="tier-sort-type-toggle">
+   <span class="group-toggle-label" id="tier-sort-type-label">Сортировка пула: по ID</span>
+ </label>
+
       <label class="compare-toggle-wrapper">
         <input type="checkbox" id="toggle-compare">
         <span>Сравнение модов</span>
@@ -747,7 +753,6 @@ sidePanel.innerHTML = `
   <div id="compare-dropdown"></div>
 </div>
 
-<!-- Кнопка справки убрана отсюда и будет добавлена программно в bonus-filters -->
 
     </div>
 	
@@ -983,23 +988,86 @@ if (lbl) lbl.style.display = 'none';
   `;
   sidePanel.querySelector('.common-controls').append(simpleCompareWrapper);
   
-  // === NEW TIER LIST CHECKBOX ===
-  const tierModeWrapper = document.createElement('label');
+  // === NEW TIER LIST BUTTON ===
+  const tierModeWrapper = document.createElement('div');
   tierModeWrapper.className = 'simple-compare-wrapper';
   tierModeWrapper.style.marginLeft = '12px';
+  tierModeWrapper.style.display = 'inline-block';
   tierModeWrapper.innerHTML = `
-    <input type="checkbox" id="tier-mode-toggle">
-    <span>Tier List</span>
+    <button type="button" id="tier-mode-toggle" class="tier-mode-btn ${tierMode ? 'active' : ''}">Tier List</button>
   `;
   // Вставляем сразу после сравнения с Ваниллой
   simpleCompareWrapper.after(tierModeWrapper);
   
   const tierToggle = tierModeWrapper.querySelector('#tier-mode-toggle');
-  tierToggle.checked = tierMode;
+
+  // === NEW TIER EXPORT PNG BUTTON ===
+  const tierExportBtn = document.createElement('button');
+  tierExportBtn.id = 'tier-export-btn';
+  tierExportBtn.className = 'tier-export-btn';
+  tierExportBtn.textContent = 'Экспорт .png';
+  tierExportBtn.style.display = tierMode ? 'inline-block' : 'none';
+  tierModeWrapper.after(tierExportBtn);
+
+  // === NEW TIER RANDOM RE-POPULATE BUTTON FOR DEBUGGING ===
+  const tierRandomBtn = document.createElement('button');
+  tierRandomBtn.id = 'tier-random-btn';
+  tierRandomBtn.className = 'tier-random-btn';
+  tierRandomBtn.textContent = 'Рандом';
+  tierRandomBtn.title = 'Случайное заполнение тир-листа для отладки';
+  tierRandomBtn.style.display = tierMode ? 'inline-block' : 'none';
+  tierExportBtn.after(tierRandomBtn);
   
-  tierToggle.addEventListener('change', e => {
-      tierMode = e.target.checked;
+  // Инициализируем переключатели в зависимости от режима тирлиста
+  const groupToggleWrapper = sidePanel.querySelector('.group-toggle-wrapper');
+  const tierSortWrapper = sidePanel.querySelector('#tier-sort-wrapper');
+  const tierSortTypeToggle = sidePanel.querySelector('#tier-sort-type-toggle');
+  const tierSortTypeLabel = sidePanel.querySelector('#tier-sort-type-label');
+
+  if (tierMode) {
+      if (groupToggleWrapper) groupToggleWrapper.style.display = 'none';
+      if (tierSortWrapper) tierSortWrapper.style.display = 'inline-flex';
+  } else {
+      if (groupToggleWrapper) groupToggleWrapper.style.display = 'inline-flex';
+      if (tierSortWrapper) tierSortWrapper.style.display = 'none';
+  }
+
+  if (tierSortTypeToggle) {
+      tierSortTypeToggle.checked = window.tierSortByType || false;
+      if (tierSortTypeLabel) {
+          tierSortTypeLabel.textContent = window.tierSortByType ? 'Сортировка пула: по Типам' : 'Сортировка пула: по ID';
+      }
+      tierSortTypeToggle.addEventListener('change', (e) => {
+          window.tierSortByType = e.target.checked;
+          if (tierSortTypeLabel) {
+              tierSortTypeLabel.textContent = window.tierSortByType ? 'Сортировка пула: по Типам' : 'Сортировка пула: по ID';
+          }
+          renderItems();
+      });
+  }
+
+  tierToggle.addEventListener('click', e => {
+      e.stopPropagation();
+      tierMode = !tierMode;
+      tierToggle.classList.toggle('active', tierMode);
       document.body.classList.toggle('tier-mode', tierMode);
+      
+      const groupToggleWrapper = document.querySelector('.group-toggle-wrapper');
+      const tierSortWrapper = document.getElementById('tier-sort-wrapper');
+      const tExportBtn = document.getElementById('tier-export-btn');
+      const tRandomBtn = document.getElementById('tier-random-btn');
+      
+      if (tierMode) {
+          if (groupToggleWrapper) groupToggleWrapper.style.display = 'none';
+          if (tierSortWrapper) tierSortWrapper.style.display = 'inline-flex';
+          if (tExportBtn) tExportBtn.style.display = 'inline-block';
+          if (tRandomBtn) tRandomBtn.style.display = 'inline-block';
+      } else {
+          if (groupToggleWrapper) groupToggleWrapper.style.display = 'inline-flex';
+          if (tierSortWrapper) tierSortWrapper.style.display = 'none';
+          if (tExportBtn) tExportBtn.style.display = 'none';
+          if (tRandomBtn) tRandomBtn.style.display = 'none';
+      }
       
       // Инициализация хранилища для текущего мода при включении
       if (tierMode && !tierDataStorage[currentMode]) {
@@ -1013,6 +1081,68 @@ if (lbl) lbl.style.display = 'none';
       
       renderItems();
   });
+
+  // Логика экспорта тир-листа в PNG (через открытие модального окна настройки)
+  tierExportBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      
+      // Проверяем, есть ли хоть какие-то предметы в тирах
+      const rowsCount = 9;
+      let totalItemsCount = 0;
+      for (let i = 1; i <= rowsCount; i++) {
+          const group = document.getElementById(`group-${i}`);
+          if (group) {
+              totalItemsCount += group.querySelectorAll('.Items .item:not(.tier-ghost)').length;
+          }
+      }
+      
+      if (totalItemsCount === 0) {
+          if (typeof showNotification === 'function') {
+              showNotification('Добавьте хотя бы один предмет в тиры для экспорта.', 'error');
+          } else {
+              alert('Добавьте хотя бы один предмет в тиры для экспорта.');
+          }
+          return;
+      }
+      
+      // Открываем модальное окно настроек экспорта
+      const teOverlay = document.getElementById('tier-export-overlay');
+      if (teOverlay) {
+          teOverlay.classList.add('visible');
+          // Вызываем первичную генерацию превью
+          if (typeof window.updateTierExportPreview === 'function') {
+              window.updateTierExportPreview();
+          }
+      }
+  });
+
+  // Логика случайного заполнения тир-листа (отладка)
+  tierRandomBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!savedData1) return;
+      
+      const allItemIds = ItemsData.map(card => card.dataset.globalId).filter(Boolean);
+      if (allItemIds.length === 0) {
+          showNotification('Нет предметов в текущем пуле для распределения.', 'error');
+          return;
+      }
+      
+      // Инициализируем чистую структуру групп
+      tierDataStorage[currentMode] = {};
+      for (let i = 1; i <= 10; i++) {
+          tierDataStorage[currentMode][i] = [];
+      }
+      
+      // Случайно раскидываем каждый предмет по группам 1-10
+      allItemIds.forEach(id => {
+          const randomGroup = Math.floor(Math.random() * 10) + 1; // Группы 1-10
+          tierDataStorage[currentMode][randomGroup].push(id);
+      });
+      
+      renderItems();
+      showNotification('Тир-лист успешно заполнен случайным образом!', 'success');
+  });
+
   // ==============================
 
   const compareSelectWrapper = sidePanel.querySelector('.compare-select-wrapper');
@@ -1326,7 +1456,7 @@ btn.addEventListener('click', () => {
             try {
                 const buffer = ev.target.result;
                 
-                // Сохраняем и индексируем для 'NewMod' через глобальные объекты parsers.js
+                // Сохраняем и индексируем для 'NewMod' через global-объекты parsers.js
                 window.modUGS['NewMod'] = buffer;
                 window.indexUGS('NewMod', buffer); 
                 
@@ -1610,7 +1740,7 @@ if (magicBtns[magicFilter]) {
 
     const searchInput = document.querySelector('.search-input');
 	const eggOverlay  = document.getElementById('egg-overlay');
-    // Добавляем ссылку на кнопку очистки поиска
+    // Добавляем ссылка на кнопку очистки поиска
     const searchClearBtn = document.getElementById('search-clear');
 
 searchInput.addEventListener('input', e => {
@@ -1748,14 +1878,34 @@ compareToggle.dispatchEvent(new Event('change'));
     // чтобы изменения вступили в силу и UI пересоздался
     compareVanillaCheckbox.dispatchEvent(new Event('change'));
   }
-  // — Сброс чекбокса Tier Mode
+  // — Сброс кнопки Tier Mode
   const tierToggle = document.getElementById('tier-mode-toggle');
   if (tierToggle) {
       tierMode = false;
       document.body.classList.remove('tier-mode');
-      tierToggle.checked = false;
+      tierToggle.classList.remove('active');
   }
   
+  const tExportBtn = document.getElementById('tier-export-btn');
+  if (tExportBtn) {
+      tExportBtn.style.display = 'none';
+  }
+  const tRandomBtn = document.getElementById('tier-random-btn');
+  if (tRandomBtn) {
+      tRandomBtn.style.display = 'none';
+  }
+  
+  // Сброс типа сортировки пула тир-листа
+  window.tierSortByType = false;
+  const tSortTypeToggle = document.getElementById('tier-sort-type-toggle');
+  const tSortTypeLabel = document.getElementById('tier-sort-type-label');
+  if (tSortTypeToggle) {
+      tSortTypeToggle.checked = false;
+      if (tSortTypeLabel) {
+          tSortTypeLabel.textContent = 'Сортировка пула: по ID';
+      }
+  }
+
   const compareContainer = document.getElementById('compare-dropdown');
   if (compareContainer) {
     // убираем active у всех пунктов
@@ -1800,14 +1950,14 @@ Object.values(data1).forEach(item1 => {
   const desc2 = item2 ? item2.Descript : '';
   const cost2 = item2 ? Number(item2.Cost) : null;
 
-// ————————————————————————
+// —————————————————————─
 //  1) Вычисляем icon1Url (Updated for UGS support)
-// ————————————————————————
+// —————————————————————─
 const icon1Url = window.resolveIconUrl(mod1, item1);
 
-// ————————————————————————
+// —————————————————————─
 //  2) Вычисляем icon2Url (при сравнении)
-// ————————————————————————
+// —————————————————————─
 let icon2Url = null;
 if (item2 && item2.Icon) {
   icon2Url = window.resolveIconUrl(mod2, item2);
@@ -2008,7 +2158,7 @@ if (item2 && item2.Icon) {
     if (icon2Url) card.dataset.icon2 = icon2Url;
   }
 
-  // вёрстка двойных тултипов
+  // вёртка двойных тултипов
   card.innerHTML = `
     <img src="${icon1Url}" alt="${name1}">
     <div class="tooltip tooltip-1"
@@ -2043,7 +2193,7 @@ if (item2 && item2.Icon) {
         ${extra2.join('')}
         <li class="spacer"></li>
       </ul>
-      <div class="tooltip-id">ID: ${item2.GlobalIndex}</div>
+      <div class="tooltip-id">ID: ${cost2}</div>
       <div class="tooltip-price">
         ${cost2}<img src="gold.png" class="gold-icon" alt="Gold">
       </div>
@@ -2237,7 +2387,7 @@ if (!compareMode && side === 'right' && dockMode && sidePanel.classList.contains
       let newTop, newLeft;
       let resolved = false;
 
-      // 1. Под закрепленным
+      // 1. Пробуем под закрепленным
       newTop = overlapRect.bottom + gap;
       if (newTop + tR.height <= window.innerHeight && !isOverlap(left, newTop, tR.width, tR.height)) {
         top = newTop;
@@ -2418,7 +2568,7 @@ function positionBoth() {
     const t1R = tt1.getBoundingClientRect();
     const fitsRight1 = cR.right + t1R.width <= usableRight - EDGE_MARGIN;
     if (!fitsRight1) {
-      // вертикальный фолбэк для tt1
+      // vertical фолбэк для tt1
       const below1 = cR.bottom + gap;
       const top1 = (below1 + t1R.height <= window.innerHeight)
         ? below1
@@ -2438,7 +2588,7 @@ if (!tt2) return;
   const t2R = tt2.getBoundingClientRect();
   const fitsLeft2 = cR.left - t2R.width >= usableLeft + EDGE_MARGIN;
   if (!fitsLeft2) {
-    // вертикальный фолбэк для tt2
+    // vertical фолбэк для tt2
     const below2 = cR.bottom + gap;
       const top2 = (below2 + t2R.height <= window.innerHeight)
         ? below2
@@ -2591,8 +2741,8 @@ if (compareMode) {
     };
 
     const resolveOverlap = (ttEl) => {
-      let rect = ttEl.getBoundingClientRect();
-      let l = rect.left, t = rect.top, w = rect.width, h = rect.height;
+      let r = ttEl.getBoundingClientRect();
+      let l = r.left, t = r.top, w = r.width, h = r.height;
       let overlapRect = isOverlap(l, t, w, h);
       
       if (overlapRect) {
@@ -2677,7 +2827,7 @@ card.addEventListener('click', e => {
   
   // === TIER MODE LOGIC ===
   if (tierMode) {
-      handleTierClick(card);
+      handleTierClick(card, e);
       return;
   }
   // =======================
@@ -2740,7 +2890,7 @@ card.addEventListener('click', e => {
 // Используется для стабильной вставки и предотвращения мерцания
 let dropTargetState = { group: null, index: null, ghostInDom: false };
 
-function handleTierClick(card) {
+function handleTierClick(card, e) {
     const globalId = card.dataset.globalId;
     
     // Если мы уже тащим что-то
@@ -2749,11 +2899,12 @@ function handleTierClick(card) {
         dropFloatingItem(); 
     } else {
         // Кликнули первый раз - поднимаем
-        pickupFloatingItem(card, globalId);
+        pickupFloatingItem(card, globalId, e);
     }
 }
 
-function pickupFloatingItem(card, id) {
+function pickupFloatingItem(card, id, e) {
+
     // 1. Создаем визуальную копию для курсора
     floatingEl = card.cloneNode(true);
     floatingEl.className = 'item tier-floating';
@@ -2762,6 +2913,11 @@ function pickupFloatingItem(card, id) {
     
     // Убираем тултипы из копии, чтобы не мешали
     floatingEl.querySelectorAll('.tooltip').forEach(el => el.remove());
+    
+    if (e) {
+        floatingEl.style.left = (e.clientX + 10) + 'px';
+        floatingEl.style.top = (e.clientY + 10) + 'px';
+    }
     
     document.body.appendChild(floatingEl);
     
@@ -2895,7 +3051,6 @@ function dropFloatingItem() {
         const oldList = currentTierData[floatingItem.originGroup];
         const idx = oldList.indexOf(floatingItem.id);
         if (idx > -1) oldList.splice(idx, 1);
-    } else {
         // Если группа та же, старый список нам больше не нужен, мы его перезапишем новым
     }
     
@@ -3022,6 +3177,7 @@ function performDragLogic(x, y) {
 
 // Слушатель для клика по пустым местам групп (если кликнули не в предмет, а в padding группы)
 // Хотя дроп теперь обрабатывается в handleTierClick по клику, нам нужен listener для "броска в пустоту" группы
+// Слушатель для клика по пустым местам групп
 document.addEventListener('click', (e) => {
     if (!tierMode || !floatingItem) return;
     
@@ -3199,8 +3355,8 @@ window.setupBonusFilter(
 const bonusContainer = document.getElementById('bonus-filters');
 const btnHelp = document.createElement('button');
 btnHelp.textContent = 'Справка';
-btnHelp.className = 'import-btn'; // Используем базовый стиль кнопки
 // Переопределяем стили для соответствия новому дизайну
+btnHelp.className = 'import-btn'; // Используем базовый стиль кнопки
 btnHelp.style.cssText = `
     margin-top: 8px;
     width: 60%;
@@ -3228,6 +3384,7 @@ if (activeBonus) {
   activeBonus.classList.add('active');
 
   // 3) обновим текст кнопки‑тоггла (если ваша реализация это использует)
+  // 3) обновим текст кнопки‑тоггла
 const toggleBtn = bonusContainer.querySelector('.dropdown-toggle');
 if (toggleBtn) {
   // 1) очистили
@@ -3260,10 +3417,14 @@ if (toggleBtn) {
         if (tierMode) {
             // ID: group-1, group-2... Extract number
             const num = id.replace('group-', '');
-            h2.textContent = `Категория ${num}`;
             // В режиме тира всегда показываем группы, даже если showGroups false? 
             // Нет, showGroups всё еще может управлять видимостью (хотя странно).
             // Оставим логику ниже.
+            if (num === '10') {
+                h2.textContent = `Пул предметов`;
+            } else {
+                h2.textContent = `Категория ${num}`;
+            }
         } else {
              // Reset headers to default. This logic is tricky because we don't have the original text stored easily.
              // We can use a Map or switch.
@@ -3297,7 +3458,7 @@ if (toggleBtn) {
         return true;
       });
 
-      // сортировка цены (ТОЛЬКО ЕСЛИ НЕ TIER MODE)
+      // сортировка цены (ТОЛЬКО ЕСЛИ НЕ TIER MODE для основного массива)
       if (!tierMode) {
           if (sortState===1) visible.sort((a,b)=>b.dataset.cost - a.dataset.cost);
           else if (sortState===2) visible.sort((a,b)=>a.dataset.cost - b.dataset.cost);
@@ -3395,8 +3556,8 @@ if (window.pinnedItemIds) {
 		        const visibleIds = new Set(visible.map(c => c.dataset.globalId));
 		        const handledIds = new Set();
 		        
-		        // 3. Проходим по группам 1-10
-		        for (let i = 1; i <= 10; i++) {
+		        // 3. Проходим по группам 1-9 (S-D tiers)
+		        for (let i = 1; i <= 9; i++) {
 		            if (!currentTierData[i]) currentTierData[i] = [];
 		            const groupList = currentTierData[i];
 		            const groupContainer = document.getElementById(`group-${i}`).querySelector('.Items');
@@ -3413,16 +3574,50 @@ if (window.pinnedItemIds) {
 		            });
 		        }
 		        
-		        // 4. Все, что видимо, но не распределено (новые предметы), кидаем в 10
-		        visible.forEach(card => {
-		            const id = card.dataset.globalId;
-		            if (!handledIds.has(id)) {
-		                // Добавляем в данные
-		                if (!currentTierData[10]) currentTierData[10] = [];
-		                currentTierData[10].push(id);
-		                // Рендерим
-		                document.getElementById('group-10').querySelector('.Items').append(card);
+		        // 4. Все, что видимо, но не распределено (новые/остальные предметы), кидаем в пул (группа 10)
+		        const unassignedCards = visible.filter(card => !handledIds.has(card.dataset.globalId));
+		        
+		        // ПРИМЕНЯЕМ СОРТИРОВКУ К ПУЛУ (Группа 10)
+		        const sortStateVal = sortState; // 0: none, 1: desc, 2: asc
+		        const sortByType = document.getElementById('tier-sort-type-toggle')?.checked || false;
+
+		        unassignedCards.sort((a, b) => {
+		            // Приоритет 1: Сортировка по цене
+		            if (sortStateVal === 1) {
+		                const costA = parseFloat(a.dataset.cost) || 0;
+		                const costB = parseFloat(b.dataset.cost) || 0;
+		                if (costA !== costB) return costB - costA;
+		            } else if (sortStateVal === 2) {
+		                const costA = parseFloat(a.dataset.cost) || 0;
+		                const costB = parseFloat(b.dataset.cost) || 0;
+		                if (costA !== costB) return costA - costB;
 		            }
+
+		            // Приоритет 2: Тип или ID
+		            if (sortByType) {
+		                const groupOrder = ['BlowWeapon', 'ShotWeapon', 'Armor', 'Helm', 'Shield', 'Staff', 'Amulet', 'Ring', 'Potion', 'Item'];
+		                const typeA = a.dataset.type || '';
+		                const typeB = b.dataset.type || '';
+		                const indexA = groupOrder.indexOf(typeA);
+		                const indexB = groupOrder.indexOf(typeB);
+		                if (indexA !== indexB) {
+		                    return indexA - indexB;
+		                }
+		                return parseInt(a.dataset.globalId || 0) - parseInt(b.dataset.globalId || 0);
+		            } else {
+		                return parseInt(a.dataset.globalId || 0) - parseInt(b.dataset.globalId || 0);
+		            }
+		        });
+
+		        // Заполняем контейнер group-10
+		        const poolContainer = document.getElementById('group-10').querySelector('.Items');
+		        poolContainer.innerHTML = '';
+		        
+		        currentTierData[10] = unassignedCards.map(card => card.dataset.globalId);
+		        
+		        unassignedCards.forEach(card => {
+		            poolContainer.append(card);
+		            handledIds.add(card.dataset.globalId);
 		        });
 		        
 		    } else {
@@ -3587,7 +3782,7 @@ function loadData() {
     })
     .then(d2 => {
       if (d2) savedData2 = d2; // сохраняем данные второго мода в глобальную
-      createUICompare(savedData1, savedData2 || {});  // рендерим UI with both
+      createUICompare(savedData1, savedData2 || {}); // рендерим UI with both
     })
     .catch(console.error);
 }
@@ -3687,7 +3882,7 @@ function isGlobalDirty() {
 }
 
 function switchMode(mode) {
-  if (mode === mod1) return;       // тот же мод — ничего не делаем
+  if (mode === mod1) return; // тот же мод — ничего не делаем
 
   // Проверяем на наличие несохраненных изменений в глобальном наборе данных
   if (isGlobalDirty()) {
@@ -3718,10 +3913,10 @@ function proceedSwitchMode(mode) {
   const searchInput = document.querySelector('.search-input');
   if (searchInput) searchInput.value = '';
   
-  const prev = mod1;               // запомним старый
-  mod1 = mode;                     // новый активный
+  const prev = mod1; // запомним старый
+  mod1 = mode; // новый активный
   if (mod2 === mod1) mod2 = '';
-  currentMode = mode;              // для getBasePath()
+  currentMode = mode; // для getBasePath()
   savedData2 = {}; // очищаем второй мод при переключении
   
     // Обновляем картинку модификации
@@ -3946,3 +4141,338 @@ window.processImportINI = function(file) {
     // Читаем как windows-1251, так как большинство ini файлов игры в этой кодировке
     reader.readAsText(file, 'windows-1251');
 };
+
+// --- МОДАЛЬНОЕ ОКНО НАСТРОЕК ЭКСПОРТА ТИР-ЛИСТА В PNG ---
+
+window.updateTierExportPreview = async function() {
+    const itemSize = 80;
+    const labelWidth = 150;
+    const rowsCount = 9; // Категории с 1 по 9 (Тиры S-D)
+    
+    // Считываем значения из элементов ввода в модальном окне
+    const maxRowInput = document.getElementById('te-max-row');
+    const gridToggle = document.getElementById('te-grid-toggle');
+    const slotsBgToggle = document.getElementById('te-slots-bg-toggle');
+    const paddingToggle = document.getElementById('te-padding-toggle');
+    const bgSelect = document.getElementById('te-bg-select');
+    
+    // Слайдеры мозаики
+    const tileScaleInput = document.getElementById('te-tile-scale');
+    const tileXInput = document.getElementById('te-tile-x');
+    const tileYInput = document.getElementById('te-tile-y');
+    
+    if (!maxRowInput) return;
+    
+    const maxRowVal = parseInt(maxRowInput.value);
+    const hasGrid = gridToggle.checked;
+    const hasSlotsBg = slotsBgToggle.checked;
+    const hasPadding = paddingToggle.checked;
+    const bgType = bgSelect.value;
+    
+    // Обновляем текстовое отображение
+    document.getElementById('te-max-row-val').textContent = maxRowVal;
+    document.getElementById('te-tile-scale-val').textContent = tileScaleInput.value + '%';
+    document.getElementById('te-tile-x-val').textContent = tileXInput.value + 'px';
+    document.getElementById('te-tile-y-val').textContent = tileYInput.value + 'px';
+    
+    // Вспомогательный загрузчик картинок
+    const loadImage = (src) => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = src;
+        });
+    };
+    
+    const rowItems = [];
+    let maxItemsInSubRow = 0;
+    let totalHeight = 0;
+    
+    // Просчитываем структуру
+    for (let i = 1; i <= rowsCount; i++) {
+        const group = document.getElementById(`group-${i}`);
+        if (!group) continue;
+        
+        const itemElements = Array.from(group.querySelectorAll('.Items .item:not(.tier-ghost)'));
+        const titleText = group.querySelector('h2')?.textContent || `Tier ${i}`;
+        
+        const numSubRows = Math.max(1, Math.ceil(itemElements.length / maxRowVal));
+        totalHeight += numSubRows * itemSize;
+        
+        rowItems.push({
+            index: i,
+            title: titleText,
+            elements: itemElements,
+            numSubRows: numSubRows
+        });
+        
+        const currentMax = Math.min(maxRowVal, itemElements.length);
+        if (currentMax > maxItemsInSubRow) {
+            maxItemsInSubRow = currentMax;
+        }
+    }
+    
+    // Добавляем отступы (20px сверху и снизу), если включено
+    const verticalPadding = hasPadding ? 20 : 0;
+    
+    const canvasWidth = labelWidth + Math.max(5, maxItemsInSubRow) * itemSize;
+    const canvasHeight = totalHeight + (verticalPadding * 2);
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    const ctx = canvas.getContext('2d');
+    
+    // --- ОТРИСОВКА ЗАДНЕГО ФОНА ---
+    if (bgType === 'tile') {
+        // Кэшируем загрузку картинки во избежание лишних запросов
+        if (!window._teCachedTileImage) {
+            window._teCachedTileImage = await loadImage('2background.png');
+        }
+        
+        const tileImg = window._teCachedTileImage;
+        if (tileImg) {
+            const scalePercent = parseInt(tileScaleInput.value) / 100;
+            const shiftX = parseInt(tileXInput.value);
+            const shiftY = parseInt(tileYInput.value);
+            
+            const tileW = tileImg.width * scalePercent;
+            const tileH = tileImg.height * scalePercent;
+            
+            // Вспомогательный виртуальный холст для сжатой плитки узора
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = tileW;
+            tempCanvas.height = tileH;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(tileImg, 0, 0, tileW, tileH);
+            
+            const pattern = ctx.createPattern(tempCanvas, 'repeat');
+            if (pattern) {
+                ctx.fillStyle = pattern;
+                ctx.save();
+                ctx.translate(shiftX, shiftY);
+                ctx.fillRect(-shiftX, -shiftY, canvasWidth, canvasHeight);
+                ctx.restore();
+            } else {
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            }
+        } else {
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        }
+    } else {
+        // Стандартная сплошная заливка
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    }
+    
+    const tierColors = [
+        '#FF7F7F', '#FFBF7F', '#FFDF7F', '#FFFF7F',
+        '#BFFF7F', '#7FFF7F', '#7FFFFF', '#7FBFFF', '#BF7FFF'
+    ];
+    
+    // Загружаем все изображения
+    const loadPromises = [];
+    rowItems.forEach(row => {
+        row.elements.forEach(el => {
+            const imgEl = el.querySelector('img');
+            if (imgEl && imgEl.src) {
+                loadPromises.push(
+                    loadImage(imgEl.src).then(imgObj => {
+                        return { element: el, img: imgObj };
+                    })
+                );
+            }
+        });
+    });
+    
+    const loadedImagesArr = await Promise.all(loadPromises);
+    const imgLookup = new Map();
+    loadedImagesArr.forEach(item => {
+        if (item.img) imgLookup.set(item.element, item.img);
+    });
+    
+    // Рендерим тиры
+    let currentY = verticalPadding;
+    rowItems.forEach((row, rowIndex) => {
+        const rowHeight = row.numSubRows * itemSize;
+        
+        // Отрисовка левой плашки тира
+        ctx.fillStyle = tierColors[rowIndex % tierColors.length];
+        ctx.fillRect(0, currentY, labelWidth, rowHeight);
+        
+        // Горизонтальный разделитель
+        ctx.strokeStyle = '#2d2d2d';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, currentY + rowHeight);
+        
+        // Если выбран мозаичный фон, ведем линию только до конца левой колонки (labelWidth)
+        const lineEndX = (bgType === 'tile') ? labelWidth : canvasWidth;
+        ctx.lineTo(lineEndX, currentY + rowHeight);
+        
+        ctx.stroke();
+        
+        // Текст названия
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 14px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(row.title, labelWidth / 2, currentY + rowHeight / 2);
+        
+        // Предметы по подстрокам
+        for (let s = 0; s < row.numSubRows; s++) {
+            const subY = currentY + s * itemSize;
+            const slice = row.elements.slice(s * maxRowVal, (s + 1) * maxRowVal);
+            
+            slice.forEach((el, itemIndex) => {
+                const x = labelWidth + (itemIndex * itemSize);
+                const img = imgLookup.get(el);
+                
+                if (img) {
+                    ctx.drawImage(img, x, subY, itemSize, itemSize);
+                } else {
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(x, subY, itemSize, itemSize);
+                }
+                
+                // Рендер сетки, только если опция активна
+                if (hasGrid) {
+                    ctx.strokeStyle = '#2d2d2d';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x, subY, itemSize, itemSize);
+                }
+            });
+            
+            // Заливаем пустое пространство справа в ряду (если включено)
+            const usedWidth = labelWidth + slice.length * itemSize;
+            if (usedWidth < canvasWidth) {
+                if (hasSlotsBg) {
+                    ctx.fillStyle = '#121212';
+                    ctx.fillRect(usedWidth, subY, canvasWidth - usedWidth, itemSize);
+                    
+                    if (hasGrid) {
+                        const remainingSlots = Math.ceil((canvasWidth - usedWidth) / itemSize);
+                        for (let g = 0; g < remainingSlots; g++) {
+                            const sx = usedWidth + g * itemSize;
+                            ctx.strokeStyle = '#222';
+                            ctx.strokeRect(sx, subY, itemSize, itemSize);
+                        }
+                    }
+                } else {
+                    // Если подложка выключена, но сетка включена - просто рисуем пустые границы слотов поверх базового фона
+                    if (hasGrid) {
+                        const remainingSlots = Math.ceil((canvasWidth - usedWidth) / itemSize);
+                        for (let g = 0; g < remainingSlots; g++) {
+                            const sx = usedWidth + g * itemSize;
+                            ctx.strokeStyle = '#222';
+                            ctx.strokeRect(sx, subY, itemSize, itemSize);
+                        }
+                    }
+                }
+            }
+        }
+        
+        currentY += rowHeight;
+    });
+    
+    // Обновляем превью тег img внутри модалки
+    const previewImg = document.getElementById('tier-export-preview-img');
+    if (previewImg) {
+        previewImg.src = canvas.toDataURL('image/png');
+    }
+    
+    // Сохраняем ссылку на сгенерированный холст в глобальный объект для скачивания
+    window._currentGeneratedTierCanvas = canvas;
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const teOverlay = document.getElementById('tier-export-overlay');
+    const teCloseBtn = document.getElementById('te-close-btn');
+    const teDownloadBtn = document.getElementById('te-download-btn');
+    const teMaxRowInput = document.getElementById('te-max-row');
+    const teGridToggle = document.getElementById('te-grid-toggle');
+    const teSlotsBgToggle = document.getElementById('te-slots-bg-toggle');
+    const tePaddingToggle = document.getElementById('te-padding-toggle');
+    const teBgSelect = document.getElementById('te-bg-select');
+    const teBgButtons = document.querySelectorAll('.te-bg-btn');
+    const teTileOptions = document.getElementById('te-tile-options');
+    
+    // Слайдеры мозаики
+    const teTileScaleInput = document.getElementById('te-tile-scale');
+    const teTileXInput = document.getElementById('te-tile-x');
+    const teTileYInput = document.getElementById('te-tile-y');
+
+    if (!teOverlay) return;
+
+    const closeTeModal = () => {
+        teOverlay.classList.remove('visible');
+        window._currentGeneratedTierCanvas = null;
+    };
+
+    teCloseBtn.addEventListener('click', closeTeModal);
+    teOverlay.addEventListener('click', (e) => {
+        if (e.target === teOverlay) closeTeModal();
+    });
+
+    // Мониторинг явных кнопок выбора фона тир-листа
+    teBgButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            teBgButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            teBgSelect.value = btn.dataset.bg;
+            window.updateTierExportPreview();
+        });
+    });
+
+    // Изменение любого параметра мгновенно обновляет превью
+    teMaxRowInput.addEventListener('input', window.updateTierExportPreview);
+    teGridToggle.addEventListener('change', window.updateTierExportPreview);
+    teSlotsBgToggle.addEventListener('change', window.updateTierExportPreview);
+    tePaddingToggle.addEventListener('change', window.updateTierExportPreview);
+    
+    teTileScaleInput.addEventListener('input', window.updateTierExportPreview);
+    teTileXInput.addEventListener('input', window.updateTierExportPreview);
+    teTileYInput.addEventListener('input', window.updateTierExportPreview);
+
+    // Логика физического скачивания PNG по кнопке
+    teDownloadBtn.addEventListener('click', () => {
+        if (!window._currentGeneratedTierCanvas) return;
+        
+        const canvas = window._currentGeneratedTierCanvas;
+        const dateStr = new Date().toISOString().slice(0,10);
+        const fileName = `tierlist-${dateStr}.png`;
+        
+        const downloadBlobLocal = (data, fileName, mimeType) => {
+            const blob = new Blob([data], { type: mimeType });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        };
+
+        if (canvas.toBlob) {
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    downloadBlobLocal(blob, fileName, 'image/png');
+                    if (typeof showNotification === 'function') {
+                        showNotification('Тир-лист успешно сохранен!', 'success');
+                    }
+                }
+            }, 'image/png');
+        } else {
+            const dataUrl = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = fileName;
+            a.click();
+        }
+    });
+});

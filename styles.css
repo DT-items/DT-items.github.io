@@ -49,6 +49,8 @@ body.tier-mode .group {
 /* Плавающий предмет у курсора */
 .tier-floating {
     position: fixed;
+    top: 0;
+    left: 0;
     z-index: 9999;
     pointer-events: none; /* ВАЖНО: чтобы мышь "пробивала" его и видела элементы под ним */
     opacity: 0.9;
@@ -58,26 +60,33 @@ body.tier-mode .group {
     /* transition: none; !important для плавности движения мыши */
 }
 
-/* Чекбокс для Tier List */
-#tier-mode-toggle {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  width: 24px;
-  height: 24px;
-  background: url('ChkBxListOff.png') no-repeat center center; /* Нужно добавить иконку */
-  background-size: contain;
-  cursor: pointer;
-  margin-right: 6px;
-}
-#tier-mode-toggle:checked {
-  background-image: url('ChkBxListOn.png'); /* Нужно добавить иконку */
-}
-/* Fallback если иконок нет - используем обычные */
-#tier-mode-toggle {
-    background-image: url('ChkBxOff.png');
-}
-#tier-mode-toggle:checked {
-    background-image: url('ChkBxOn.png');
+/* Кнопка включения Tier List */
+.tier-mode-btn {
+    padding: 6px 12px;
+    background: #ffffff;
+    color: #333;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: bold;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    display: inline-block;
+    user-select: none;
 }
 
+.tier-mode-btn:hover {
+    background: #f0f0f0;
+    transform: scale(1.03);
+}
+
+.tier-mode-btn:active {
+    transform: scale(0.97);
+}
+
+.tier-mode-btn.active {
+    background: #ffcc00;
+    color: #000;
+    box-shadow: 0 0 8px rgba(255, 204, 0, 0.5);
+}

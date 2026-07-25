@@ -129,7 +129,7 @@
 <!-- оверлей + модальное окно -->
 <div id="about-overlay" class="about-overlay"></div>
 <div id="about-popup" class="about-popup">
-  <span class="about-popup__version">Версия 1.2.8</span>
+  <span class="about-popup__version">Версия 1.2.9</span>
   <!-- картинка внутри окна -->
   <img src="qrds.png" alt="QR код" class="about-popup__image">
   <!-- ваш текст -->
@@ -317,14 +317,25 @@
         </div>
 
         <div class="editor-footer">
-            <button class="editor-btn btn-create" id="ed-create-btn" style="margin-right: 10px;">Создать</button>
-            <button class="editor-btn btn-export" id="ed-export-all-btn">Экспорт</button>
-            <div class="editor-footer-spacer" style="flex:1"></div>
-            <!-- Динамическая кнопка (К последнему / Удалить) -->
-            <button class="editor-btn" id="ed-dynamic-btn" style="margin-right: 10px;">К последнему ID</button>
+            <!-- Слева: Удалить со смещением сверху, К последнему ID снизу -->
+            <div class="editor-footer-left">
+                <button class="editor-btn" id="ed-delete-shift-btn" style="background-color: #b71c1c; color: #fff; display: none;">Удалить со смещением</button>
+                <button class="editor-btn" id="ed-dynamic-btn">К последнему ID</button>
+            </div>
             
-            <button class="editor-btn btn-cancel" id="ed-cancel-btn">Отмена</button>
-            <button class="editor-btn btn-save" id="ed-save-btn">Сохранить</button>
+            <div class="editor-footer-spacer" style="flex:1"></div>
+            
+            <!-- Справа: Создать и Экспорт сверху, Отмена и Сохранить снизу -->
+            <div class="editor-footer-right">
+                <div class="editor-footer-row-top">
+                    <button class="editor-btn btn-create" id="ed-create-btn">Создать</button>
+                    <button class="editor-btn btn-export" id="ed-export-all-btn">Экспорт</button>
+                </div>
+                <div class="editor-footer-row-bottom">
+                    <button class="editor-btn btn-cancel" id="ed-cancel-btn">Отмена</button>
+                    <button class="editor-btn btn-save" id="ed-save-btn">Сохранить</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -425,6 +436,18 @@
           </div>
       </div>
   </div>
+
+  <!-- Модальное окно подтверждения УДАЛЕНИЯ СО СМЕЩЕНИЕМ -->
+  <div id="delete-shift-confirm-overlay" class="editor-overlay" style="z-index: 6006;">
+      <div class="unsaved-modal">
+          <h3 class="unsaved-title">Удаление со смещением</h3>
+          <p class="unsaved-text">Вы уверены, что хотите удалить этот предмет со смещением? <br><br>GlobalIndex (ID) всех предметов, идущих после текущего, уменьшатся на 1, что повлияет на все карты использующие прошлую версию мода! Это действие нельзя отменить.</p>
+          <div class="unsaved-buttons">
+              <button id="del-shift-cancel" class="uc-btn btn-grey">Отмена</button>
+              <button id="del-shift-confirm" class="uc-btn btn-red">Удалить и сместить</button>
+          </div>
+      </div>
+  </div>
   
   <!-- Модальное окно предупреждения о РАЗМЕРЕ (53x53) -->
   <div id="size-warning-overlay" class="editor-overlay" style="z-index: 6010;">
@@ -503,6 +526,71 @@
         </div>
         <div class="ct-content" id="ct-table-container">
             <!-- Таблица генерируется через JS -->
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно экспорта тир-листа в PNG с настройками -->
+<div id="tier-export-overlay" class="editor-overlay" style="z-index: 7800;">
+    <div class="tier-export-modal" onClick="event.stopPropagation()">
+        <div class="tier-export-header">
+            <h3>Настройка экспорта тир-листа</h3>
+            <button id="te-close-btn" class="search-clear-btn" style="display:flex; position:relative; right:0; transform:none; font-size:24px;">×</button>
+        </div>
+        <div class="tier-export-body">
+            <!-- Левая панель настроек -->
+            <div class="tier-export-sidebar">
+                <div class="te-option-group">
+                    <label for="te-max-row">Максимум в ряду: <span id="te-max-row-val" style="color: #ffcc00;">15</span></label>
+                    <input type="range" id="te-max-row" min="5" max="30" value="15" style="width:100%; cursor: pointer;">
+                </div>
+                <div class="te-option-group" style="margin-top: 5px; display: none;">
+                    <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="te-grid-toggle">
+                        <span style="font-size: 0.9rem; color: #aaa;">Сетка для предметов</span>
+                    </label>
+                </div>
+                <div class="te-option-group" style="margin-top: 5px; display: none;">
+                    <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="te-slots-bg-toggle">
+                        <span style="font-size: 0.9rem; color: #aaa;">Подложка пустых слотов</span>
+                    </label>
+                </div>
+                <div class="te-option-group" style="margin-top: 5px; display: none;">
+                    <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="te-padding-toggle" checked>
+                        <span style="font-size: 0.9rem; color: #aaa;">Отступы сверху/снизу (20px)</span>
+                    </label>
+                </div>
+                <div class="te-option-group" style="margin-top: 5px;">
+                    <label>Задний фон тир-листа:</label>
+                    <div class="te-bg-btn-container">
+                        <button type="button" class="te-bg-btn te-bg-btn-dark active" data-bg="dark">Тёмный</button>
+                        <button type="button" class="te-bg-btn te-bg-btn-tile" data-bg="tile">Мозаика</button>
+                    </div>
+                    <input type="hidden" id="te-bg-select" value="dark">
+                </div>
+                <!-- Контейнер настроек мозаики (скрыт по требованию) -->
+                    <div id="te-tile-options" style="display: none !important;">
+                        <div class="te-option-group">
+                            <label for="te-tile-scale">Масштаб фона: <span id="te-tile-scale-val" style="color: #ffcc00;">107%</span></label>
+                            <input type="range" id="te-tile-scale" min="10" max="300" value="107" style="width:100%; cursor: pointer;">
+                        </div>
+                        <div class="te-option-group">
+                            <label for="te-tile-x">Сдвиг X: <span id="te-tile-x-val" style="color: #ffcc00;">-13px</span></label>
+                            <input type="range" id="te-tile-x" min="-100" max="100" value="-13" style="width:100%; cursor: pointer;">
+                        </div>
+                        <div class="te-option-group">
+                            <label for="te-tile-y">Сдвиг Y: <span id="te-tile-y-val" style="color: #ffcc00;">17px</span></label>
+                            <input type="range" id="te-tile-y" min="-100" max="100" value="17" style="width:100%; cursor: pointer;">
+                        </div>
+                    </div>
+                    <button id="te-download-btn" class="uc-btn btn-purple" style="margin-top: auto; padding: 10px; width: 100%; height: 70px; flex: none;">Скачать .png</button>
+                </div>
+                <!-- Область предпросмотра -->
+                <div class="tier-export-preview-container">
+                    <img id="tier-export-preview-img" alt="Предпросмотр тир-листа">
+                </div>
         </div>
     </div>
 </div>

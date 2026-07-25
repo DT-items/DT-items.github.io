@@ -3,6 +3,10 @@ body.compare-wide {
   --compare-panel-width: 600px;
 }
 
+html, body {
+  overflow-x: hidden;
+}
+
 body {
   font-family: sans-serif;
   margin: 0;

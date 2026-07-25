@@ -483,9 +483,29 @@ textarea.compact-textarea {
     justify-content: flex-end; /* Изменено, чтобы элементы распределялись */
     gap: 10px;
     padding-top: 8px; /* Было 15px */
-    border-top: 1px solid var(--control-bg);
+    border-top: none; /* Линия скрыта */
     margin-top: auto; 
-    align-items: center;
+    align-items: flex-end; /* Выравнивание по нижнему краю для базовой линии */
+}
+
+.editor-footer-left {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+}
+
+.editor-footer-right {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-end;
+}
+
+.editor-footer-row-top,
+.editor-footer-row-bottom {
+    display: flex;
+    gap: 10px;
 }
 
 .editor-btn {
@@ -1259,6 +1279,11 @@ input[type=range].vertical-slider::-moz-range-thumb {
 }
 
 /* --- Стили для динамической кнопки (К последнему / Удалить) --- */
+#ed-dynamic-btn,
+#ed-delete-shift-btn {
+    font-size: 0.72rem;
+}
+
 #ed-dynamic-btn {
     /* Базовый стиль */
     color: #fff;

@@ -8,6 +8,7 @@ const saveBtn       = document.getElementById('ed-save-btn');
 const createBtn     = document.getElementById('ed-create-btn'); // Кнопка Создать
 const exportAllBtn  = document.getElementById('ed-export-all-btn'); // Новая общая кнопка экспорта
 const edDynamicBtn  = document.getElementById('ed-dynamic-btn'); // Новая кнопка
+const edDeleteShiftBtn = document.getElementById('ed-delete-shift-btn'); // Новая кнопка удаления со смещением
 const iconExportBtn = document.getElementById('ed-icon-export-btn'); // Кнопка экспорта иконок
 const edCopyBtn     = document.getElementById('ed-copy-btn');   // Кнопка копирования
 const edPasteBtn    = document.getElementById('ed-paste-btn');  // Кнопка вставки
@@ -45,6 +46,11 @@ const ucSaveBtn      = document.getElementById('uc-save');
 const deleteOverlay  = document.getElementById('delete-confirm-overlay');
 const delCancelBtn   = document.getElementById('del-cancel');
 const delConfirmBtn  = document.getElementById('del-confirm');
+
+// --- Элементы окна "Удаление со смещением" ---
+const deleteShiftOverlay = document.getElementById('delete-shift-confirm-overlay');
+const delShiftCancelBtn  = document.getElementById('del-shift-cancel');
+const delShiftConfirmBtn = document.getElementById('del-shift-confirm');
 
 // --- Элементы окна "Некорректный размер" ---
 const sizeWarningOverlay = document.getElementById('size-warning-overlay');
@@ -395,6 +401,66 @@ function performDelete() {
     }
 }
 
+// --- Logic for DELETE with Shift Modal ---
+function performDeleteWithShift() {
+    if (!savedData1 || selectedListItemIndex === -1) return;
+    
+    const gidToDelete = parseInt(edId.value);
+    if (isNaN(gidToDelete)) return;
+    
+    let keyToDelete = null;
+    for (const [key, item] of Object.entries(savedData1)) {
+        if (parseInt(item.GlobalIndex) === gidToDelete) {
+            keyToDelete = key;
+            break;
+        }
+    }
+    
+    if (keyToDelete) {
+        // 1. Удаляем предмет
+        delete savedData1[keyToDelete];
+        
+        // 2. Смещаем все последующие ID (GlobalIndex) на -1
+        for (const [key, item] of Object.entries(savedData1)) {
+            const currentGid = parseInt(item.GlobalIndex);
+            if (!isNaN(currentGid) && currentGid > gidToDelete) {
+                item.GlobalIndex = String(currentGid - 1);
+            }
+        }
+        
+        // 3. Сбрасываем флаг изменений
+        initialFormState = ''; 
+        
+        // 4. Обновляем список в редакторе
+        populateItemList();
+        
+        // 5. Обновляем главное приложение
+        if (window.refreshApp) window.refreshApp();
+        
+        // 6. Выбираем следующий логический элемент, который сместился на освободившееся ID место
+        let newIndex = currentItemsList.findIndex(x => parseInt(x.GlobalIndex) === gidToDelete);
+        
+        // Если такого нет (удалили последний элемент), выбираем предыдущий по порядку
+        if (newIndex === -1 && gidToDelete > 1) {
+            newIndex = currentItemsList.findIndex(x => parseInt(x.GlobalIndex) === (gidToDelete - 1));
+        }
+        
+        if (newIndex !== -1) {
+            selectItemByIndex(newIndex);
+            centerOnSelectedItem();
+        } else if (currentItemsList.length > 0) {
+            selectItemByIndex(0);
+            centerOnSelectedItem();
+        } else {
+            clearEditorForm();
+        }
+
+        if (typeof showNotification === 'function') {
+            showNotification('Предмет удален, ID последующих предметов смещены!', 'success');
+        }
+    }
+}
+
 // --- ZOOM MODAL LOGIC (Сравнение сжатия UGS) ---
 let currentZoomOriginalImg = null;
 
@@ -469,7 +535,7 @@ edZoomBtn.addEventListener('click', () => {
             zoomCompareBtn.disabled = false;
             zoomCompareBtn.classList.add('btn-purple');
             zoomCompareBtn.classList.remove('btn-grey');
-            zoomCompareBtn.textContent = 'Удерживайте для сравнения с оригиналом';
+            zoomCompareBtn.textContent = 'Удерживайте для сравнения с оригинал';
             zoomCompareBtn.title = "Нажмите и удерживайте, чтобы увидеть оригинал";
         } else {
             zoomCompareBtn.disabled = true;
@@ -1142,6 +1208,8 @@ function createNumberInput(className, id) {
 }
 
 function setupNumberInput(inp) {
+    inp._prevValue = inp.value || '';
+
     inp.addEventListener('keydown', (e) => {
         if (e.key === '-' || e.key === 'Subtract') {
             e.preventDefault();
@@ -1158,6 +1226,30 @@ function setupNumberInput(inp) {
     });
     
     inp.addEventListener('input', () => {
+        const isSpecialStepInput = (inp.id === 'ed_st_11_eq' || inp.id === 'ed_st_12_eq');
+        if (isSpecialStepInput) {
+            const prev = inp._prevValue;
+            const curr = inp.value;
+
+            if (prev === '-1' && curr === '0') {
+                inp.value = '';
+            } else if (prev === '0' && curr === '-1') {
+                inp.value = '';
+            } else if (prev === '') {
+                if (curr !== '') {
+                    const parsed = parseInt(curr);
+                    if (!isNaN(parsed)) {
+                        if (parsed >= 0) {
+                            inp.value = '0';
+                        } else {
+                            inp.value = '-1';
+                        }
+                    }
+                }
+            }
+        }
+        inp._prevValue = inp.value;
+
         if (inp.classList.contains('stat-input') && !inp.id.includes('_eq') && inp.value === '0') {
              inp.value = '';
         }
@@ -2011,41 +2103,45 @@ function centerOnSelectedItem() {
 function updateDynamicButtonState() {
     if (!savedData1 || selectedListItemIndex === -1) {
         edDynamicBtn.style.display = 'none';
+        if (edDeleteShiftBtn) edDeleteShiftBtn.style.display = 'none';
         return;
     }
     
     edDynamicBtn.style.display = 'inline-block';
+    if (edDeleteShiftBtn) edDeleteShiftBtn.style.display = 'inline-block';
     const currentGid = parseInt(edId.value);
     
-    // Находим максимальный GlobalIndex во всем наборе данных
-    let maxGid = -1;
-    Object.values(savedData1).forEach(item => {
-        const gid = parseInt(item.GlobalIndex);
-        if (!isNaN(gid) && gid > maxGid) {
-            maxGid = gid;
+        // Находим максимальный GlobalIndex во всем наборе данных
+        let maxGid = -1;
+        Object.values(savedData1).forEach(item => {
+            const gid = parseInt(item.GlobalIndex);
+            if (!isNaN(gid) && gid > maxGid) {
+                maxGid = gid;
+            }
+        });
+        
+        // Если текущий элемент имеет максимальный ID -> Режим удаления
+        if (currentGid === maxGid) {
+            edDynamicBtn.textContent = 'Удалить';
+            edDynamicBtn.classList.remove('btn-neutral');
+            edDynamicBtn.classList.add('btn-danger');
+            edDynamicBtn.dataset.action = 'delete';
+            if (edDeleteShiftBtn) edDeleteShiftBtn.style.display = 'none'; // Скрываем т.к. это последний предмет
+        } else {
+            // Иначе -> Режим перехода к последнему
+            edDynamicBtn.textContent = 'К последнему ID';
+            edDynamicBtn.classList.remove('btn-danger');
+            edDynamicBtn.classList.add('btn-neutral');
+            edDynamicBtn.dataset.action = 'last';
+            if (edDeleteShiftBtn) edDeleteShiftBtn.style.display = 'inline-block'; // Показываем для остальных
         }
-    });
-    
-    // Если текущий элемент имеет максимальный ID -> Режим удаления
-    if (currentGid === maxGid) {
-        edDynamicBtn.textContent = 'Удалить';
-        edDynamicBtn.classList.remove('btn-neutral');
-        edDynamicBtn.classList.add('btn-danger');
-        edDynamicBtn.dataset.action = 'delete';
-    } else {
-        // Иначе -> Режим перехода к последнему
-        edDynamicBtn.textContent = 'К последнему ID';
-        edDynamicBtn.classList.remove('btn-danger');
-        edDynamicBtn.classList.add('btn-neutral');
-        edDynamicBtn.dataset.action = 'last';
     }
-}
 
-edDynamicBtn.addEventListener('click', () => {
-    const action = edDynamicBtn.dataset.action;
-    
-    if (action === 'delete') {
-        showDeleteModal();
+    edDynamicBtn.addEventListener('click', () => {
+        const action = edDynamicBtn.dataset.action;
+        
+        if (action === 'delete') {
+            showDeleteModal();
     } else {
         // Переход к последнему элементу
         // Используем attemptAction для проверки несохраненных изменений перед переходом
@@ -2054,13 +2150,7 @@ edDynamicBtn.addEventListener('click', () => {
             let maxItem = null;
             let maxGid = -1;
             
-            // Ищем в currentItemsList (отфильтрованном) или во всем savedData1?
-            // Логичнее искать во всем savedData1, так как кнопка глобальная
-            // Но переключиться мы можем только если он есть в списке.
-            // Поэтому ищем в savedData1, а потом проверяем наличие в currentItemsList
-            // Если в списке нет (фильтр), сбрасываем фильтр? Нет, просто ищем в текущем списке.
-            
-            // Вариант: ищем в ТЕКУЩЕМ ОТОБРАЖАЕМОМ СПИСКЕ
+            // Ищем в ТЕКУЩЕМ ОТОБРАЖАЕМОМ СПИСКЕ
             currentItemsList.forEach(item => {
                 const gid = parseInt(item.GlobalIndex);
                 if (!isNaN(gid) && gid > maxGid) {
@@ -2079,6 +2169,34 @@ edDynamicBtn.addEventListener('click', () => {
         });
     }
 });
+
+// Кнопки удаления со смещением
+if (edDeleteShiftBtn) {
+    edDeleteShiftBtn.addEventListener('click', () => {
+        if (deleteShiftOverlay) deleteShiftOverlay.classList.add('visible');
+    });
+}
+
+if (delShiftCancelBtn) {
+    delShiftCancelBtn.addEventListener('click', () => {
+        if (deleteShiftOverlay) deleteShiftOverlay.classList.remove('visible');
+    });
+}
+
+if (deleteShiftOverlay) {
+    deleteShiftOverlay.addEventListener('click', (e) => {
+        if (e.target === deleteShiftOverlay) {
+            deleteShiftOverlay.classList.remove('visible');
+        }
+    });
+}
+
+if (delShiftConfirmBtn) {
+    delShiftConfirmBtn.addEventListener('click', () => {
+        if (deleteShiftOverlay) deleteShiftOverlay.classList.remove('visible');
+        performDeleteWithShift();
+    });
+}
 
 // --- ICONS EXPORT LOGIC ---
 
@@ -2598,6 +2716,11 @@ function fillEditorForm(item) {
     updateItemPreview();
     updateDynamicButtonState(); // Обновляем состояние кнопки
     
+    // Синхронизируем предыдущие значения для плавных переходов через прочерк
+    document.querySelectorAll('.stat-input').forEach(inp => {
+        inp._prevValue = inp.value;
+    });
+
     // Сохраняем состояние для отслеживания изменений
     initialFormState = JSON.stringify(getFormState());
 }
@@ -2637,6 +2760,12 @@ function clearEditorForm() {
     edIcon.removeAttribute('src'); 
     currentIconPath = ''; // Reset icon state
     isCurrentIconCustom = false;
+    
+    // Синхронизируем предыдущие значения для плавных переходов через прочерк
+    document.querySelectorAll('.stat-input').forEach(inp => {
+        inp._prevValue = '';
+    });
+
     updateItemPreview();
     updateDynamicButtonState();
     
@@ -2660,23 +2789,25 @@ function openEditor(item) {
          let minId = Infinity;
          let minItemIndex = -1;
          
-         currentItemsList.forEach((it, idx) => {
-             let gid = parseInt(it.GlobalIndex);
-             if (!isNaN(gid) && gid < minId) {
-                 minId = gid;
-                 minItemIndex = idx;
-             }
-         });
-         
-         if (minItemIndex !== -1) {
-             setTimeout(() => {
-                 selectItemByIndex(minItemIndex);
-                 centerOnSelectedItem();
-             }, 50);
-         } else {
-             setTimeout(() => {
-                edList.scrollTop = 0;
-                currentScrollTop = 0;
+             currentItemsList.forEach((it, idx) => {
+                 let gid = parseInt(it.GlobalIndex);
+                 if (!isNaN(gid) && gid < minId) {
+                     minId = gid;
+                     minItemIndex = idx;
+                 }
+             });
+             
+             if (minItemIndex !== -1) {
+                 selectedListItemIndex = minItemIndex;
+                 fillEditorForm(currentItemsList[minItemIndex]);
+                 setTimeout(() => {
+                     selectItemByIndex(minItemIndex);
+                     centerOnSelectedItem();
+                 }, 50);
+             } else {
+                 setTimeout(() => {
+                    edList.scrollTop = 0;
+                    currentScrollTop = 0;
                 targetScrollTop = 0;
                 if(edSelectionCursor) edSelectionCursor.style.transform = `translateY(${TOP_SPACER}px)`;
              }, 0);
@@ -2692,27 +2823,30 @@ function openEditor(item) {
   }
 
   if (item) {
-     const idElem = item.querySelector('.tooltip-id');
-     if (idElem) {
-         const txt = idElem.textContent;
-         const gid = txt.replace('ID: ', '').trim();
-         
-         if (typeof savedData1 !== 'undefined') {
-             const dataItem = Object.values(savedData1).find(x => x.GlobalIndex === gid);
-             if (dataItem) {
-                 fillEditorForm(dataItem);
-                 populateItemList(); 
-                 const itemIndex = currentItemsList.findIndex(x => x.GlobalIndex === gid);
-                 
-                 if (itemIndex !== -1) {
-                     setTimeout(() => {
-                         selectItemByIndex(itemIndex); 
-                         centerOnSelectedItem();
-                     }, 50);
+         const idElem = item.querySelector('.tooltip-id');
+         if (idElem) {
+             const txt = idElem.textContent;
+             const gid = txt.replace('ID: ', '').trim();
+             
+             if (typeof savedData1 !== 'undefined') {
+                 const dataItem = Object.values(savedData1).find(x => x.GlobalIndex === gid);
+                 if (dataItem) {
+                     const itemIndex = currentItemsList.findIndex(x => x.GlobalIndex === gid);
+                     if (itemIndex !== -1) {
+                         selectedListItemIndex = itemIndex;
+                     }
+                     fillEditorForm(dataItem);
+                     populateItemList(); 
+                     
+                     if (itemIndex !== -1) {
+                         setTimeout(() => {
+                             selectItemByIndex(itemIndex); 
+                             centerOnSelectedItem();
+                         }, 50);
+                     }
                  }
              }
          }
-     }
   }
 
   editorOverlay.classList.add('visible');
@@ -3307,4 +3441,3 @@ window.addEventListener('beforeunload', function (e) {
         return ''; // Требуется для старых браузеров
     }
 });
-
