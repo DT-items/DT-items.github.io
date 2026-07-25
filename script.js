@@ -72,6 +72,7 @@ let tierMode = false;
 window.tierSortByType = window.tierSortByType || false;
 // Структура: { 'ModName': { 1: [GlobalIndex, ...], 2: [], ..., 10: [] } }
 let tierDataStorage = {}; 
+window.tierTitlesStorage = window.tierTitlesStorage || {};
 // Текущий перемещаемый предмет { id, originGroup, ghostElement }
 let floatingItem = null;
 let floatingEl = null; // DOM элемент, который следит за курсором
@@ -1105,6 +1106,45 @@ if (lbl) lbl.style.display = 'none';
           return;
       }
       
+      // Заполняем контейнер переименования категорий
+      const teCategoriesContainer = document.getElementById('te-categories-container');
+      if (teCategoriesContainer) {
+          teCategoriesContainer.innerHTML = '<label style="font-size:0.9rem; color:var(--text-muted); font-weight:bold;">Названия категорий:</label>';
+          for (let i = 1; i <= rowsCount; i++) {
+              const group = document.getElementById(`group-${i}`);
+              if (group) {
+                  const itemElements = Array.from(group.querySelectorAll('.Items .item:not(.tier-ghost)'));
+                  if (itemElements.length > 0) {
+                      const savedTitle = (window.tierTitlesStorage[currentMode] && window.tierTitlesStorage[currentMode][i]) || '';
+                      const titleText = savedTitle || (group.querySelector('h2')?.textContent || `Категория ${i}`);
+                      const wrapper = document.createElement('div');
+                      wrapper.style.display = 'flex';
+                      wrapper.style.alignItems = 'center';
+                      wrapper.style.gap = '5px';
+                      wrapper.innerHTML = `
+                          <span style="font-size:0.85rem; color:#888; min-width:20px;">${i}:</span>
+                          <input type="text" class="te-category-input" data-tier="${i}" value="${titleText}" style="flex:1; background:#222; border:1px solid #444; color:#fff; padding:3px 6px; border-radius:4px; font-size:0.85rem; outline:none;">
+                      `;
+                      teCategoriesContainer.appendChild(wrapper);
+                      
+                      wrapper.querySelector('input').addEventListener('input', (event) => {
+                          const newTitle = event.target.value;
+                          if (!window.tierTitlesStorage[currentMode]) {
+                              window.tierTitlesStorage[currentMode] = {};
+                          }
+                          window.tierTitlesStorage[currentMode][i] = newTitle;
+                          
+                          const mainH2 = group.querySelector('h2');
+                          if (mainH2) {
+                              mainH2.textContent = newTitle;
+                          }
+                          window.updateTierExportPreview();
+                      });
+                  }
+              }
+          }
+      }
+
       // Открываем модальное окно настроек экспорта
       const teOverlay = document.getElementById('tier-export-overlay');
       if (teOverlay) {
@@ -3423,7 +3463,8 @@ if (toggleBtn) {
             if (num === '10') {
                 h2.textContent = `Пул предметов`;
             } else {
-                h2.textContent = `Категория ${num}`;
+                const savedTitle = (window.tierTitlesStorage[currentMode] && window.tierTitlesStorage[currentMode][num]);
+                h2.textContent = savedTitle || `Категория ${num}`;
             }
         } else {
              // Reset headers to default. This logic is tricky because we don't have the original text stored easily.
@@ -4196,7 +4237,8 @@ window.updateTierExportPreview = async function() {
         if (!group) continue;
         
         const itemElements = Array.from(group.querySelectorAll('.Items .item:not(.tier-ghost)'));
-        const titleText = group.querySelector('h2')?.textContent || `Tier ${i}`;
+        const inputEl = document.querySelector(`.te-category-input[data-tier="${i}"]`);
+        const titleText = inputEl ? inputEl.value : (group.querySelector('h2')?.textContent || `Tier ${i}`);
         
         const numSubRows = Math.max(1, Math.ceil(itemElements.length / maxRowVal));
         totalHeight += numSubRows * itemSize;
