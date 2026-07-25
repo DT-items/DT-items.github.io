@@ -1531,7 +1531,72 @@ function setupCustomSelect(container, options, onSelect, initialValue, isMagic =
         }
         div.appendChild(span);
 
+        let hoverTimeout = null;
+        let dimTimeout = null;
+
+        div.addEventListener('mouseenter', () => {
+            if (hoverTimeout) clearTimeout(hoverTimeout);
+            if (dimTimeout) clearTimeout(dimTimeout);
+            
+            const normName = opt.value ? opt.value.trim().toLowerCase().replace(/ё/g, 'е') : '';
+            const desc = (window.bonusDescriptions || bonusDescriptions)[normName];
+            
+            if (desc) {
+                // Таймер для запуска затухания цвета через 1 секунду
+                dimTimeout = setTimeout(() => {
+                    div.style.transition = 'background-color 1s ease';
+                    div.style.backgroundColor = 'rgba(103, 77, 242, 0.35)';
+                }, 1000);
+
+                // Таймер для появления подсказки через 2 секунды
+                hoverTimeout = setTimeout(() => {
+                    // Возвращаем цвет обратно к исходному яркому
+                    div.style.transition = 'background-color 0.15s ease';
+                    div.style.backgroundColor = '';
+
+                    const bonusDescTooltip = document.getElementById('bonus-desc-tooltip');
+                    if (bonusDescTooltip) {
+                        bonusDescTooltip.innerHTML = `<span class="bd-name">${opt.value}</span>${desc}`;
+                        bonusDescTooltip.classList.add('visible');
+                        
+                        const rect = div.getBoundingClientRect();
+                        let tooltipX = rect.right + 10;
+                        let tooltipY = rect.top;
+                        const tooltipWidth = 280;
+                        
+                        if (tooltipX + tooltipWidth > window.innerWidth) {
+                            tooltipX = rect.left - tooltipWidth - 10;
+                        }
+                        
+                        const viewportHeight = window.innerHeight;
+                        const tempHeight = 120;
+                        if (tooltipY + tempHeight > viewportHeight) {
+                            tooltipY = Math.max(10, viewportHeight - tempHeight - 10);
+                        }
+                        if (tooltipY < 10) tooltipY = 10;
+                        
+                        bonusDescTooltip.style.left = `${tooltipX}px`;
+                        bonusDescTooltip.style.top = `${tooltipY}px`;
+                    }
+                }, 2000);
+            }
+        });
+
+        const resetStylesAndTimers = () => {
+            if (hoverTimeout) clearTimeout(hoverTimeout);
+            if (dimTimeout) clearTimeout(dimTimeout);
+            div.style.transition = '';
+            div.style.backgroundColor = '';
+            const bonusDescTooltip = document.getElementById('bonus-desc-tooltip');
+            if (bonusDescTooltip) {
+                bonusDescTooltip.classList.remove('visible');
+            }
+        };
+
+        div.addEventListener('mouseleave', resetStylesAndTimers);
+
         div.addEventListener('click', (e) => {
+            resetStylesAndTimers();
             e.stopPropagation();
             currentVal = opt.value;
             optionsContainer.querySelectorAll('.ed-custom-option').forEach(el => el.classList.remove('selected'));

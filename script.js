@@ -65,6 +65,7 @@ let customModData = null;
 
 // Глобальный словарь описаний бонусов
 let bonusDescriptions = {};
+window.bonusDescriptions = bonusDescriptions;
 
 // --- TIER LIST VARIABLES ---
 let tierMode = false;
