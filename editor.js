@@ -696,14 +696,12 @@ function initEditorUI() {
     edSortBtn.addEventListener('click', toggleSortMode);
     
     edSearchInput.addEventListener('input', () => {
-        selectedListItemIndex = -1;
         updateSearchClearBtn();
         populateItemList();
     });
     
     edSearchClear.addEventListener('click', () => {
         edSearchInput.value = '';
-        selectedListItemIndex = -1;
         updateSearchClearBtn();
         populateItemList();
         edSearchInput.focus();
@@ -1811,6 +1809,7 @@ function handleManualScroll(e) {
 function selectItemByIndex(index) {
     if (index < 0 || index >= currentItemsList.length) return;
     selectedListItemIndex = index;
+    if (edSelectionCursor) edSelectionCursor.style.display = 'block';
     const item = currentItemsList[index];
     const domItems = edList.querySelectorAll('.ed-list-item');
     domItems.forEach((el, idx) => {
@@ -1845,17 +1844,16 @@ function populateItemList() {
             <div class="list-spacer"></div>
         `;
         const pBtn = document.getElementById('ed-paste-placeholder-btn');
-        if (pBtn) {
-            pBtn.addEventListener('click', () => {
-                processPasteData(rawQuery);
-            });
+            if (pBtn) {
+                pBtn.addEventListener('click', () => {
+                    processPasteData(rawQuery);
+                });
+            }
+            return;
         }
-        return;
-    }
 
-    if (edSelectionCursor) edSelectionCursor.style.display = 'block';
-    const query = edSearchInput.value.toLowerCase();
-    if (query) {
+        const query = edSearchInput.value.toLowerCase();
+        if (query) {
         items = items.filter(it => 
             it.Name.toLowerCase().includes(query) || 
             it.GlobalIndex.toLowerCase().includes(query)
@@ -1872,15 +1870,23 @@ function populateItemList() {
             return a.Name.localeCompare(b.Name);
         } else if (currentSortMode === 1) { 
              return Number(a.GlobalIndex) - Number(b.GlobalIndex);
-        } else { 
-            return a.Name.localeCompare(b.Name);
+            } else { 
+                return a.Name.localeCompare(b.Name);
+            }
+        });
+        currentItemsList = items;
+
+        const currentGid = edId.value;
+        selectedListItemIndex = currentGid ? items.findIndex(it => it.GlobalIndex === currentGid) : -1;
+
+        if (edSelectionCursor) {
+            edSelectionCursor.style.display = selectedListItemIndex === -1 ? 'none' : 'block';
         }
-    });
-    currentItemsList = items;
-    let listHTML = '<div class="list-spacer"></div>';
-    items.forEach((item, index) => {
-        const iconSrc = window.resolveIconUrl(currentMode, item);
-        const isSelected = index === selectedListItemIndex ? 'selected' : '';
+
+        let listHTML = '<div class="list-spacer"></div>';
+        items.forEach((item, index) => {
+            const iconSrc = window.resolveIconUrl(currentMode, item);
+            const isSelected = index === selectedListItemIndex ? 'selected' : '';
         listHTML += `
             <div class="ed-list-item ${isSelected}" data-index="${index}">
                 <img class="ed-list-icon" src="${iconSrc}">

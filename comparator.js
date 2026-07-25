@@ -1504,7 +1504,7 @@ window.compareTooltips = function(targetTt, sourceTt) {
             if (isLassoActive) return; // Если уже тянем — игнорируем новые нажатия
 
             // Игнорируем клики по элементам интерфейса
-            const isUI = e.target.closest('.top-bar, .side-panel, #compare-panel, .page-panel, .editor-overlay, .about-popup, .about-overlay, #toast-container, .custom-context-menu, .compare-table-modal, .bonus-help-modal');
+            const isUI = e.target.closest('.top-bar, .side-panel, #compare-panel, .page-panel, .editor-overlay, .about-popup, .about-overlay, #toast-container, .custom-context-menu, .compare-table-modal, .bonus-help-modal, .ed-slider-popup');
             if (isUI) return;
 
             // Предотвращаем дефолтное выделение и драг в браузере (критично для Firefox)
