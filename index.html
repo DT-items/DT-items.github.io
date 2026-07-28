@@ -22,6 +22,11 @@
   <!-- Библиотека для чтения TGA -->
   <script src="https://cdn.jsdelivr.net/npm/tga-js@1.1.1/dist/umd/tga.min.js"></script>
 
+  <!-- Подключение KaTeX для автоматического рендеринга формул -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+
   <!-- Open Graph -->
   <meta property="og:type"        content="website">
   <meta property="og:url"         content="https://dt-items.github.io/">
@@ -371,9 +376,15 @@
   <!-- Модальное окно выбора иконки -->
   <div id="icon-selector-overlay" class="icon-selector-overlay">
       <div class="icon-selector-modal" onClick="event.stopPropagation()">
-          <div style="padding: 15px 20px; border-bottom: 1px solid var(--top-bar-border); display: flex; justifyContent: space-between; alignItems: center;">
+          <div style="padding: 15px 20px; border-bottom: 1px solid var(--top-bar-border); display: flex; justify-content: space-between; align-items: center;">
               <h3 style="margin: 0; color: #fff;">Выберите иконку</h3>
-              <!-- Кнопка закрытия УДАЛЕНА -->
+              <label class="toggle-switch-label" style="width: auto; gap: 8px; cursor: pointer; display: flex; align-items: center;">
+                  <span class="toggle-label-text" style="font-size: 0.9rem; color: #aaa;">Авто-обработка</span>
+                  <div class="toggle-switch" style="width: 34px; height: 20px;">
+                      <input type="checkbox" id="auto-process-images-toggle" checked>
+                      <span class="slider" style="border-radius: 20px;"></span>
+                  </div>
+              </label>
           </div>
           <div class="icon-panels-container">
               <!-- Левая панель: Стандартные -->
@@ -390,7 +401,7 @@
               
               <!-- Правая панель: Свои картинки -->
               <div class="icon-panel right">
-                  <div class="panel-header">
+                  <div class="panel-header" style="flex-wrap: wrap; gap: 8px;">
                       <h4>Свои картинки</h4>
                       <div class="header-search-wrapper">
                           <input type="text" id="icon-search-custom" placeholder="Имя файла...">
@@ -461,8 +472,349 @@
       </div>
   </div>
   
+  <!-- Модальное окно подтверждения авто-обработки -->
+  <div id="confirm-processing-overlay" class="editor-overlay" style="z-index: 6015;">
+      <div class="unsaved-modal" style="width: 450px;">
+          <h3 class="unsaved-title" style="color: var(--primary-color);">✨ Авто-обработка загрузки</h3>
+          <p class="unsaved-text">Применить автоматизированную обработку картинок?</p>
+          <div style="margin: 10px 0; display: flex; justify-content: center;">
+              <label class="toggle-switch-label" style="width: auto; gap: 10px; color: var(--text-normal); font-size: 0.9rem;">
+                  <span class="toggle-label-text">Спрашивать каждый раз</span>
+                  <div class="toggle-switch">
+                      <input type="checkbox" id="te-ask-everytime-toggle" checked>
+                      <span class="slider"></span>
+                  </div>
+              </label>
+          </div>
+            <div class="unsaved-buttons">
+                <button id="te-confirm-skip" class="uc-btn btn-grey">Пропустить</button>
+                <button id="te-confirm-apply" class="uc-btn btn-purple">Применить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения отмены обработки -->
+    <div id="pipeline-cancel-confirm-overlay" class="editor-overlay" style="z-index: 6100;">
+        <div class="unsaved-modal">
+            <h3 class="unsaved-title">Прервать обработку?</h3>
+            <p class="unsaved-text">Вы действительно хотите прервать импорт и обработку изображения? Все текущие изменения будут потеряны.</p>
+            <div class="unsaved-buttons">
+                <button id="pc-cancel" class="uc-btn btn-grey">Продолжить</button>
+                <button id="pc-confirm" class="uc-btn btn-red">Прервать</button>
+            </div>
+        </div>
+    </div>
+
+  <!-- Модальное окно удаления фона RMBG-2.0 -->
+  <div id="rmbg-overlay" class="editor-overlay" style="z-index: 6016;">
+      <div class="rmbg-popup">
+          <h3 style="margin: 0; color: #fff;">Нейросетевое удаление фона (RMBG-2.0)</h3>
+          <p style="font-size: 0.85rem; color: #888; margin: 5px 0 0 0;">Вы можете удалить фон тут: <a href="https://huggingface.co/spaces/briaai/BRIA-RMBG-2.0" target="_blank" style="color: #674DF2; text-decoration: underline;">https://huggingface.co/spaces/briaai/BRIA-RMBG-2.0</a></p>
+          
+          <div class="rmbg-content-area">
+              <!-- Стартовый вид с вопросом и превью до обработки -->
+              <div id="rmbg-start-view" class="rmbg-start-container checkerboard-bg" style="display: none;">
+                  <div class="rmbg-start-image-wrapper">
+                      <img id="rmbg-start-preview-img" src="" alt="Превью" class="rmbg-img" />
+                      <div class="rmbg-start-overlay-controls">
+                          <button id="rmbg-run-btn" class="editor-btn btn-purple" style="font-size: 1.1rem; padding: 10px 24px; height: auto; border-radius: 6px; box-shadow: 0 4px 15px rgba(103, 77, 242, 0.4); cursor: pointer;">✨ Удалить фон?</button>
+                          <p style="color: #fff; font-size: 0.95rem; margin: 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8); max-width: 80%; line-height: 1.4;">Или нажмите "Пропустить этап" внизу, чтобы сразу перейти к обрезке.</p>
+                      </div>
+                  </div>
+              </div>
+
+              <div id="rmbg-loading-view" class="rmbg-loading" style="display: none;">
+                  <p id="rmbg-loading-stage" style="margin: 0; font-size: 1.1rem; color: #fff;">Отправляем картинку в API...</p>
+                  <div class="rmbg-tracker">
+                      <div class="rmbg-tracker-stats">
+                          <span id="rmbg-stat-elapsed" class="rmbg-stat-elapsed">⏱ Прошло: 0.0s</span>
+                          <span id="rmbg-stat-eta" class="rmbg-stat-eta">⏳ Соединение...</span>
+                      </div>
+                      <div class="rmbg-progress-bg">
+                          <div id="rmbg-progress-fill" class="rmbg-progress-fill" style="width: 0%;"></div>
+                      </div>
+                      <div id="rmbg-server-log" class="rmbg-server-log">Подключение к Hugging Face...</div>
+                  </div>
+              </div>
+
+              <div id="rmbg-slider-view" class="rmbg-slider-container checkerboard-bg" style="display: none;">
+                  <div class="rmbg-image-wrapper">
+                      <!-- Пустышка для установки размеров обертки по пропорциям картинки -->
+                      <img id="rmbg-dummy-img" src="" class="rmbg-dummy-img" />
+
+                      <!-- Слой "После" (обработанная картинка, обрезается справа) -->
+                      <div id="rmbg-layer-after" class="rmbg-layer">
+                          <img id="rmbg-img-after" src="" alt="После" class="rmbg-img" />
+                          <div class="rmbg-label label-after">После</div>
+                      </div>
+
+                      <!-- Слой "До" (оригинал, обрезается слева) -->
+                      <div id="rmbg-layer-before" class="rmbg-layer">
+                          <img id="rmbg-img-before" src="" alt="До" class="rmbg-img" />
+                          <div class="rmbg-label label-before">До</div>
+                      </div>
+                      
+                      <div id="rmbg-slider-line" class="rmbg-slider-line" style="left: 50%;">
+                          <div class="rmbg-slider-handle">
+                              <div class="rmbg-handle-arrows"></div>
+                          </div>
+                      </div>
+                      <input type="range" id="rmbg-range-input" min="0" max="100" value="50" class="rmbg-range-input" />
+                  </div>
+              </div>
+
+              <div id="rmbg-error-view" class="rmbg-loading" style="display: none;">
+                  <p style="color: #ff6b6b; font-weight: bold; font-size: 1.1rem;">Ошибка обработки</p>
+                  <p id="rmbg-error-text" style="color: #ccc; font-size: 0.95rem;"></p>
+              </div>
+          </div>
+
+        <div class="rmbg-footer">
+            <button id="rmbg-cancel-btn" class="editor-btn btn-cancel">Отмена</button>
+            <button id="rmbg-download-btn" class="editor-btn btn-cancel" style="display: none; background-color: #2e7d32; color: #fff;">Скачать PNG</button>
+            <button id="rmbg-skip-btn" class="editor-btn btn-cancel">Пропустить этап</button>
+            <button id="rmbg-continue-btn" class="editor-btn btn-save" style="display: none;" disabled>Продолжить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно обрезки (Crop) -->
+<div id="crop-overlay" class="editor-overlay" style="z-index: 6017;">
+    <div class="rmbg-popup" style="width: 90vw; max-width: 800px; height: 80vh; max-height: 80vh;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--top-bar-border); padding-bottom: 10px;">
+            <h3 style="margin: 0; color: #fff;">Обрезка изображения (Crop)</h3>
+            <div class="crop-zoom-controls" style="display: flex; align-items: center; gap: 8px;">
+                <button id="crop-zoom-out" class="editor-btn btn-cancel" style="height: 30px; width: 30px; padding: 0; font-size: 1.2rem; line-height: 1;">-</button>
+                <span id="crop-zoom-level" style="font-family: monospace; font-size: 0.9rem; color: #ccc; min-width: 45px; text-align: center;">100%</span>
+                <button id="crop-zoom-in" class="editor-btn btn-cancel" style="height: 30px; width: 30px; padding: 0; font-size: 1.2rem; line-height: 1;">+</button>
+                <button id="crop-zoom-reset" class="editor-btn btn-cancel" style="height: 30px; padding: 0 8px; font-size: 0.8rem;">Сброс</button>
+            </div>
+        </div>
+        
+        <div class="rmbg-content-area" style="position: relative; overflow: hidden; background: #1a1a1a;">
+              <div class="crop-container" id="crop-container" style="position: relative; max-width: 100%; max-height: 100%; display: inline-block;">
+                  <img id="crop-image" src="" alt="To Crop" style="display: block; max-width: 100%; max-height: calc(80vh - 200px); user-select: none; pointer-events: none;" />
+                  
+                  <!-- Маски -->
+                  <div class="crop-mask top" id="crop-mask-top"></div>
+                  <div class="crop-mask bottom" id="crop-mask-bottom"></div>
+                  <div class="crop-mask left" id="crop-mask-left"></div>
+                  <div class="crop-mask right" id="crop-mask-right"></div>
+                  
+                  <!-- Рамка обрезки -->
+                  <div class="crop-box" id="crop-box">
+                      <div class="crop-handle nw" data-handle="nw"></div>
+                      <div class="crop-handle n" data-handle="n"></div>
+                      <div class="crop-handle ne" data-handle="ne"></div>
+                      <div class="crop-handle e" data-handle="e"></div>
+                      <div class="crop-handle se" data-handle="se"></div>
+                      <div class="crop-handle s" data-handle="s"></div>
+                      <div class="crop-handle sw" data-handle="sw"></div>
+                      <div class="crop-handle w" data-handle="w"></div>
+                  </div>
+              </div>
+          </div>
+
+          <div class="rmbg-footer">
+              <button id="crop-cancel-btn" class="editor-btn btn-cancel">Отмена</button>
+              <button id="crop-apply-btn" class="editor-btn btn-save">Применить</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Модальное окно контурной резкости (Sharpness) -->
+  <div id="sharpness-overlay" class="editor-overlay" style="z-index: 6018;">
+      <div class="rmbg-popup" style="width: 90vw; max-width: 800px; height: 80vh; max-height: 80vh;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--top-bar-border); padding-bottom: 10px;">
+              <h3 style="margin: 0; color: #fff;">Контурная резкость</h3>
+          </div>
+          
+              <div class="sharpness-body-layout">
+                  <!-- Левая колонка настроек -->
+                  <div class="sharpness-sidebar-controls">
+                      <div class="te-option-group">
+                          <label>Эффект (Amount): <span id="val-sharp-amount" style="color: #ffcc00; font-weight: bold;">60%</span></label>
+                          <input type="range" id="param-sharp-amount" min="30" max="150" value="60" style="width:100%; cursor: pointer;">
+                      </div>
+                      <div class="te-option-group">
+                          <label>Радиус (Radius): <span id="val-sharp-radius" style="color: #ffcc00; font-weight: bold;">0.9 px</span></label>
+                          <input type="range" id="param-sharp-radius" min="0.5" max="2.0" step="0.1" value="0.9" style="width:100%; cursor: pointer;">
+                      </div>
+                      <div class="te-option-group">
+                          <label>Порог (Threshold): <span id="val-sharp-threshold" style="color: #ffcc00; font-weight: bold;">0</span></label>
+                          <input type="range" id="param-sharp-threshold" min="0" max="20" value="0" style="width:100%; cursor: pointer;">
+                      </div>
+                      <div class="te-option-group" style="margin-top: 5px;">
+                          <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                              <input type="checkbox" id="param-sharp-1to1">
+                              <span style="font-size: 0.85rem; color: #aaa;">Отобразить в масштабе 1к1</span>
+                          </label>
+                      </div>
+                      <button id="sharpness-compare-btn" class="editor-btn btn-cancel" style="height: 30px; margin-top: 10px; padding: 0 12px; font-size: 0.8rem; user-select: none; width: 100%;">Удерживайте: ДО</button>
+                  </div>
+                  
+                  <!-- Правая колонка превью -->
+                  <div class="rmbg-content-area" style="flex: 1; position: relative; overflow: hidden; background: #1a1a1a; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--top-bar-border);">
+                      <div class="sharpness-preview-wrapper" id="sharpness-preview-wrapper" style="background: url('trueinventorybackground.png') repeat center;">
+                          <canvas id="sharpness-canvas"></canvas>
+                          <canvas id="sharpness-orig-canvas"></canvas>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="rmbg-footer" style="margin-top: 15px;">
+              <button id="sharpness-cancel-btn" class="editor-btn btn-cancel">Отмена</button>
+              <button id="sharpness-skip-btn" class="editor-btn btn-cancel">Пропустить</button>
+              <button id="sharpness-apply-btn" class="editor-btn btn-save">Применить</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Модальное окно "Падающая тень" -->
+  <div id="shadow-overlay" class="editor-overlay" style="z-index: 6019;">
+      <div class="rmbg-popup" style="width: 90vw; max-width: 800px; height: 80vh; max-height: 80vh;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--top-bar-border); padding-bottom: 10px;">
+              <h3 style="margin: 0; color: #fff;">Падающая тень</h3>
+          </div>
+          
+          <div class="sharpness-body-layout">
+              <!-- Левая колонка настроек -->
+              <div class="sharpness-sidebar-controls" style="width: 240px; overflow-y: auto; padding-right: 5px;">
+                  
+                  <div class="te-option-group">
+                      <label>Радиус: <span id="val-shadow-radius" style="color: #ffcc00; font-weight: bold;">5.0</span></label>
+                      <div class="shadow-control-row">
+                          <input type="range" id="param-shadow-radius" min="0" max="20" step="0.5" value="5">
+                          <input type="number" id="num-shadow-radius" min="0" max="20" step="0.1" value="5.0" class="shadow-num-input">
+                      </div>
+                  </div>
+
+                  <div class="te-option-group">
+                      <label>Расстояние: <span id="val-shadow-dist" style="color: #ffcc00; font-weight: bold;">5.0</span></label>
+                      <div class="shadow-control-row">
+                          <input type="range" id="param-shadow-dist" min="0" max="30" step="0.5" value="5">
+                          <input type="number" id="num-shadow-dist" min="0" max="30" step="0.1" value="5.0" class="shadow-num-input">
+                      </div>
+                  </div>
+                  <div class="te-option-group">
+                      <label>Угол:</label>
+                      <div class="shadow-angle-container">
+                          <div class="shadow-angle-dial" id="shadow-angle-dial">
+                              <div class="shadow-angle-line" id="shadow-angle-line"></div>
+                          </div>
+                          <input type="number" id="num-shadow-angle" min="-180" max="180" step="1" value="-45" class="shadow-num-input">
+                      </div>
+                  </div>
+
+                  <div class="te-option-group">
+                      <label>Непрозрачность: <span id="val-shadow-opacity" style="color: #ffcc00; font-weight: bold;">0.70</span></label>
+                      <div class="shadow-control-row">
+                          <input type="range" id="param-shadow-opacity" min="0" max="1" step="0.01" value="0.70">
+                          <input type="number" id="num-shadow-opacity" min="0" max="1" step="0.01" value="0.70" class="shadow-num-input">
+                      </div>
+                  </div>
+
+                  <div class="te-option-group">
+                      <label>Цвет тени:</label>
+                      <div class="shadow-color-section">
+                          <div class="shadow-color-preview" id="shadow-color-preview"></div>
+                          <input type="color" id="shadow-color-picker" style="display: none;" value="#000000">
+                          <div class="shadow-rgb-inputs">
+                              <div><span>R:</span> <input type="number" id="shadow-rgb-r" min="0" max="255" value="0" class="shadow-num-input tiny"></div>
+                              <div><span>G:</span> <input type="number" id="shadow-rgb-g" min="0" max="255" value="0" class="shadow-num-input tiny"></div>
+                              <div><span>B:</span> <input type="number" id="shadow-rgb-b" min="0" max="255" value="0" class="shadow-num-input tiny"></div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="te-option-group" style="margin-top: 10px;">
+                      <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                          <input type="checkbox" id="param-shadow-only">
+                          <span style="font-size: 0.85rem; color: #aaa;">Отображать только тень</span>
+                      </label>
+                  </div>
+
+                  <div class="te-option-group" style="margin-top: 5px;">
+                      <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                          <input type="checkbox" id="param-shadow-1to1">
+                          <span style="font-size: 0.85rem; color: #aaa;">Отображать в масштабе 1к1</span>
+                      </label>
+                  </div>
+
+                  <div class="te-option-group" style="margin-top: 5px; display: none !important;">
+                      <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                          <input type="checkbox" id="param-shadow-show-border">
+                          <span style="font-size: 0.85rem; color: #aaa;">Отобразить рамку границы</span>
+                      </label>
+                  </div>
+
+                  <button id="shadow-compare-btn" class="editor-btn btn-cancel" style="height: 30px; margin-top: 10px; padding: 0 12px; font-size: 0.8rem; user-select: none; width: 100%;">Удерживайте: ДО</button>
+              </div>
+              
+              <!-- Правая колонка превью -->
+              <div class="rmbg-content-area" style="flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--top-bar-border);">
+                      <div class="sharpness-preview-wrapper" id="shadow-preview-wrapper" style="background: url('trueinventorybackground.png') repeat center;">
+                          <canvas id="shadow-canvas"></canvas>
+                          <canvas id="shadow-orig-canvas"></canvas>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="rmbg-footer" style="margin-top: 15px;">
+              <button id="shadow-cancel-btn" class="editor-btn btn-cancel">Отмена</button>
+                  <button id="shadow-skip-btn" class="editor-btn btn-cancel">Пропустить</button>
+              <button id="shadow-apply-btn" class="editor-btn btn-save">Применить</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Модальное окно "Преумножение альфы (Premultiply)" -->
+  <div id="premultiply-overlay" class="editor-overlay" style="z-index: 6020;">
+      <div class="rmbg-popup" style="width: 90vw; max-width: 800px; height: 80vh; max-height: 80vh;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--top-bar-border); padding-bottom: 10px;">
+              <h3 style="margin: 0; color: #fff;">Преумножение альфы (Premultiply)</h3>
+          </div>
+          
+          <div class="sharpness-body-layout">
+              <div class="sharpness-sidebar-controls" style="width: 240px; display: flex; flex-direction: column;">
+                  <p style="font-size: 0.85rem; color: #aaa; margin-top: 0; line-height: 1.4;">
+                      Умножает значения цветов RGB на альфа-канал. Этот шаг критически важен, так как движок игры использует нестандартный режим смешивания, из-за которого обычные картинки имеют светлые границы.<br><br>При активной галочке вы видите точный результат того, как игра отобразит предмет на фоне инвентаря.
+                  </p>
+                  
+                  <div class="te-option-group" style="margin-top: 10px;">
+                      <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                          <input type="checkbox" id="param-premult-gamerender" checked>
+                          <span style="font-size: 0.85rem; color: #aaa;">Игровой рендер (Фон)</span>
+                      </label>
+                  </div>
+                  <div class="te-option-group" style="margin-top: 5px;">
+                      <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                          <input type="checkbox" id="param-premult-1to1">
+                          <span style="font-size: 0.85rem; color: #aaa;">Отобразить в масштабе 1к1</span>
+                      </label>
+                  </div>
+
+                  <button id="premult-compare-btn" class="editor-btn btn-cancel" style="height: 30px; margin-top: auto; padding: 0 12px; font-size: 0.8rem; user-select: none; width: 100%;">Удерживайте: ДО</button>
+              </div>
+              
+              <div class="rmbg-content-area" style="flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--top-bar-border); background: #1a1a1a;">
+                  <div class="sharpness-preview-wrapper" id="premult-preview-wrapper" style="background: url('trueinventorybackground.png') repeat center;">
+                      <canvas id="premult-canvas"></canvas>
+                      <canvas id="premult-orig-canvas"></canvas>
+                  </div>
+              </div>
+          </div>
+
+          <div class="rmbg-footer" style="margin-top: 15px;">
+              <button id="premult-cancel-btn" class="editor-btn btn-cancel">Отмена</button>
+              <button id="premult-skip-btn" class="editor-btn btn-cancel">Пропустить</button>
+              <button id="premult-apply-btn" class="editor-btn btn-save">Применить</button>
+          </div>
+      </div>
+  </div>
+
   <!-- Модальное окно ручной вставки (резерв для мобильных) -->
-  <div id="manual-paste-overlay" class="editor-overlay" style="z-index: 6020;">
+  <div id="manual-paste-overlay" class="editor-overlay" style="z-index: 6025;">
       <div class="unsaved-modal">
           <h3 class="unsaved-title" style="color: #62B3F7;">Вставка предмета</h3>
           <p class="unsaved-text">Дайте разрешение сайту на чтение из буфера обмена, либо вставьте данные скопированного предмета в поле ниже:</p>
@@ -486,12 +838,31 @@
               <button id="zoom-compare-btn" class="uc-btn btn-grey" disabled style="user-select: none;">
                   Оригинал (недоступно для стандартных)
               </button>
+              <div class="te-option-group" style="margin-top: 15px;">
+                  <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                      <input type="checkbox" id="zoom-blend-toggle">
+                      <span style="font-size: 0.85rem; color: #aaa;" title="Результат = ЦветПикселя + (ЦветФона × (1 − Альфа))">Игровой рендер</span>
+                  </label>
+              </div>
           </div>
           <div class="zoom-info-sidebar">
               <h4>Как работает сжатие?</h4>
-              <p>В игре «Времена Раздора» для изображений используется формат <strong>.ugs</strong>.</p>
-              <p>При экспорте цвета сжимаются: вместо 256 оттенков на каждый канал остаётся всего 17.</p>
-              <p>Здесь (при масштабе 400%) наглядно показано, как алгоритм сожмет цвета вашей загруженной картинки.</p>
+                <p>В игре «Времена Раздора» для изображений используется формат <strong>.ugs</strong>.<br>
+                При экспорте цвета сжимаются: вместо 256 оттенков на каждый канал остаётся всего 17.<br>
+                Здесь (при масштабе 400%) наглядно показано, как алгоритм сожмет цвета вашей загруженной картинки.<br></p>
+                <h4>Как игра отрисовывает прозрачность?</h4>
+                Игра обрабатывает альфа канал не обычным смешиванием. <br>Вместо классической формулы:
+
+                $$\text{Результат} = \text{ЦветПикселя} \times \frac{\text{Альфа}}{255} + \text{Фон} \times \left(1 - \frac{\text{Альфа}}{255}\right)$$
+                
+                игра использует такую:
+                
+                $$\text{Результат} = \text{ЦветПикселя} + \text{Фон} \times \left(1 - \frac{\text{Альфа}}{255}\right)$$
+                
+               На практике это означает что почти полностью прозрачный пиксель края предмета (к примеру RGBA 200 200 200 10) в игре будет отображатся как заметная белая граница (что кстати вы можете наблюдать на абсолютно всех ванильных предметов внутри игры). <br>
+                При активации галочки "Игровой рендер" вы как-раз можете посмотреть как предмет будет по настоящему выглядить внутри игры. 
+              
+
               <button id="zoom-close-btn" class="uc-btn btn-grey" style="margin-top: auto; padding: 6px;">Закрыть</button>
           </div>
       </div>

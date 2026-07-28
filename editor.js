@@ -63,12 +63,191 @@ const manualPasteInput   = document.getElementById('manual-paste-input');
 const mpCancelBtn        = document.getElementById('mp-cancel');
 const mpConfirmBtn       = document.getElementById('mp-confirm');
 
+// --- Элементы авто-обработки загрузки и удаления фона (RMBG-2.0) ---
+let globalIsAutoProcessEnabled = true;
+let pendingUploadQueue = [];
+let currentQueueIndex = 0;
+let processedBlob = null;
+let rmbgElapsedInterval = null;
+let rmbgWiggleInterval = null;
+let rmbgAutoPlay = true;
+let rmbgLastMouseX = null;
+let rmbgLastMouseY = null;
+
+// --- Элементы автоматической и интерактивной обрезки (Crop) ---
+let cropImageFile = null;
+let cropImageBlob = null;
+let cropImageObj = null;
+let cropCoords = { x: 0, y: 0, w: 0, h: 0 };
+let cropDisplayScale = 1;
+let cropIsDragging = false;
+let cropDragStart = { x: 0, y: 0 };
+let cropStartCoords = { x: 0, y: 0, w: 0, h: 0 };
+let cropActiveHandle = null;
+let cropZoom = 1.0;
+let cropBaseWidth = 0;
+let cropBaseHeight = 0;
+
+// --- Элементы контурной резкости (Sharpness) ---
+const sharpnessOverlay = document.getElementById('sharpness-overlay');
+const sharpnessCanvas = document.getElementById('sharpness-canvas');
+const sharpnessOrigCanvas = document.getElementById('sharpness-orig-canvas');
+const sharpnessCancelBtn = document.getElementById('sharpness-cancel-btn');
+const sharpnessSkipBtn = document.getElementById('sharpness-skip-btn');
+const sharpnessApplyBtn = document.getElementById('sharpness-apply-btn');
+const sharpnessCompareBtn = document.getElementById('sharpness-compare-btn');
+const paramSharpAmount = document.getElementById('param-sharp-amount');
+const paramSharpRadius = document.getElementById('param-sharp-radius');
+const paramSharpThreshold = document.getElementById('param-sharp-threshold');
+const valSharpAmount = document.getElementById('val-sharp-amount');
+const valSharpRadius = document.getElementById('val-sharp-radius');
+const valSharpThreshold = document.getElementById('val-sharp-threshold');
+
+let sharpnessImageObj = null;
+let sharpnessFileObj = null;
+let sharpnessBaseBlob = null;
+let sharpnessOriginalPixels = null;
+let sharpnessIsProcessing = false;
+let sharpnessTimeout = null;
+
+// --- Элементы падающей тени (Shadow) ---
+const shadowOverlay = document.getElementById('shadow-overlay');
+const shadowCanvas = document.getElementById('shadow-canvas');
+const shadowOrigCanvas = document.getElementById('shadow-orig-canvas');
+const shadowCancelBtn = document.getElementById('shadow-cancel-btn');
+const shadowSkipBtn = document.getElementById('shadow-skip-btn');
+const shadowApplyBtn = document.getElementById('shadow-apply-btn');
+const shadowCompareBtn = document.getElementById('shadow-compare-btn');
+
+// --- Элементы Преумножения альфы (Premultiply) ---
+const premultiplyOverlay = document.getElementById('premultiply-overlay');
+const premultCanvas = document.getElementById('premult-canvas');
+const premultOrigCanvas = document.getElementById('premult-orig-canvas');
+const premultCancelBtn = document.getElementById('premult-cancel-btn');
+const premultSkipBtn = document.getElementById('premult-skip-btn');
+const premultApplyBtn = document.getElementById('premult-apply-btn');
+const premultCompareBtn = document.getElementById('premult-compare-btn');
+const paramPremultGameRender = document.getElementById('param-premult-gamerender');
+
+let premultImageObj = null;
+let premultFileObj = null;
+let premultBaseBlob = null;
+let premultRawPixels = null; 
+let premultProcessedPixels = null;
+
+const paramShadowRadius = document.getElementById('param-shadow-radius');
+const numShadowRadius = document.getElementById('num-shadow-radius');
+const paramShadowDist = document.getElementById('param-shadow-dist');
+const numShadowDist = document.getElementById('num-shadow-dist');
+const paramShadowOpacity = document.getElementById('param-shadow-opacity');
+const numShadowOpacity = document.getElementById('num-shadow-opacity');
+const shadowAngleDial = document.getElementById('shadow-angle-dial');
+const shadowAngleLine = document.getElementById('shadow-angle-line');
+const numShadowAngle = document.getElementById('num-shadow-angle');
+const shadowColorPreview = document.getElementById('shadow-color-preview');
+const shadowColorPicker = document.getElementById('shadow-color-picker');
+const shadowRgbR = document.getElementById('shadow-rgb-r');
+const shadowRgbG = document.getElementById('shadow-rgb-g');
+const shadowRgbB = document.getElementById('shadow-rgb-b');
+const paramShadowOnly = document.getElementById('param-shadow-only');
+const paramShadow1to1 = document.getElementById('param-shadow-1to1');
+const paramShadowShowBorder = document.getElementById('param-shadow-show-border');
+const paramSharp1to1 = document.getElementById('param-sharp-1to1');
+const paramPremult1to1 = document.getElementById('param-premult-1to1');
+
+let shadowImageObj = null;
+        let shadowFileObj = null;
+        let shadowBaseBlob = null;
+let shadowIsProcessing = false;
+let shadowTimeout = null;
+
+let shadowState = {
+    radius: 5.0,
+    distance: 5.0,
+    angle: -45,
+    opacity: 0.70,   
+    r: 0,
+    g: 0,
+    b: 0,
+    shadowOnly: false
+};
+
+const confirmOverlay = document.getElementById('confirm-processing-overlay');
+const confirmSkipBtn = document.getElementById('te-confirm-skip');
+const confirmApplyBtn = document.getElementById('te-confirm-apply');
+const askEverytimeToggle = document.getElementById('te-ask-everytime-toggle');
+const autoProcessImagesToggle = document.getElementById('auto-process-images-toggle');
+
+const pipelineCancelOverlay = document.getElementById('pipeline-cancel-confirm-overlay');
+const pcCancelBtn = document.getElementById('pc-cancel');
+const pcConfirmBtn = document.getElementById('pc-confirm');
+let onPipelineCancelConfirmed = null;
+
+function requestPipelineCancel(onConfirm) {
+    onPipelineCancelConfirmed = onConfirm;
+    if (pipelineCancelOverlay) {
+        pipelineCancelOverlay.classList.add('visible');
+    }
+}
+
+// Настройка слушателей для предупреждения об отмене пайплайна
+if (pcCancelBtn) {
+    pcCancelBtn.addEventListener('click', () => {
+        if (pipelineCancelOverlay) {
+            pipelineCancelOverlay.classList.remove('visible');
+        }
+        onPipelineCancelConfirmed = null;
+    });
+}
+
+if (pcConfirmBtn) {
+    pcConfirmBtn.addEventListener('click', () => {
+        if (pipelineCancelOverlay) {
+            pipelineCancelOverlay.classList.remove('visible');
+        }
+        if (onPipelineCancelConfirmed) {
+            onPipelineCancelConfirmed();
+        }
+        onPipelineCancelConfirmed = null;
+    });
+}
+
+if (pipelineCancelOverlay) {
+    pipelineCancelOverlay.addEventListener('click', (e) => {
+        if (e.target === pipelineCancelOverlay) {
+            pipelineCancelOverlay.classList.remove('visible');
+            onPipelineCancelConfirmed = null;
+        }
+    });
+}
+
+const rmbgOverlay = document.getElementById('rmbg-overlay');
+const rmbgLoadingView = document.getElementById('rmbg-loading-view');
+const rmbgSliderView = document.getElementById('rmbg-slider-view');
+const rmbgErrorView = document.getElementById('rmbg-error-view');
+const rmbgLoadingStage = document.getElementById('rmbg-loading-stage');
+const rmbgStatElapsed = document.getElementById('rmbg-stat-elapsed');
+const rmbgStatEta = document.getElementById('rmbg-stat-eta');
+const rmbgProgressFill = document.getElementById('rmbg-progress-fill');
+const rmbgServerLog = document.getElementById('rmbg-server-log');
+const rmbgImgAfter = document.getElementById('rmbg-img-after');
+const rmbgImgBefore = document.getElementById('rmbg-img-before');
+const rmbgSliderLine = document.getElementById('rmbg-slider-line');
+const rmbgRangeInput = document.getElementById('rmbg-range-input');
+const rmbgErrorText = document.getElementById('rmbg-error-text');
+
+const rmbgCancelBtn = document.getElementById('rmbg-cancel-btn');
+const rmbgDownloadBtn = document.getElementById('rmbg-download-btn');
+const rmbgSkipBtn = document.getElementById('rmbg-skip-btn');
+const rmbgContinueBtn = document.getElementById('rmbg-continue-btn');
+
 // --- Элементы окна Zoom (Сравнение UGS) ---
 const zoomOverlay    = document.getElementById('zoom-overlay');
 const zoomCanvas     = document.getElementById('zoom-canvas');
 const zoomTitle      = document.getElementById('zoom-title');
 const zoomCompareBtn = document.getElementById('zoom-compare-btn');
 const zoomCloseBtn   = document.getElementById('zoom-close-btn');
+const zoomBlendToggle = document.getElementById('zoom-blend-toggle');
 
 // Контейнеры для колонок статов
 let edStatsCols = { col1: null, col2: null };
@@ -463,6 +642,7 @@ function performDeleteWithShift() {
 
 // --- ZOOM MODAL LOGIC (Сравнение сжатия UGS) ---
 let currentZoomOriginalImg = null;
+let loadedZoomBgImg = null;
 
 function renderZoomCanvas(showOriginal) {
     if (!currentZoomOriginalImg) return;
@@ -481,39 +661,88 @@ function renderZoomCanvas(showOriginal) {
     const dx = (53 - w) / 2;
     const dy = (53 - h) / 2;
 
-    tCtx.drawImage(img, 0, 0, img.width, img.height, dx, dy, w, h);
+        tCtx.drawImage(img, 0, 0, img.width, img.height, dx, dy, w, h);
 
-    // 2. Получаем пиксели
-    const imgData = tCtx.getImageData(0, 0, 53, 53);
-    const data = imgData.data;
+        // 2. Получаем пиксели
+        const imgData = tCtx.getImageData(0, 0, 53, 53);
+        const data = imgData.data;
 
-    if (!showOriginal) {
-        // Применяем математику UGS сжатия (256 -> 17 цветов на канал)
-        for (let i = 0; i < data.length; i += 4) {
-            const a = Math.round(data[i+3] / 17);
-            if (a === 0) {
-                // Если полностью прозрачный, обнуляем цвета
-                data[i] = data[i+1] = data[i+2] = data[i+3] = 0;
-            } else {
-                data[i] = Math.round(data[i] / 17) * 17;
-                data[i+1] = Math.round(data[i+1] / 17) * 17;
-                data[i+2] = Math.round(data[i+2] / 17) * 17;
-                data[i+3] = a * 17;
+        const zoomBlendToggle = document.getElementById('zoom-blend-toggle');
+        const useCustomBlend = zoomBlendToggle ? zoomBlendToggle.checked : false;
+
+        if (!showOriginal) {
+            // Применяем математику UGS сжатия (256 -> 17 цветов на канал)
+            for (let i = 0; i < data.length; i += 4) {
+                const a = Math.round(data[i+3] / 17);
+                if (a === 0) {
+                    // Если полностью прозрачный, обнуляем цвета
+                    data[i] = data[i+1] = data[i+2] = data[i+3] = 0;
+                } else {
+                    data[i] = Math.round(data[i] / 17) * 17;
+                    data[i+1] = Math.round(data[i+1] / 17) * 17;
+                    data[i+2] = Math.round(data[i+2] / 17) * 17;
+                    data[i+3] = a * 17;
+                }
             }
+            tCtx.putImageData(imgData, 0, 0);
+            zoomTitle.textContent = useCustomBlend 
+                ? "Сжатая для игры версия (17 цветов) — фактическое отображение в игре" 
+                : "Сжатая для игры версия (17 цветов)";
+            zoomTitle.style.color = "#ff6b6b"; // Красный
+        } else {
+            zoomTitle.textContent = useCustomBlend 
+                ? "Оригинальная картинка — фактическое отображение в игре" 
+                : "Оригинальная картинка";
+            zoomTitle.style.color = "#69f0ae"; // Зеленый
         }
-        tCtx.putImageData(imgData, 0, 0);
-        zoomTitle.textContent = "Сжатая для игры версия (17 цветов)";
-        zoomTitle.style.color = "#ff6b6b"; // Красный
-    } else {
-        zoomTitle.textContent = "Оригинальная картинка";
-        zoomTitle.style.color = "#69f0ae"; // Зеленый
-    }
 
-    // 3. Рисуем на финальный увеличенный канвас (212x212)
-    const ctx = zoomCanvas.getContext('2d');
-    ctx.imageSmoothingEnabled = false; // Отключаем сглаживание для пиксельности
-    ctx.clearRect(0, 0, 212, 212);
-    ctx.drawImage(tempCanvas, 0, 0, 53, 53, 0, 0, 212, 212);
+        // 3. Рисуем на финальный увеличенный канвас (212x212)
+        const ctx = zoomCanvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false; // Отключаем сглаживание для пиксельности
+        ctx.clearRect(0, 0, 212, 212);
+        if (useCustomBlend && loadedZoomBgImg) {
+        // 1) Масштабируем 53x53 (tempCanvas) до 212x212 без сглаживания
+        const scaledIconCanvas = document.createElement('canvas');
+        scaledIconCanvas.width = 212;
+        scaledIconCanvas.height = 212;
+        const sCtx = scaledIconCanvas.getContext('2d');
+        sCtx.imageSmoothingEnabled = false;
+        sCtx.drawImage(tempCanvas, 0, 0, 53, 53, 0, 0, 212, 212);
+        const iconDataObj = sCtx.getImageData(0, 0, 212, 212);
+        const iconData = iconDataObj.data;
+
+        // 2) Замостим фон размером 212x212 со стандартным (100%) масштабом узора
+        const bgCanvas = document.createElement('canvas');
+        bgCanvas.width = 212;
+        bgCanvas.height = 212;
+        const bgCtx = bgCanvas.getContext('2d');
+        const pattern = bgCtx.createPattern(loadedZoomBgImg, 'repeat');
+        bgCtx.fillStyle = pattern;
+        bgCtx.fillRect(0, 0, 212, 212);
+        const bgData = bgCtx.getImageData(0, 0, 212, 212).data;
+
+        // 3) Попиксельно смешиваем по твоей формуле на полном разрешении (212x212)
+        for (let i = 0; i < iconData.length; i += 4) {
+            const a_src = iconData[i+3] / 255;
+            const oneMinusAlpha = 1 - a_src;
+
+            // Формула: Result = PixelColor + (BackgroundColor * (1 - Alpha))
+            const r = iconData[i]   + bgData[i]   * oneMinusAlpha;
+            const g = iconData[i+1] + bgData[i+1] * oneMinusAlpha;
+            const b = iconData[i+2] + bgData[i+2] * oneMinusAlpha;
+
+            iconData[i]   = Math.min(255, Math.max(0, Math.round(r)));
+            iconData[i+1] = Math.min(255, Math.max(0, Math.round(g)));
+            iconData[i+2] = Math.min(255, Math.max(0, Math.round(b)));
+            iconData[i+3] = 255; // Запечатываем непрозрачностью
+        }
+
+        sCtx.putImageData(iconDataObj, 0, 0);
+        ctx.drawImage(scaledIconCanvas, 0, 0);
+    } else {
+        // Стандартный рендер (прозрачный спрайт, фон подгружается из CSS)
+        ctx.drawImage(tempCanvas, 0, 0, 53, 53, 0, 0, 212, 212);
+    }
 }
 
 edZoomBtn.addEventListener('click', () => {
@@ -526,29 +755,50 @@ edZoomBtn.addEventListener('click', () => {
         targetSrc = window.originalCustomIcons[targetSrc];
     }
     
+    // Динамически получаем текущий фоновый рисунок из стилей обертки
+    const wrapper = document.querySelector('.zoom-image-wrapper');
+    const bgStyle = window.getComputedStyle(wrapper).backgroundImage;
+    const match = bgStyle.match(/url\(['"]?(.*?)['"]?\)/);
+    const bgUrl = match ? match[1] : '2background.png';
+
     const img = new Image();
+    const bgImg = new Image();
     img.crossOrigin = 'Anonymous';
-    img.onload = () => {
-        currentZoomOriginalImg = img;
-        
-        if (isCurrentIconCustom) {
-            zoomCompareBtn.disabled = false;
-            zoomCompareBtn.classList.add('btn-purple');
-            zoomCompareBtn.classList.remove('btn-grey');
-            zoomCompareBtn.textContent = 'Удерживайте для сравнения с оригинал';
-            zoomCompareBtn.title = "Нажмите и удерживайте, чтобы увидеть оригинал";
-        } else {
-            zoomCompareBtn.disabled = true;
-            zoomCompareBtn.classList.add('btn-grey');
-            zoomCompareBtn.classList.remove('btn-purple');
-            zoomCompareBtn.textContent = 'Оригинал (недоступно для стандартных)';
-            zoomCompareBtn.title = "Доступно только для своих (кастомных) картинок";
+    bgImg.crossOrigin = 'Anonymous';
+
+    let loadedCount = 0;
+    const checkLoaded = () => {
+        loadedCount++;
+        if (loadedCount === 2) {
+            currentZoomOriginalImg = img;
+            loadedZoomBgImg = bgImg;
+            
+            if (isCurrentIconCustom) {
+                zoomCompareBtn.disabled = false;
+                zoomCompareBtn.classList.add('btn-purple');
+                zoomCompareBtn.classList.remove('btn-grey');
+                zoomCompareBtn.textContent = 'Удерживайте для сравнения с оригинал';
+                zoomCompareBtn.title = "Нажмите и удерживайте, чтобы увидеть оригинал";
+            } else {
+                zoomCompareBtn.disabled = true;
+                zoomCompareBtn.classList.add('btn-grey');
+                zoomCompareBtn.classList.remove('btn-purple');
+                zoomCompareBtn.textContent = 'Оригинал (недоступно для стандартных)';
+                zoomCompareBtn.title = "Доступно только для своих (кастомных) картинок";
+            }
+            
+            renderZoomCanvas(false);
+            zoomOverlay.classList.add('visible');
         }
-        
-        renderZoomCanvas(false);
-        zoomOverlay.classList.add('visible');
     };
+
+    img.onload = checkLoaded;
+    img.onerror = () => console.error("Failed to load icon");
+    bgImg.onload = checkLoaded;
+    bgImg.onerror = checkLoaded; // В случае ошибки загрузки фона продолжаем работу
+
     img.src = targetSrc;
+    bgImg.src = bgUrl;
 });
 
 const closeZoomModal = () => {
@@ -559,6 +809,12 @@ zoomCloseBtn.addEventListener('click', closeZoomModal);
 zoomOverlay.addEventListener('click', (e) => {
     if (e.target === zoomOverlay) closeZoomModal();
 });
+
+if (document.getElementById('zoom-blend-toggle')) {
+    document.getElementById('zoom-blend-toggle').addEventListener('change', () => {
+        renderZoomCanvas(zoomCompareBtn.matches(':active'));
+    });
+}
 
 // Обработка удержания кнопки сравнения
 const startZoomCompare = () => {
@@ -580,8 +836,449 @@ zoomCompareBtn.addEventListener('touchcancel', endZoomCompare);
 
 
 // --- Инициализация редактора ---
+async function handleIconUpload(e) {
+    if (!e.target.files || e.target.files.length === 0) return;
+    pendingUploadQueue = Array.from(e.target.files);
+    currentQueueIndex = 0;
+    e.target.value = '';
+    
+    if (!window.originalCustomIcons) window.originalCustomIcons = {};
+    
+    processNextInQueue();
+}
+
+async function ensurePngFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+    const pngName = baseName + ".png";
+
+    if (ext === 'tga') {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const tga = new TgaLoader();
+                    tga.load(new Uint8Array(ev.target.result));
+                    const dataUrl = tga.getDataURL('image/png');
+                    
+                    fetch(dataUrl)
+                        .then(res => res.blob())
+                        .then(blob => {
+                            const pngFile = new File([blob], pngName, { type: 'image/png' });
+                            resolve(pngFile);
+                        })
+                        .catch(reject);
+                } catch (err) {
+                    reject(new Error('Не удалось прочитать TGA файл: ' + err.message));
+                }
+            };
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
+        });
+    } else if (['bmp', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            const pngFile = new File([blob], pngName, { type: 'image/png' });
+                            resolve(pngFile);
+                        } else {
+                            reject(new Error('Ошибка конвертации изображения в PNG'));
+                        }
+                    }, 'image/png');
+                };
+                img.onerror = reject;
+                img.src = ev.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    } else {
+        return file;
+    }
+}
+
+async function processFileWithDirectPremultiply(file) {
+    try {
+        const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => resolve(ev.target.result);
+            reader.readAsDataURL(file);
+        });
+
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.src = dataUrl;
+        });
+
+        let finalUrl = dataUrl;
+        if (img.width > 53 || img.height > 53) {
+            const decision = await showSizeWarning();
+            if (decision === 'cancel') {
+                return false;
+            } else if (decision === 'resize') {
+                finalUrl = resizeImageTo53(img);
+            }
+        } else if (img.width < 53 || img.height < 53) {
+            finalUrl = padImageTo53(img);
+        }
+
+        const res = await fetch(finalUrl);
+        const blob = await res.blob();
+
+        openPremultiplyModal(file, blob, null);
+        return true;
+    } catch (err) {
+        console.error("Ошибка при обработке файла без автообработки:", file.name, err);
+        return false;
+    }
+}
+
+async function processNextInQueue() {
+    if (currentQueueIndex >= pendingUploadQueue.length) {
+        renderCustomIcons();
+        if (pendingUploadQueue.length === 1 && customIcons.length > 0) {
+            selectIcon(customIcons[0].url, true);
+        }
+        pendingUploadQueue = [];
+        currentQueueIndex = 0;
+        return;
+    }
+    
+    let file = pendingUploadQueue[currentQueueIndex];
+    try {
+        file = await ensurePngFile(file);
+        pendingUploadQueue[currentQueueIndex] = file;
+    } catch (err) {
+        console.error("Ошибка предварительной конвертации файла в PNG:", err);
+        if (typeof showNotification === 'function') {
+            showNotification(`Ошибка конвертации ${file.name} в PNG`, 'error');
+        }
+        currentQueueIndex++;
+        processNextInQueue();
+        return;
+    }
+
+    if (globalIsAutoProcessEnabled) {
+        showConfirmProcessingModal(file);
+    } else {
+        const success = await processFileWithDirectPremultiply(file);
+        if (!success) {
+            currentQueueIndex++;
+            processNextInQueue();
+        }
+    }
+}
+
+function showConfirmProcessingModal(file) {
+    if (confirmOverlay) {
+        confirmOverlay.classList.add('visible');
+    }
+}
+
+function startRMBGProcessing(file) {
+    if (!rmbgOverlay) return;
+    rmbgOverlay.classList.add('visible');
+    
+    const rmbgStartView = document.getElementById('rmbg-start-view');
+    const rmbgStartImg = document.getElementById('rmbg-start-preview-img');
+    
+    if (rmbgStartView) rmbgStartView.style.display = 'flex';
+    rmbgLoadingView.style.display = 'none';
+    rmbgSliderView.style.display = 'none';
+    rmbgErrorView.style.display = 'none';
+    if (rmbgDownloadBtn) rmbgDownloadBtn.style.display = 'none';
+
+    rmbgContinueBtn.disabled = true;
+    rmbgContinueBtn.style.display = 'none';
+
+    const objectUrl = URL.createObjectURL(file);
+    if (rmbgStartImg) {
+        rmbgStartImg.src = objectUrl;
+        rmbgStartImg.onload = () => {
+            const contentArea = document.querySelector('.rmbg-content-area');
+            const wrapper = document.querySelector('.rmbg-start-image-wrapper');
+            if (contentArea && wrapper) {
+                const areaRect = contentArea.getBoundingClientRect();
+                const maxWidth = areaRect.width - 40;
+                const maxHeight = areaRect.height - 40;
+                const ratio = rmbgStartImg.naturalWidth / rmbgStartImg.naturalHeight;
+                
+                let targetWidth = maxWidth;
+                let targetHeight = maxWidth / ratio;
+                if (targetHeight > maxHeight) {
+                    targetHeight = maxHeight;
+                    targetWidth = maxHeight * ratio;
+                }
+                
+                wrapper.style.width = `${targetWidth}px`;
+                wrapper.style.height = `${targetHeight}px`;
+            }
+        };
+    }
+
+    const runBtn = document.getElementById('rmbg-run-btn');
+    if (runBtn) {
+        runBtn.onclick = () => {
+            runRMBGProcessing(file);
+        };
+    }
+}
+
+async function runRMBGProcessing(file) {
+    const rmbgStartView = document.getElementById('rmbg-start-view');
+    if (rmbgStartView) rmbgStartView.style.display = 'none';
+    
+    rmbgLoadingView.style.display = 'flex';
+    rmbgSliderView.style.display = 'none';
+    rmbgErrorView.style.display = 'none';
+    if (rmbgDownloadBtn) rmbgDownloadBtn.style.display = 'none';
+
+    rmbgContinueBtn.disabled = true;
+    rmbgContinueBtn.style.display = 'none';
+
+    let elapsed = 0;
+    let serverEta = 0;
+    let progress = 0;
+    let serverStage = 'uploading';
+    const startTime = Date.now();
+    
+    rmbgLoadingStage.textContent = "Ожидайте...";
+    rmbgStatElapsed.textContent = "⏱ Прошло: 0.0s";
+    rmbgStatEta.textContent = "⏳ Среднее время ожидания 60 сек";
+    rmbgProgressFill.style.width = "0%";
+    rmbgServerLog.textContent = "Обработка...";
+    
+    if (rmbgElapsedInterval) clearInterval(rmbgElapsedInterval);
+    rmbgElapsedInterval = setInterval(() => {
+        elapsed = (Date.now() - startTime) / 1000;
+        rmbgStatElapsed.textContent = `⏱ Прошло: ${elapsed.toFixed(1)}s`;
+        
+        if (serverEta > 0) {
+            const estimatedTotal = elapsed + serverEta;
+            progress = Math.min((elapsed / estimatedTotal) * 100, 98);
+            rmbgProgressFill.style.width = `${progress}%`;
+        } else if (serverStage === 'generating') {
+            progress = Math.min(progress + 0.3, 95);
+            rmbgProgressFill.style.width = `${progress}%`;
+        }
+    }, 100);
+
+    try {
+        const { Client } = await import("https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js");
+        const app = await Client.connect("LiXiang12/RMBG2.0-gradio");
+        const job = app.submit("/predict", [file, ""]);
+
+        for await (const msg of job) {
+            if (msg.type === "status") {
+                serverStage = msg.stage;
+                let queueText = "";
+                if (msg.position !== undefined) {
+                    queueText = ` (Очередь: ${msg.position})`;
+                }
+                rmbgLoadingStage.textContent = serverStage === 'generating' ? '✨ Удаление фона...' : '⏳ Подготовка...';
+                
+                if (msg.eta !== undefined) {
+                    serverEta = msg.eta;
+                    rmbgStatEta.textContent = `⏳ Осталось: ~${serverEta.toFixed(1)}s${queueText}`;
+                } else {
+                    rmbgStatEta.textContent = `⏳ Статус: ${serverStage}${queueText}`;
+                }
+                
+                rmbgServerLog.textContent = `Стадия: ${msg.stage}${queueText}`;
+            } 
+            else if (msg.type === "data") {
+                const outputUrl = msg.data?.[1]?.url || msg.data?.[0]?.url || msg.data?.[1] || msg.data?.[0];
+                if (!outputUrl) throw new Error("Неверный формат ответа от нейросети.");
+
+                const res = await fetch(outputUrl);
+                processedBlob = await res.blob();
+                
+                const processedUrl = URL.createObjectURL(processedBlob);
+                const originalUrl = URL.createObjectURL(file);
+                
+                rmbgImgBefore.onload = () => {
+                    const contentArea = document.querySelector('.rmbg-content-area');
+                    const wrapper = document.querySelector('.rmbg-image-wrapper');
+                    if (contentArea && wrapper) {
+                        const areaRect = contentArea.getBoundingClientRect();
+                        const maxWidth = areaRect.width - 40;
+                        const maxHeight = areaRect.height - 40;
+                        const ratio = rmbgImgBefore.naturalWidth / rmbgImgBefore.naturalHeight;
+                        
+                        let targetWidth = maxWidth;
+                        let targetHeight = maxWidth / ratio;
+                        if (targetHeight > maxHeight) {
+                            targetHeight = maxHeight;
+                            targetWidth = maxHeight * ratio;
+                        }
+                        
+                        wrapper.style.width = `${targetWidth}px`;
+                        wrapper.style.height = `${targetHeight}px`;
+                    }
+                };
+                
+                rmbgImgAfter.src = processedUrl;
+                rmbgImgBefore.src = originalUrl;
+                
+                rmbgLoadingView.style.display = 'none';
+                rmbgSliderView.style.display = 'flex';
+                if (rmbgDownloadBtn) rmbgDownloadBtn.style.display = 'inline-block';
+
+                rmbgContinueBtn.disabled = false;
+                rmbgContinueBtn.style.display = 'inline-block';
+                clearInterval(rmbgElapsedInterval);
+                
+                startSliderWiggle();
+            }
+        }
+    } catch (err) {
+        console.error("RMBG Error:", err);
+        clearInterval(rmbgElapsedInterval);
+        rmbgLoadingView.style.display = 'none';
+        rmbgErrorView.style.display = 'flex';
+        rmbgErrorText.textContent = err.message || "Неизвестная ошибка связи с сервером";
+    }
+}
+
+function startSliderWiggle() {
+    rmbgAutoPlay = true;
+    let direction = 1;
+    let pos = 50;
+    rmbgRangeInput.value = 50;
+    updateSliderPosition(50);
+    rmbgLastMouseX = null;
+    rmbgLastMouseY = null;
+    
+    if (rmbgWiggleInterval) clearInterval(rmbgWiggleInterval);
+    rmbgWiggleInterval = setInterval(() => {
+        if (!rmbgAutoPlay) {
+            clearInterval(rmbgWiggleInterval);
+            return;
+        }
+        pos += direction * 0.5;
+        if (pos >= 90) direction = -1;
+        if (pos <= 10) direction = 1;
+        rmbgRangeInput.value = pos;
+        updateSliderPosition(pos);
+    }, 16);
+}
+
+function updateSliderPosition(pos) {
+    rmbgSliderLine.style.left = `${pos}%`;
+    
+    const layerBefore = document.getElementById('rmbg-layer-before');
+    if (layerBefore) {
+        layerBefore.style.clipPath = `polygon(0 0, ${pos}% 0, ${pos}% 100%, 0 100%)`;
+    }
+    
+    const layerAfter = document.getElementById('rmbg-layer-after');
+    if (layerAfter) {
+        layerAfter.style.clipPath = `polygon(${pos}% 0, 100% 0, 100% 100%, ${pos}% 100%)`;
+    }
+}
+
+function closeRMBGModal() {
+    if (rmbgOverlay) rmbgOverlay.classList.remove('visible');
+    if (rmbgElapsedInterval) clearInterval(rmbgElapsedInterval);
+    if (rmbgWiggleInterval) clearInterval(rmbgWiggleInterval);
+    if (rmbgDownloadBtn) rmbgDownloadBtn.style.display = 'none';
+    processedBlob = null;
+}
+
+async function processFileAndAddToLibrary(file, customBlob = null) {
+    try {
+        let dataUrl;
+        let finalName = file.name;
+        if (customBlob) {
+            dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (ev) => resolve(ev.target.result);
+                reader.readAsDataURL(customBlob);
+            });
+            const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+            finalName = "rmbg_" + baseName + ".png";
+        } else {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (ext === 'tga') {
+                dataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        try {
+                            const tga = new TgaLoader();
+                            tga.load(new Uint8Array(ev.target.result));
+                            resolve(tga.getDataURL('image/png'));
+                        } catch (err) {
+                            reject(new Error('Не удалось прочитать TGA файл: ' + err.message));
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                });
+            } else {
+                dataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => resolve(ev.target.result);
+                    reader.readAsDataURL(file);
+                });
+            }
+        }
+
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.src = dataUrl;
+        });
+
+        let finalUrl = dataUrl;
+        if (img.width > 53 || img.height > 53) {
+            const decision = await showSizeWarning();
+            if (decision === 'cancel') {
+                return false;
+            } else if (decision === 'resize') {
+                finalUrl = resizeImageTo53(img);
+            }
+        } else if (img.width < 53 || img.height < 53) {
+            finalUrl = padImageTo53(img);
+        }
+
+        const compImg = new Image();
+        await new Promise((resolve) => {
+            compImg.onload = resolve;
+            compImg.src = finalUrl;
+        });
+        const compressedUrl = applyUGSCompression(compImg);
+        
+        window.originalCustomIcons[compressedUrl] = finalUrl;
+
+        customIcons.unshift({
+            name: finalName,
+            url: compressedUrl
+        });
+        return compressedUrl;
+    } catch (err) {
+        console.error("Ошибка при обработке файла:", file.name, err);
+        return false;
+    }
+}
 
 function initEditorUI() {
+    // Упреждающий предзагрузчик фона инвентаря для пиксель-пёрфект превью
+    const preloadBg = new Image();
+    preloadBg.onload = () => {
+        window._cachedTrueInventoryBgImage = preloadBg;
+        window._cachedTrueInventoryBgDimensions = { w: preloadBg.naturalWidth, h: preloadBg.naturalHeight };
+    };
+    preloadBg.src = 'trueinventorybackground.png';
+
     const wrapper = document.querySelector('.editor-stats-wrapper');
     wrapper.innerHTML = ''; 
     
@@ -731,6 +1428,11 @@ function initEditorUI() {
 
     // 4. Инициализация компонентов
     createSliderPopup();
+    initCropDragResize();
+    initCropButtons();
+    initSharpnessButtons();
+    initShadowButtons();
+    initPremultiplyButtons();
     
     // Листенеры
     edName.addEventListener('input', updateItemPreview);
@@ -814,9 +1516,183 @@ function initEditorUI() {
         iconFileInput.click();
     });
     iconFileInput.addEventListener('change', handleIconUpload);
+    
+    // Синхронизация переключателей авто-обработки
+    if (autoProcessImagesToggle) {
+        autoProcessImagesToggle.checked = globalIsAutoProcessEnabled;
+        autoProcessImagesToggle.addEventListener('change', (e) => {
+            globalIsAutoProcessEnabled = e.target.checked;
+            if (askEverytimeToggle) askEverytimeToggle.checked = globalIsAutoProcessEnabled;
+        });
+    }
+    if (askEverytimeToggle) {
+        askEverytimeToggle.checked = globalIsAutoProcessEnabled;
+        askEverytimeToggle.addEventListener('change', (e) => {
+            globalIsAutoProcessEnabled = e.target.checked;
+            if (autoProcessImagesToggle) autoProcessImagesToggle.checked = globalIsAutoProcessEnabled;
+        });
+    }
+
+    if (confirmSkipBtn) {
+        confirmSkipBtn.addEventListener('click', async () => {
+            if (confirmOverlay) confirmOverlay.classList.remove('visible');
+            const file = pendingUploadQueue[currentQueueIndex];
+            
+            const success = await processFileWithDirectPremultiply(file);
+            if (!success) {
+                currentQueueIndex++;
+                processNextInQueue();
+            }
+        });
+    }
+
+    if (confirmApplyBtn) {
+        confirmApplyBtn.addEventListener('click', () => {
+            if (confirmOverlay) confirmOverlay.classList.remove('visible');
+            const file = pendingUploadQueue[currentQueueIndex];
+            startRMBGProcessing(file);
+        });
+    }
+
+    if (confirmOverlay) {
+        confirmOverlay.addEventListener('click', (e) => {
+            if (e.target === confirmOverlay) {
+                requestPipelineCancel(() => {
+                    confirmOverlay.classList.remove('visible');
+                    pendingUploadQueue = [];
+                    currentQueueIndex = 0;
+                });
+            }
+        });
+    }
+
+    if (rmbgOverlay) {
+        rmbgOverlay.addEventListener('click', (e) => {
+            if (e.target === rmbgOverlay) {
+                requestPipelineCancel(() => {
+                    closeRMBGModal();
+                    pendingUploadQueue = [];
+                    currentQueueIndex = 0;
+                });
+            }
+        });
+    }
+
+    if (rmbgCancelBtn) {
+        rmbgCancelBtn.addEventListener('click', () => {
+            closeRMBGModal();
+            pendingUploadQueue = [];
+            currentQueueIndex = 0;
+        });
+    }
+
+    if (rmbgSkipBtn) {
+        rmbgSkipBtn.addEventListener('click', async () => {
+            closeRMBGModal();
+            const file = pendingUploadQueue[currentQueueIndex];
+            openCropModal(file);
+        });
+    }
+
+    if (rmbgContinueBtn) {
+        rmbgContinueBtn.addEventListener('click', async () => {
+            const blobToProcess = processedBlob;
+            closeRMBGModal();
+            const file = pendingUploadQueue[currentQueueIndex];
+            openCropModal(file, blobToProcess);
+        });
+    }
+
+        if (rmbgRangeInput) {
+            rmbgRangeInput.addEventListener('input', (e) => {
+                rmbgAutoPlay = false;
+                if (rmbgWiggleInterval) clearInterval(rmbgWiggleInterval);
+                updateSliderPosition(Number(e.target.value));
+            });
+            rmbgRangeInput.addEventListener('mousemove', (e) => {
+                if (rmbgLastMouseX === null && rmbgLastMouseY === null) {
+                    rmbgLastMouseX = e.clientX;
+                    rmbgLastMouseY = e.clientY;
+                    return;
+                }
+                if (rmbgLastMouseX !== e.clientX || rmbgLastMouseY !== e.clientY) {
+                    rmbgAutoPlay = false;
+                    if (rmbgWiggleInterval) clearInterval(rmbgWiggleInterval);
+                }
+            });
+            rmbgRangeInput.addEventListener('mousedown', () => {
+                rmbgAutoPlay = false;
+                if (rmbgWiggleInterval) clearInterval(rmbgWiggleInterval);
+            });
+        }
+
+function closeRMBGModal() {
+    if (rmbgOverlay) rmbgOverlay.classList.remove('visible');
+    if (rmbgElapsedInterval) clearInterval(rmbgElapsedInterval);
+    if (rmbgWiggleInterval) clearInterval(rmbgWiggleInterval);
+    if (rmbgDownloadBtn) rmbgDownloadBtn.style.display = 'none';
+    const rmbgStartView = document.getElementById('rmbg-start-view');
+    if (rmbgStartView) rmbgStartView.style.display = 'none';
+    processedBlob = null;
 }
 
-// --- Helper: Convert Image URL to Data URL ---
+        const reencodeBlobToStandardPng = (blob) => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                const url = URL.createObjectURL(blob);
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    canvas.toBlob((newBlob) => {
+                        URL.revokeObjectURL(url);
+                        if (newBlob) resolve(newBlob);
+                        else reject(new Error("Canvas toBlob failed"));
+                    }, 'image/png');
+                };
+                img.onerror = (err) => {
+                    URL.revokeObjectURL(url);
+                    reject(err);
+                };
+                img.src = url;
+            });
+        };
+
+        if (rmbgDownloadBtn) {
+            rmbgDownloadBtn.addEventListener('click', async () => {
+                if (processedBlob) {
+                    try {
+                        const standardBlob = await reencodeBlobToStandardPng(processedBlob);
+                        const url = URL.createObjectURL(standardBlob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        const file = pendingUploadQueue[currentQueueIndex];
+                        const originalName = file ? file.name.split('.').slice(0, -1).join('.') : 'no-bg';
+                        a.download = `${originalName}_nobg.png`;
+                        a.click();
+                        setTimeout(() => URL.revokeObjectURL(url), 100);
+                        if (typeof showNotification === 'function') {
+                            showNotification('Изображение без фона скачано!', 'success');
+                        }
+                    } catch (err) {
+                        console.error("Failed to re-encode PNG:", err);
+                        const url = URL.createObjectURL(processedBlob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        const file = pendingUploadQueue[currentQueueIndex];
+                        const originalName = file ? file.name.split('.').slice(0, -1).join('.') : 'no-bg';
+                        a.download = `${originalName}_nobg.png`;
+                        a.click();
+                        setTimeout(() => URL.revokeObjectURL(url), 100);
+                    }
+                }
+            });
+        }
+    }
+
+    // --- Helper: Convert Image URL to Data URL ---
 function imageUrlToDataUrl(url) {
     return new Promise((resolve, reject) => {
         const img = new Image();
@@ -1044,11 +1920,24 @@ function resizeImageTo53(img) {
     canvas.height = 53;
     const ctx = canvas.getContext('2d');
     
-    // Включаем качественное сглаживание
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     
-    ctx.drawImage(img, 0, 0, 53, 53);
+    const ratio = img.width / img.height;
+    let drawWidth, drawHeight;
+    
+    if (img.width > img.height) {
+        drawWidth = 53;
+        drawHeight = 53 / ratio;
+    } else {
+        drawHeight = 53;
+        drawWidth = 53 * ratio;
+    }
+    
+    const dx = (53 - drawWidth) / 2;
+    const dy = (53 - drawHeight) / 2;
+    
+    ctx.drawImage(img, dx, dy, drawWidth, drawHeight);
     return canvas.toDataURL('image/png');
 }
 
@@ -1093,106 +1982,6 @@ function showSizeWarning() {
         swResizeBtn.addEventListener('click', onResize);
     });
 }
-
-async function handleIconUpload(e) {
-    if (!e.target.files || e.target.files.length === 0) return;
-    
-    const files = Array.from(e.target.files);
-    let hasChanges = false;
-    
-    if (!window.originalCustomIcons) window.originalCustomIcons = {};
-    
-    // Обрабатываем файлы последовательно
-    for (const file of files) {
-        try {
-            // 1. Читаем файл
-            let dataUrl;
-            const ext = file.name.split('.').pop().toLowerCase();
-
-            if (ext === 'tga') {
-                // Используем TGA парсер (TGA-JS)
-                dataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => {
-                        try {
-                            const tga = new TgaLoader();
-                            tga.load(new Uint8Array(ev.target.result));
-                            resolve(tga.getDataURL('image/png')); // Переводим TGA в PNG DataURL
-                        } catch (err) {
-                            reject(new Error('Не удалось прочитать TGA файл: ' + err.message));
-                        }
-                    };
-                    reader.onerror = reject;
-                    reader.readAsArrayBuffer(file);
-                });
-            } else {
-                // Стандартные браузерные форматы (PNG, JPG, GIF, BMP)
-                dataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => resolve(ev.target.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                });
-            }
-
-            // 2. Создаем Image для проверки размеров
-            const img = new Image();
-            await new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = reject;
-                img.src = dataUrl;
-            });
-
-            // 3. Проверка размеров
-            let finalUrl = dataUrl;
-            if (img.width > 53 || img.height > 53) {
-                // Показываем предупреждение
-                const decision = await showSizeWarning();
-                if (decision === 'cancel') {
-                    continue; 
-                } else if (decision === 'resize') {
-                    finalUrl = resizeImageTo53(img);
-                }
-            } else if (img.width < 53 || img.height < 53) {
-                // Если картинка меньше 53x53, дополняем пустоту прозрачностью
-                finalUrl = padImageTo53(img);
-            }
-
-            // 4. НОВОЕ: Применяем игровое сжатие (17 цветов) к итоговой картинке
-            const compImg = new Image();
-            await new Promise((resolve, reject) => {
-                compImg.onload = resolve;
-                compImg.onerror = reject;
-                compImg.src = finalUrl;
-            });
-            // applyUGSCompression теперь возвращает URL и одновременно сохраняет сырые байты в кэш!
-            const compressedUrl = applyUGSCompression(compImg);
-            
-            // Сохраняем связь: Сжатая -> Оригинал (для модального окна Zoom)
-            window.originalCustomIcons[compressedUrl] = finalUrl;
-
-            // 5. Добавляем в список сжатую версию, чтобы она использовалась везде в UI
-            customIcons.unshift({
-                name: file.name,
-                url: compressedUrl
-            });
-            hasChanges = true;
-
-        } catch (err) {
-            console.error("Ошибка при обработке файла:", file.name, err);
-        }
-    }
-
-    if (hasChanges) {
-        renderCustomIcons();
-        if (files.length === 1 && customIcons.length > 0 && customIcons[0].name === files[0].name) {
-            selectIcon(customIcons[0].url, true);
-        }
-    }
-    
-    e.target.value = '';
-}
-
 
 // --- Number Input Logic ---
 
@@ -2831,12 +3620,16 @@ function openEditor(item) {
              if (typeof savedData1 !== 'undefined') {
                  const dataItem = Object.values(savedData1).find(x => x.GlobalIndex === gid);
                  if (dataItem) {
+                     // Сначала очищаем поиск и синхронизируем список под текущий мод
+                     if (edSearchInput) edSearchInput.value = '';
+                     if (typeof updateSearchClearBtn === 'function') updateSearchClearBtn();
+                     populateItemList();
+
                      const itemIndex = currentItemsList.findIndex(x => x.GlobalIndex === gid);
                      if (itemIndex !== -1) {
                          selectedListItemIndex = itemIndex;
                      }
                      fillEditorForm(dataItem);
-                     populateItemList(); 
                      
                      if (itemIndex !== -1) {
                          setTimeout(() => {
@@ -2868,6 +3661,1524 @@ function closeEditor(force = false) {
   } else {
       attemptAction(action);
   }
+}
+
+// --- Логика автоматической и интерактивной обрезки (Crop) ---
+
+function applyZoom() {
+    const cropImage = document.getElementById('crop-image');
+    if (!cropImage || !cropBaseWidth) return;
+    
+    const w = cropBaseWidth * cropZoom;
+    const h = cropBaseHeight * cropZoom;
+    
+    cropImage.style.width = `${w}px`;
+    cropImage.style.height = `${h}px`;
+    cropImage.style.maxWidth = 'none';
+    cropImage.style.maxHeight = 'none';
+    
+    const zoomLabel = document.getElementById('crop-zoom-level');
+    if (zoomLabel) {
+        zoomLabel.textContent = `${Math.round(cropZoom * 100)}%`;
+    }
+    
+    updateCropUI();
+}
+
+function openCropModal(file, blob = null) {
+    cropImageFile = file;
+    cropImageBlob = blob || file;
+    
+    const cropOverlay = document.getElementById('crop-overlay');
+    const cropImage = document.getElementById('crop-image');
+    
+    const objectUrl = URL.createObjectURL(cropImageBlob);
+    cropImage.src = objectUrl;
+    
+    cropOverlay.classList.add('visible');
+    
+    const img = new Image();
+    img.onload = () => {
+        cropImageObj = img;
+        
+        const contentArea = document.querySelector('#crop-overlay .rmbg-content-area');
+        const maxWidth = contentArea.clientWidth - 40;
+        const maxHeight = contentArea.clientHeight - 40;
+        const ratio = img.naturalWidth / img.naturalHeight;
+        
+        // Автоприближение: всегда масштабируем картинку до краев области просмотра
+        if (maxWidth / ratio <= maxHeight) {
+            cropBaseWidth = maxWidth;
+            cropBaseHeight = maxWidth / ratio;
+        } else {
+            cropBaseHeight = maxHeight;
+            cropBaseWidth = maxHeight * ratio;
+        }
+        
+        cropZoom = 1.0;
+        applyZoom();
+        
+        // Автоопределение границ видимой области спрайта
+        autoCropTransparency(img, (autoCoords) => {
+            cropCoords = autoCoords;
+            updateCropUI();
+        });
+    };
+    img.src = objectUrl;
+}
+
+function autoCropTransparency(img, callback) {
+    const width = img.naturalWidth;
+    const height = img.naturalHeight;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    
+    try {
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const data = imgData.data;
+        
+        let minX = width, minY = height, maxX = 0, maxY = 0;
+        let hasVisible = false;
+        
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const alpha = data[(y * width + x) * 4 + 3];
+                if (alpha > 5) {
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                    hasVisible = true;
+                }
+            }
+        }
+        
+        if (hasVisible) {
+            const padding = 10;
+            minX = Math.max(0, minX - padding);
+            minY = Math.max(0, minY - padding);
+            maxX = Math.min(width, maxX + padding);
+            maxY = Math.min(height, maxY + padding);
+            callback({ x: minX, y: minY, w: maxX - minX, h: maxY - minY });
+        } else {
+            callback({ x: 0, y: 0, w: width, h: height });
+        }
+    } catch (e) {
+        callback({ x: 0, y: 0, w: width, h: height });
+    }
+}
+
+function updateCropUI() {
+    if (!cropImageObj) return;
+    
+    const cropImage = document.getElementById('crop-image');
+    const rect = cropImage.getBoundingClientRect();
+    
+    const scale = rect.width / cropImageObj.naturalWidth;
+    cropDisplayScale = scale;
+    
+    const cropBox = document.getElementById('crop-box');
+    const maskTop = document.getElementById('crop-mask-top');
+    const maskBottom = document.getElementById('crop-mask-bottom');
+    const maskLeft = document.getElementById('crop-mask-left');
+    const maskRight = document.getElementById('crop-mask-right');
+    
+    const boxX = cropCoords.x * scale;
+    const boxY = cropCoords.y * scale;
+    const boxW = cropCoords.w * scale;
+    const boxH = cropCoords.h * scale;
+    
+    const imgW = rect.width;
+    const imgH = rect.height;
+    
+    cropBox.style.left = `${boxX}px`;
+    cropBox.style.top = `${boxY}px`;
+    cropBox.style.width = `${boxW}px`;
+    cropBox.style.height = `${boxH}px`;
+    
+    // Top mask
+    maskTop.style.top = '0';
+    maskTop.style.left = '0';
+    maskTop.style.width = '100%';
+    maskTop.style.height = `${boxY}px`;
+    
+    // Bottom mask
+    maskBottom.style.top = `${boxY + boxH}px`;
+    maskBottom.style.left = '0';
+    maskBottom.style.width = '100%';
+    maskBottom.style.height = `${imgH - (boxY + boxH)}px`;
+    
+    // Left mask
+    maskLeft.style.top = `${boxY}px`;
+    maskLeft.style.left = '0';
+    maskLeft.style.width = `${boxX}px`;
+    maskLeft.style.height = `${boxH}px`;
+    
+    // Right mask
+    maskRight.style.top = `${boxY}px`;
+    maskRight.style.left = `${boxX + boxW}px`;
+    maskRight.style.width = `${imgW - (boxX + boxW)}px`;
+    maskRight.style.height = `${boxH}px`;
+}
+
+function initCropDragResize() {
+    const cropBox = document.getElementById('crop-box');
+    
+    const handlePointerDown = (e, handle) => {
+        if (e.pointerType !== 'touch' && e.button !== 0) return; // Only LKM or Touch!
+        e.preventDefault();
+        e.stopPropagation();
+        
+        cropIsDragging = true;
+        cropActiveHandle = handle;
+        cropDragStart = { x: e.clientX, y: e.clientY };
+        cropStartCoords = { ...cropCoords };
+        
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', handlePointerUp);
+    };
+    
+    document.querySelectorAll('.crop-handle').forEach(el => {
+        const handleType = el.getAttribute('data-handle');
+        el.addEventListener('pointerdown', (e) => handlePointerDown(e, handleType));
+    });
+    
+    cropBox.addEventListener('pointerdown', (e) => {
+        if (e.target === cropBox) {
+            handlePointerDown(e, 'drag');
+        }
+    });
+}
+
+function handlePointerMove(e) {
+    if (!cropIsDragging || !cropImageObj) return;
+    
+    const dx = (e.clientX - cropDragStart.x) / cropDisplayScale;
+    const dy = (e.clientY - cropDragStart.y) / cropDisplayScale;
+    
+    const maxW = cropImageObj.naturalWidth;
+    const maxH = cropImageObj.naturalHeight;
+    const minSize = 20;
+    
+    let { x, y, w, h } = cropStartCoords;
+    
+    if (cropActiveHandle === 'drag') {
+        x = Math.max(0, Math.min(maxW - w, x + dx));
+        y = Math.max(0, Math.min(maxH - h, y + dy));
+    } else {
+        if (cropActiveHandle.includes('e')) {
+            w = Math.min(maxW - x, Math.max(minSize, w + dx));
+        }
+        if (cropActiveHandle.includes('w')) {
+            const xNew = Math.max(0, Math.min(x + w - minSize, x + dx));
+            w = w + (x - xNew);
+            x = xNew;
+        }
+        if (cropActiveHandle.includes('s')) {
+            h = Math.min(maxH - y, Math.max(minSize, h + dy));
+        }
+        if (cropActiveHandle.includes('n')) {
+            const yNew = Math.max(0, Math.min(y + h - minSize, y + dy));
+            h = h + (y - yNew);
+            y = yNew;
+        }
+    }
+    
+    cropCoords = { x, y, w, h };
+    updateCropUI();
+}
+
+function handlePointerUp() {
+    cropIsDragging = false;
+    cropActiveHandle = null;
+    window.removeEventListener('pointermove', handlePointerMove);
+    window.removeEventListener('pointerup', handlePointerUp);
+}
+
+function initCropButtons() {
+    const cropCancelBtn = document.getElementById('crop-cancel-btn');
+    const cropApplyBtn = document.getElementById('crop-apply-btn');
+    const cropOverlay = document.getElementById('crop-overlay');
+    
+    cropCancelBtn.addEventListener('click', () => {
+        closeCropModal();
+        pendingUploadQueue = [];
+        currentQueueIndex = 0;
+    });
+    
+    cropApplyBtn.addEventListener('click', () => {
+        applyCropAndContinue();
+    });
+    
+    cropOverlay.addEventListener('click', (e) => {
+        if (e.target === cropOverlay) {
+            requestPipelineCancel(() => {
+                closeCropModal();
+                pendingUploadQueue = [];
+                currentQueueIndex = 0;
+            });
+        }
+    });
+
+    // Блокируем контекстное меню для возможности перетаскивания камеры на ПКМ
+    cropOverlay.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+
+    // Zoom buttons
+    const btnIn = document.getElementById('crop-zoom-in');
+    const btnOut = document.getElementById('crop-zoom-out');
+    const btnReset = document.getElementById('crop-zoom-reset');
+    
+    if (btnIn) {
+        btnIn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            cropZoom = Math.min(4.0, cropZoom + 0.25);
+            applyZoom();
+        });
+    }
+    if (btnOut) {
+        btnOut.addEventListener('click', (e) => {
+            e.stopPropagation();
+            cropZoom = Math.max(0.5, cropZoom - 0.25);
+            applyZoom();
+        });
+    }
+    if (btnReset) {
+        btnReset.addEventListener('click', (e) => {
+            e.stopPropagation();
+            cropZoom = 1.0;
+            applyZoom();
+        });
+    }
+
+    // Mouse wheel zoom
+    const contentArea = document.querySelector('#crop-overlay .rmbg-content-area');
+    if (contentArea) {
+        contentArea.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                cropZoom = Math.min(4.0, cropZoom + 0.1);
+            } else {
+                cropZoom = Math.max(0.5, cropZoom - 0.1);
+            }
+            applyZoom();
+        }, { passive: false });
+    }
+
+    // PKM panning (Right Mouse Button Drag)
+    let isPanning = false;
+    let panStart = { x: 0, y: 0 };
+    let panScrollStart = { left: 0, top: 0 };
+
+    contentArea.addEventListener('mousedown', (e) => {
+        if (e.button === 2) { // ПКМ
+            e.preventDefault();
+            e.stopPropagation();
+            isPanning = true;
+            panStart = { x: e.clientX, y: e.clientY };
+            panScrollStart = { left: contentArea.scrollLeft, top: contentArea.scrollTop };
+            contentArea.style.cursor = 'grabbing';
+        }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (isPanning) {
+            e.preventDefault();
+            const dx = e.clientX - panStart.x;
+            const dy = e.clientY - panStart.y;
+            contentArea.scrollLeft = panScrollStart.left - dx;
+            contentArea.scrollTop = panScrollStart.top - dy;
+        }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+        if (e.button === 2 && isPanning) {
+            isPanning = false;
+            contentArea.style.cursor = '';
+        }
+    });
+}
+
+// --- Gaussian Blur and Sharpness Helpers ---
+
+function createGaussianKernel(sigma) {
+    const radius = Math.ceil(sigma * 3);
+    const size = 2 * radius + 1;
+    const kernel = new Float32Array(size);
+    let sum = 0;
+    for (let i = 0; i < size; i++) {
+        const x = i - radius;
+        kernel[i] = Math.exp(-(x * x) / (2 * sigma * sigma));
+        sum += kernel[i];
+    }
+    for (let i = 0; i < size; i++) {
+        kernel[i] /= sum;
+    }
+    return { kernel, radius };
+}
+
+function straightGaussianBlur(srcData, width, height, sigma) {
+    const { kernel, radius } = createGaussianKernel(sigma);
+    const length = srcData.length;
+    const tempData = new Float32Array(length);
+    const outData = new Float32Array(length);
+
+    // Horizontal pass
+    for (let y = 0; y < height; y++) {
+        const yOffset = y * width * 4;
+        for (let x = 0; x < width; x++) {
+            let rSum = 0, gSum = 0, bSum = 0, aSum = 0;
+            for (let k = -radius; k <= radius; k++) {
+                const nx = Math.min(width - 1, Math.max(0, x + k));
+                const nIdx = yOffset + nx * 4;
+                const w = kernel[k + radius];
+
+                rSum += srcData[nIdx] * w;
+                gSum += srcData[nIdx + 1] * w;
+                bSum += srcData[nIdx + 2] * w;
+                aSum += srcData[nIdx + 3] * w;
+            }
+            const destIdx = yOffset + x * 4;
+            tempData[destIdx] = rSum;
+            tempData[destIdx + 1] = gSum;
+            tempData[destIdx + 2] = bSum;
+            tempData[destIdx + 3] = aSum;
+        }
+    }
+
+    // Vertical pass
+    for (let y = 0; y < height; y++) {
+        const yOffset = y * width * 4;
+        for (let x = 0; x < width; x++) {
+            let rSum = 0, gSum = 0, bSum = 0, aSum = 0;
+            for (let k = -radius; k <= radius; k++) {
+                const ny = Math.min(height - 1, Math.max(0, y + k));
+                const nIdx = (ny * width + x) * 4;
+                const w = kernel[k + radius];
+
+                rSum += tempData[nIdx] * w;
+                gSum += tempData[nIdx + 1] * w;
+                bSum += tempData[nIdx + 2] * w;
+                aSum += tempData[nIdx + 3] * w;
+            }
+                const destIdx = yOffset + x * 4;
+                outData[destIdx] = rSum;
+                outData[destIdx + 1] = gSum;
+                outData[destIdx + 2] = bSum;
+                outData[destIdx + 3] = aSum;
+            }
+        }
+
+        return outData;
+    }
+
+    function updateSharpnessPreviewScale() {
+        const wrapper = document.getElementById('sharpness-preview-wrapper');
+        if (!wrapper || !sharpnessImageObj) return;
+
+        const is1to1 = paramSharp1to1 && paramSharp1to1.checked;
+        const canvases = wrapper.querySelectorAll('canvas');
+
+        const applyStyles = () => {
+            if (is1to1) {
+                const bgW = window._cachedTrueInventoryBgDimensions ? window._cachedTrueInventoryBgDimensions.w : 375;
+                const bgH = window._cachedTrueInventoryBgDimensions ? window._cachedTrueInventoryBgDimensions.h : 375;
+                
+                const cellW = bgW / 5;
+                const cellH = bgH / 5;
+                const sizeW = cellW * 3;
+                const sizeH = cellH * 3;
+
+                wrapper.style.width = `${sizeW}px`;
+                wrapper.style.height = `${sizeH}px`;
+                wrapper.style.minWidth = `${sizeW}px`;
+                wrapper.style.minHeight = `${sizeH}px`;
+                
+                wrapper.style.backgroundPosition = `-${cellW}px -${cellH}px`;
+                wrapper.style.backgroundSize = `${bgW}px ${bgH}px`;
+                wrapper.style.backgroundRepeat = 'no-repeat';
+
+                canvases.forEach(canvas => {
+                    canvas.style.width = `${sharpnessImageObj.naturalWidth}px`;
+                    canvas.style.height = `${sharpnessImageObj.naturalHeight}px`;
+                });
+            } else {
+                wrapper.style.width = '';
+                wrapper.style.height = '';
+                wrapper.style.minWidth = '';
+                wrapper.style.minHeight = '';
+                wrapper.style.backgroundPosition = 'center';
+                wrapper.style.backgroundRepeat = '';
+                
+                canvases.forEach(canvas => {
+                    canvas.style.width = '70%';
+                    canvas.style.height = '70%';
+                });
+                
+                const rect = sharpnessCanvas.getBoundingClientRect();
+                const scale = rect.width / sharpnessImageObj.naturalWidth;
+                
+                const bgW = window._cachedTrueInventoryBgDimensions ? window._cachedTrueInventoryBgDimensions.w : 375;
+                const bgH = window._cachedTrueInventoryBgDimensions ? window._cachedTrueInventoryBgDimensions.h : 375;
+                wrapper.style.backgroundSize = `${bgW * scale}px ${bgH * scale}px`;
+            }
+        };
+
+    if (!window._cachedTrueInventoryBgDimensions) {
+        const tempBg = new Image();
+        tempBg.onload = () => {
+            window._cachedTrueInventoryBgImage = tempBg;
+            window._cachedTrueInventoryBgDimensions = { w: tempBg.naturalWidth, h: tempBg.naturalHeight };
+            applyStyles();
+        };
+        tempBg.src = 'trueinventorybackground.png';
+    } else {
+        applyStyles();
+    }
+}
+
+function openSharpnessModal(file, blob, onReady) {
+    sharpnessFileObj = file;
+    sharpnessBaseBlob = blob;
+    
+    // Reset parameters to defaults: Amount: 60, Radius: 0.9, Threshold: 0
+    paramSharpAmount.value = 60;
+    paramSharpRadius.value = 0.9;
+    paramSharpThreshold.value = 0;
+    if (paramSharp1to1) paramSharp1to1.checked = false;
+    
+    updateSharpnessUIValues();
+    
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+        sharpnessImageObj = img;
+        
+        sharpnessCanvas.width = img.naturalWidth;
+        sharpnessCanvas.height = img.naturalHeight;
+        sharpnessOrigCanvas.width = img.naturalWidth;
+        sharpnessOrigCanvas.height = img.naturalHeight;
+        
+        const origCtx = sharpnessOrigCanvas.getContext('2d');
+        origCtx.drawImage(img, 0, 0);
+        sharpnessOriginalPixels = origCtx.getImageData(0, 0, img.width, img.height).data;
+        
+        applySharpnessFilter();
+        sharpnessOverlay.classList.add('visible');
+
+        if (onReady) onReady();
+
+        requestAnimationFrame(() => {
+            updateSharpnessPreviewScale();
+        });
+    };
+    img.src = url;
+}
+
+function closeSharpnessModal() {
+    sharpnessOverlay.classList.remove('visible');
+    sharpnessImageObj = null;
+    sharpnessFileObj = null;
+    sharpnessBaseBlob = null;
+    sharpnessOriginalPixels = null;
+}
+
+function updateSharpnessUIValues() {
+    valSharpAmount.textContent = paramSharpAmount.value + '%';
+    valSharpRadius.textContent = parseFloat(paramSharpRadius.value).toFixed(1) + ' px';
+    valSharpThreshold.textContent = paramSharpThreshold.value;
+}
+
+function applySharpnessFilter() {
+    if (!sharpnessOriginalPixels || sharpnessIsProcessing) return;
+    sharpnessIsProcessing = true;
+    
+    const width = sharpnessCanvas.width;
+    const height = sharpnessCanvas.height;
+    
+    const amount = parseFloat(paramSharpAmount.value) / 100;
+    const radius = parseFloat(paramSharpRadius.value);
+    const threshold = parseInt(paramSharpThreshold.value, 10);
+    
+    const length = sharpnessOriginalPixels.length;
+    
+    const preparedPixels = new Uint8ClampedArray(length);
+    for (let i = 0; i < length; i += 4) {
+        const a = sharpnessOriginalPixels[i + 3];
+        if (a === 0) {
+            preparedPixels[i] = 255;
+            preparedPixels[i + 1] = 255;
+            preparedPixels[i + 2] = 255;
+            preparedPixels[i + 3] = 0;
+        } else {
+            preparedPixels[i] = sharpnessOriginalPixels[i];
+            preparedPixels[i + 1] = sharpnessOriginalPixels[i + 1];
+            preparedPixels[i + 2] = sharpnessOriginalPixels[i + 2];
+            preparedPixels[i + 3] = a;
+        }
+    }
+    
+    const dB = straightGaussianBlur(preparedPixels, width, height, radius);
+    
+    const resCtx = sharpnessCanvas.getContext('2d');
+    const resData = resCtx.createImageData(width, height);
+    const resultPixels = resData.data;
+    
+    for (let i = 0; i < length; i += 4) {
+        for (let c = 0; c < 3; c++) { 
+            const idx = i + c;
+            const origVal = preparedPixels[idx];
+            const blurVal = dB[idx];
+            const diff = origVal - blurVal;
+            const absDiff = Math.abs(diff);
+            
+            if (threshold === 0) {
+                let val = origVal + diff * amount;
+                resultPixels[idx] = val < 0 ? 0 : (val > 255 ? 255 : val);
+            } else {
+                if (absDiff <= threshold) {
+                    resultPixels[idx] = origVal;
+                } else {
+                    const softWeight = Math.min(1, (absDiff - threshold) / Math.max(1, threshold * 0.5));
+                    let val = origVal + diff * amount * softWeight;
+                    resultPixels[idx] = val < 0 ? 0 : (val > 255 ? 255 : val);
+                }
+            }
+        }
+        resultPixels[i + 3] = sharpnessOriginalPixels[i + 3];
+    }
+    
+    resCtx.putImageData(resData, 0, 0);
+    sharpnessIsProcessing = false;
+}
+
+function initSharpnessButtons() {
+    [paramSharpAmount, paramSharpRadius, paramSharpThreshold].forEach(input => {
+        input.addEventListener('input', () => {
+            updateSharpnessUIValues();
+            clearTimeout(sharpnessTimeout);
+            sharpnessTimeout = setTimeout(applySharpnessFilter, 50);
+        });
+    });
+
+    if (paramSharp1to1) {
+        paramSharp1to1.addEventListener('change', () => {
+            updateSharpnessPreviewScale();
+        });
+    }
+
+    sharpnessOverlay.addEventListener('click', (e) => {
+        if (e.target === sharpnessOverlay) {
+            requestPipelineCancel(() => {
+                closeSharpnessModal();
+                pendingUploadQueue = [];
+                currentQueueIndex = 0;
+            });
+        }
+    });
+
+    sharpnessCancelBtn.addEventListener('click', () => {
+        closeSharpnessModal();
+        pendingUploadQueue = [];
+        currentQueueIndex = 0;
+    });
+
+    sharpnessSkipBtn.addEventListener('click', async () => {
+        if (!sharpnessFileObj || !sharpnessBaseBlob) return;
+        
+        const fileToProcess = sharpnessFileObj;
+        const blobToProcess = sharpnessBaseBlob;
+        
+        openShadowModal(fileToProcess, blobToProcess, () => {
+            closeSharpnessModal();
+        });
+    });
+
+    sharpnessApplyBtn.addEventListener('click', () => {
+        if (!sharpnessCanvas || !sharpnessFileObj) return;
+        
+        const fileToProcess = sharpnessFileObj;
+        sharpnessCanvas.toBlob(async (blob) => {
+            if (blob) {
+                openShadowModal(fileToProcess, blob, () => {
+                    closeSharpnessModal();
+                });
+            }
+        }, 'image/png');
+    });
+
+    sharpnessCompareBtn.addEventListener('mousedown', () => {
+        sharpnessOrigCanvas.style.opacity = '1';
+    });
+    sharpnessCompareBtn.addEventListener('mouseup', () => {
+        sharpnessOrigCanvas.style.opacity = '0';
+    });
+    sharpnessCompareBtn.addEventListener('mouseleave', () => {
+        sharpnessOrigCanvas.style.opacity = '0';
+    });
+    sharpnessCompareBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        sharpnessOrigCanvas.style.opacity = '1';
+    });
+    sharpnessCompareBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        sharpnessOrigCanvas.style.opacity = '0';
+    });
+}
+
+function closeCropModal() {
+    const cropOverlay = document.getElementById('crop-overlay');
+    if (cropOverlay) {
+        cropOverlay.classList.remove('visible');
+    }
+    cropImageFile = null;
+    cropImageBlob = null;
+    cropImageObj = null;
+    cropZoom = 1.0;
+    cropBaseWidth = 0;
+    cropBaseHeight = 0;
+}
+
+async function applyCropAndContinue() {
+    if (!cropImageObj) return;
+    
+    const targetSize = 53;
+    const croppedWidth = Math.round(cropCoords.w);
+    const croppedHeight = Math.round(cropCoords.h);
+    const ratio = croppedWidth / croppedHeight;
+
+    let drawWidth, drawHeight;
+    if (croppedWidth > croppedHeight) {
+        drawWidth = targetSize;
+        drawHeight = targetSize / ratio;
+    } else {
+        drawHeight = targetSize;
+        drawWidth = targetSize * ratio;
+    }
+
+    const dx = (targetSize - drawWidth) / 2;
+    const dy = (targetSize - drawHeight) / 2;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetSize;
+    canvas.height = targetSize;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    
+    ctx.drawImage(
+        cropImageObj,
+        Math.round(cropCoords.x), Math.round(cropCoords.y), Math.round(cropCoords.w), Math.round(cropCoords.h),
+        dx, dy, drawWidth, drawHeight
+    );
+    
+    const fileToProcess = cropImageFile;
+    
+    canvas.toBlob(async (blob) => {
+        if (blob) {
+            openSharpnessModal(fileToProcess, blob, () => {
+                closeCropModal();
+            });
+        }
+    }, 'image/png');
+}
+
+window.addEventListener('resize', () => {
+    const cropOverlay = document.getElementById('crop-overlay');
+    if (cropOverlay && cropOverlay.classList.contains('visible')) {
+        updateCropUI();
+    }
+    const shadowOverlay = document.getElementById('shadow-overlay');
+    if (shadowOverlay && shadowOverlay.classList.contains('visible')) {
+        updateShadowPreviewScale();
+    }
+    const sharpnessOverlay = document.getElementById('sharpness-overlay');
+    if (sharpnessOverlay && sharpnessOverlay.classList.contains('visible')) {
+        updateSharpnessPreviewScale();
+    }
+    const premultiplyOverlay = document.getElementById('premultiply-overlay');
+    if (premultiplyOverlay && premultiplyOverlay.classList.contains('visible')) {
+        updatePremultiplyPreviewScale();
+    }
+});
+
+// --- Shadow Logic ---
+
+function getShadowGaussianKernel(sigma) {
+    const radius = Math.ceil(sigma * 3);
+    const size = 2 * radius + 1;
+    const kernel = new Float32Array(size);
+    let sum = 0;
+    for (let i = 0; i < size; i++) {
+        const x = i - radius;
+        kernel[i] = Math.exp(-(x * x) / (2 * sigma * sigma));
+        sum += kernel[i];
+    }
+    for (let i = 0; i < size; i++) {
+        kernel[i] /= sum;
+    }
+    return { kernel, radius };
+}
+
+function openShadowModal(file, blob, onReady) {
+    shadowFileObj = file;
+    shadowBaseBlob = blob;
+    
+    paramShadowRadius.value = shadowState.radius;
+    numShadowRadius.value = shadowState.radius.toFixed(1);
+    paramShadowDist.value = shadowState.distance;
+    numShadowDist.value = shadowState.distance.toFixed(1);
+    paramShadowOpacity.value = shadowState.opacity;
+    numShadowOpacity.value = shadowState.opacity.toFixed(2);
+    numShadowAngle.value = shadowState.angle;
+    paramShadowOnly.checked = false;
+    if (paramShadow1to1) paramShadow1to1.checked = false;
+    if (paramShadowShowBorder) paramShadowShowBorder.checked = false;
+    updateShadowCanvasBorder();
+
+    // Явно синхронизируем текстовые метки (<span>) в панели управления при открытии
+    document.getElementById('val-shadow-radius').textContent = shadowState.radius.toFixed(1);
+    document.getElementById('val-shadow-dist').textContent = shadowState.distance.toFixed(1);
+    document.getElementById('val-shadow-opacity').textContent = shadowState.opacity.toFixed(2);
+    
+    shadowRgbR.value = 0;
+    shadowRgbG.value = 0;
+    shadowRgbB.value = 0;
+    updateShadowColorPreview();
+    updateShadowAngleDial();
+
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+        shadowImageObj = img;
+        shadowCanvas.width = img.naturalWidth;
+        shadowCanvas.height = img.naturalHeight;
+        shadowOrigCanvas.width = img.naturalWidth;
+        shadowOrigCanvas.height = img.naturalHeight;
+
+        // Рисуем исходник на невидимый по умолчанию верхний слой для мгновенного сравнения
+        const origCtx = shadowOrigCanvas.getContext('2d');
+        origCtx.drawImage(img, 0, 0);
+
+        applyShadowFilter();
+        shadowOverlay.classList.add('visible');
+
+        if (onReady) onReady();
+
+        requestAnimationFrame(() => {
+            updateShadowPreviewScale();
+        });
+    };
+    img.src = url;
+}
+
+function updateShadowPreviewScale() {
+            const wrapper = document.getElementById('shadow-preview-wrapper');
+            if (!wrapper || !shadowImageObj) return;
+
+            const is1to1 = paramShadow1to1 && paramShadow1to1.checked;
+            const canvases = wrapper.querySelectorAll('canvas');
+
+            const applyStyles = () => {
+                if (is1to1) {
+                    // Вычисляем размеры на основе 5x5 сетки trueinventorybackground.png (оригинал 375x375)
+                    const bgW = window._cachedTrueInventoryBgDimensions ? window._cachedTrueInventoryBgDimensions.w : 375;
+                    const bgH = window._cachedTrueInventoryBgDimensions ? window._cachedTrueInventoryBgDimensions.h : 375;
+                    
+                    const cellW = bgW / 5;
+                    const cellH = bgH / 5;
+                    const sizeW = cellW * 3;
+                    const sizeH = cellH * 3;
+
+                    // Задаем оригинальный размер контейнера для сетки 3x3
+                    wrapper.style.width = `${sizeW}px`;
+                    wrapper.style.height = `${sizeH}px`;
+                    wrapper.style.minWidth = `${sizeW}px`;
+                    wrapper.style.minHeight = `${sizeH}px`;
+                    
+                    // Сдвигаем на 1 ячейку влево и вверх, фиксируем оригинальный размер фона
+                    wrapper.style.backgroundPosition = `-${cellW}px -${cellH}px`;
+                    wrapper.style.backgroundSize = `${bgW}px ${bgH}px`;
+                    wrapper.style.backgroundRepeat = 'no-repeat';
+
+                    // Принудительно задаем холстам их настоящий размер 1к1 (обычно 53x53)
+                    canvases.forEach(canvas => {
+                        canvas.style.width = `${shadowImageObj.naturalWidth}px`;
+                        canvas.style.height = `${shadowImageObj.naturalHeight}px`;
+                    });
+                } else {
+                    // Сбрасываем жесткие инлайн стили размеров, центрируем фон
+                    wrapper.style.width = '';
+                    wrapper.style.height = '';
+                    wrapper.style.minWidth = '';
+                    wrapper.style.minHeight = '';
+                    wrapper.style.backgroundPosition = 'center';
+                    wrapper.style.backgroundRepeat = '';
+                    
+                    // Задаем холстам уменьшенный размер (70%), чтобы приоткрыть границы соседних ячеек
+                    canvases.forEach(canvas => {
+                        canvas.style.width = '70%';
+                        canvas.style.height = '70%';
+                    });
+                    
+                    const rect = shadowCanvas.getBoundingClientRect();
+                    const scale = rect.width / shadowImageObj.naturalWidth;
+                    
+                    const bgW = window._cachedTrueInventoryBgDimensions ? window._cachedTrueInventoryBgDimensions.w : 375;
+                    const bgH = window._cachedTrueInventoryBgDimensions ? window._cachedTrueInventoryBgDimensions.h : 375;
+                    wrapper.style.backgroundSize = `${bgW * scale}px ${bgH * scale}px`;
+                }
+            };
+
+            // Гарантируем, что перед расчетом размеров картинка trueinventorybackground.png загружена и её габариты известны
+            if (!window._cachedTrueInventoryBgDimensions) {
+                const tempBg = new Image();
+                tempBg.onload = () => {
+                    window._cachedTrueInventoryBgImage = tempBg;
+                    window._cachedTrueInventoryBgDimensions = { w: tempBg.naturalWidth, h: tempBg.naturalHeight };
+                    applyStyles();
+                };
+                tempBg.src = 'trueinventorybackground.png';
+            } else {
+                applyStyles();
+            }
+        }
+
+        function updateShadowCanvasBorder() {
+            const canvases = document.querySelectorAll('#shadow-preview-wrapper canvas');
+            const showBorder = paramShadowShowBorder && paramShadowShowBorder.checked;
+            canvases.forEach(canvas => {
+                if (showBorder) {
+                    canvas.style.boxShadow = '';
+                    canvas.style.border = '';
+                } else {
+                    canvas.style.boxShadow = 'none';
+                    canvas.style.border = 'none';
+                }
+            });
+        }
+
+        function closeShadowModal() {
+            shadowOverlay.classList.remove('visible');
+            shadowImageObj = null;
+            shadowFileObj = null;
+            shadowBaseBlob = null;
+}
+
+function updateShadowColorPreview() {
+    const hex = "#" + ((1 << 24) + (shadowState.r << 16) + (shadowState.g << 8) + shadowState.b).toString(16).slice(1);
+    shadowColorPreview.style.backgroundColor = hex;
+    shadowColorPicker.value = hex;
+}
+
+function updateShadowAngleDial() {
+    shadowAngleLine.style.transform = `rotate(${-shadowState.angle}deg)`;
+}
+
+function handleShadowAngleDial(e) {
+    const rect = shadowAngleDial.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = e.clientX - cx;
+    const dy = e.clientY - cy;
+    let angle = Math.round(Math.atan2(-dy, dx) * (180 / Math.PI));
+    shadowState.angle = angle;
+    numShadowAngle.value = angle;
+    updateShadowAngleDial();
+    
+    clearTimeout(shadowTimeout);
+    shadowTimeout = setTimeout(applyShadowFilter, 20);
+}
+
+function applyShadowFilter() {
+    if (!shadowImageObj || shadowIsProcessing) return;
+    shadowIsProcessing = true;
+
+    const radius = Math.max(0, shadowState.radius);
+    const distance = shadowState.distance;
+    const angleRad = (shadowState.angle * Math.PI) / 180;
+
+    const dx = distance * Math.cos(angleRad);
+    const dy = -distance * Math.sin(angleRad);
+
+    const origW = shadowImageObj.width;
+    const origH = shadowImageObj.height;
+
+    shadowCanvas.width = origW;
+    shadowCanvas.height = origH;
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = origW;
+    tempCanvas.height = origH;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.drawImage(shadowImageObj, 0, 0);
+    const origImageData = tempCtx.getImageData(0, 0, origW, origH);
+
+    const pad = Math.ceil(radius * 3);
+    const padW = origW + pad * 2;
+    const padH = origH + pad * 2;
+
+    const alphaIn = new Uint8Array(padW * padH);
+    for (let y = 0; y < origH; y++) {
+        for (let x = 0; x < origW; x++) {
+            const origIndex = (y * origW + x) * 4 + 3;
+            const targetIndex = (y + pad) * padW + (x + pad);
+            alphaIn[targetIndex] = origImageData.data[origIndex];
+        }
+    }
+
+    let alphaBlurred = new Uint8Array(padW * padH);
+    if (radius > 0) {
+        const sigma = radius * 0.5;
+        const { kernel, radius: kRad } = getShadowGaussianKernel(sigma);
+
+        const tempAlpha = new Uint8Array(padW * padH);
+        for (let y = 0; y < padH; y++) {
+            for (let x = 0; x < padW; x++) {
+                let sum = 0;
+                for (let k = -kRad; k <= kRad; k++) {
+                    const px = Math.min(Math.max(x + k, 0), padW - 1);
+                    sum += alphaIn[y * padW + px] * kernel[k + kRad];
+                }
+                tempAlpha[y * padW + x] = sum;
+            }
+        }
+
+        for (let x = 0; x < padW; x++) {
+            for (let y = 0; y < padH; y++) {
+                let sum = 0;
+                for (let k = -kRad; k <= kRad; k++) {
+                    const py = Math.min(Math.max(y + k, 0), padH - 1);
+                    sum += tempAlpha[py * padW + x] * kernel[k + kRad];
+                }
+                alphaBlurred[y * padW + x] = sum;
+            }
+        }
+    } else {
+        alphaBlurred.set(alphaIn);
+    }
+
+    const ctx = shadowCanvas.getContext('2d');
+    const finalImageData = ctx.createImageData(origW, origH);
+    const dest = finalImageData.data;
+
+    const shadowR = shadowState.r;
+    const shadowG = shadowState.g;
+    const shadowB = shadowState.b;
+    const shadowOpacity = shadowState.opacity;
+
+    const getVal = (px, py) => {
+        if (px >= 0 && px < padW && py >= 0 && py < padH) {
+            return alphaBlurred[py * padW + px];
+        }
+        return 0;
+    };
+
+    for (let y = 0; y < origH; y++) {
+        for (let x = 0; x < origW; x++) {
+            const idx = (y * origW + x) * 4;
+
+            const sx = x - dx + pad;
+            const sy = y - dy + pad;
+            let sAlphaNorm = 0;
+
+            const x0 = Math.floor(sx);
+            const x1 = x0 + 1;
+            const y0 = Math.floor(sy);
+            const y1 = y0 + 1;
+
+            const tx = sx - x0;
+            const ty = sy - y0;
+
+            const v00 = getVal(x0, y0);
+            const v10 = getVal(x1, y0);
+            const v01 = getVal(x0, y1);
+            const v11 = getVal(x1, y1);
+
+            const interpVal = (1 - ty) * ((1 - tx) * v00 + tx * v10) + ty * ((1 - tx) * v01 + tx * v11);
+            sAlphaNorm = (interpVal / 255.0) * shadowOpacity;
+
+            const fgR = origImageData.data[idx];
+            const fgG = origImageData.data[idx + 1];
+            const fgB = origImageData.data[idx + 2];
+            const fgA = origImageData.data[idx + 3] / 255.0;
+
+            if (shadowState.shadowOnly) {
+                dest[idx] = shadowR;
+                dest[idx + 1] = shadowG;
+                dest[idx + 2] = shadowB;
+                dest[idx + 3] = Math.round(sAlphaNorm * 255);
+            } else {
+                const outAlpha = fgA + sAlphaNorm * (1.0 - fgA);
+                if (outAlpha > 0) {
+                    dest[idx] = Math.round((fgR * fgA + shadowR * sAlphaNorm * (1.0 - fgA)) / outAlpha);
+                    dest[idx + 1] = Math.round((fgG * fgA + shadowG * sAlphaNorm * (1.0 - fgA)) / outAlpha);
+                    dest[idx + 2] = Math.round((fgB * fgA + shadowB * sAlphaNorm * (1.0 - fgA)) / outAlpha);
+                    dest[idx + 3] = Math.round(outAlpha * 255);
+                } else {
+                    dest[idx] = dest[idx + 1] = dest[idx + 2] = dest[idx + 3] = 0;
+                }
+            }
+        }
+    }
+
+    ctx.putImageData(finalImageData, 0, 0);
+    shadowIsProcessing = false;
+}
+
+function initShadowButtons() {
+    function bindSliderAndNum(slider, num, stateKey, isFloat = true) {
+        slider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            num.value = val.toFixed(stateKey === 'opacity' ? 2 : 1);
+            shadowState[stateKey] = val;
+            document.getElementById('val-shadow-' + (stateKey==='distance'?'dist':stateKey)).textContent = num.value;
+            clearTimeout(shadowTimeout);
+            shadowTimeout = setTimeout(applyShadowFilter, 20);
+        });
+        num.addEventListener('input', (e) => {
+            let val = parseFloat(e.target.value) || 0;
+            val = Math.max(slider.min, Math.min(slider.max, val));
+            slider.value = val;
+            shadowState[stateKey] = val;
+            document.getElementById('val-shadow-' + (stateKey==='distance'?'dist':stateKey)).textContent = num.value;
+            clearTimeout(shadowTimeout);
+            shadowTimeout = setTimeout(applyShadowFilter, 20);
+        });
+    }
+
+    bindSliderAndNum(paramShadowRadius, numShadowRadius, 'radius');
+    bindSliderAndNum(paramShadowDist, numShadowDist, 'distance');
+    bindSliderAndNum(paramShadowOpacity, numShadowOpacity, 'opacity');
+
+    numShadowAngle.addEventListener('input', (e) => {
+        let val = parseFloat(e.target.value) || 0;
+        if (val > 180) val = 180;
+        if (val < -180) val = -180;
+        shadowState.angle = val;
+        updateShadowAngleDial();
+        clearTimeout(shadowTimeout);
+        shadowTimeout = setTimeout(applyShadowFilter, 20);
+    });
+
+    shadowAngleDial.addEventListener('mousedown', handleShadowAngleDial);
+    shadowAngleDial.addEventListener('mousemove', (e) => {
+        if (e.buttons === 1) handleShadowAngleDial(e);
+    });
+
+    shadowColorPreview.addEventListener('click', () => shadowColorPicker.click());
+    shadowColorPicker.addEventListener('input', (e) => {
+        const hex = e.target.value;
+        shadowState.r = parseInt(hex.slice(1, 3), 16);
+        shadowState.g = parseInt(hex.slice(3, 5), 16);
+        shadowState.b = parseInt(hex.slice(5, 7), 16);
+        shadowRgbR.value = shadowState.r;
+        shadowRgbG.value = shadowState.g;
+        shadowRgbB.value = shadowState.b;
+        updateShadowColorPreview();
+        clearTimeout(shadowTimeout);
+        shadowTimeout = setTimeout(applyShadowFilter, 20);
+    });
+
+    [shadowRgbR, shadowRgbG, shadowRgbB].forEach(input => {
+        input.addEventListener('input', () => {
+            shadowState.r = Math.max(0, Math.min(255, parseInt(shadowRgbR.value) || 0));
+            shadowState.g = Math.max(0, Math.min(255, parseInt(shadowRgbG.value) || 0));
+            shadowState.b = Math.max(0, Math.min(255, parseInt(shadowRgbB.value) || 0));
+                    updateShadowColorPreview();
+                    clearTimeout(shadowTimeout);
+                    shadowTimeout = setTimeout(applyShadowFilter, 20);
+                });
+            });
+
+            paramShadowOnly.addEventListener('change', (e) => {
+                shadowState.shadowOnly = e.target.checked;
+                applyShadowFilter();
+            });
+
+            if (paramShadow1to1) {
+                paramShadow1to1.addEventListener('change', () => {
+                    updateShadowPreviewScale();
+                });
+            }
+
+            if (paramShadowShowBorder) {
+                paramShadowShowBorder.addEventListener('change', () => {
+                    updateShadowCanvasBorder();
+                });
+            }
+
+            let isDialDragging = false;
+
+            shadowAngleDial.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return; // Только ЛКМ
+                isDialDragging = true;
+                handleShadowAngleDial(e);
+                window.addEventListener('mousemove', handleGlobalDialMove);
+                window.addEventListener('mouseup', handleGlobalDialUp);
+            });
+
+            function handleGlobalDialMove(e) {
+                if (isDialDragging) {
+                    handleShadowAngleDial(e);
+                }
+            }
+
+            function handleGlobalDialUp(e) {
+                isDialDragging = false;
+                window.removeEventListener('mousemove', handleGlobalDialMove);
+                window.removeEventListener('mouseup', handleGlobalDialUp);
+            }
+
+            // Обработка кнопки сравнения (ДО / ПОСЛЕ)
+            shadowCompareBtn.addEventListener('mousedown', () => {
+                shadowOrigCanvas.style.opacity = '1';
+                shadowCanvas.style.opacity = '0';
+            });
+    shadowCompareBtn.addEventListener('mouseup', () => {
+        shadowOrigCanvas.style.opacity = '0';
+        shadowCanvas.style.opacity = '1';
+    });
+    shadowCompareBtn.addEventListener('mouseleave', () => {
+        shadowOrigCanvas.style.opacity = '0';
+        shadowCanvas.style.opacity = '1';
+    });
+    shadowCompareBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        shadowOrigCanvas.style.opacity = '1';
+        shadowCanvas.style.opacity = '0';
+    });
+    shadowCompareBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        shadowOrigCanvas.style.opacity = '0';
+        shadowCanvas.style.opacity = '1';
+    });
+
+    shadowOverlay.addEventListener('click', (e) => {
+        if (e.target === shadowOverlay) {
+            requestPipelineCancel(() => {
+                closeShadowModal();
+                pendingUploadQueue = [];
+                currentQueueIndex = 0;
+            });
+        }
+    });
+
+    shadowCancelBtn.addEventListener('click', () => {
+        closeShadowModal();
+        pendingUploadQueue = [];
+        currentQueueIndex = 0;
+    });
+
+    shadowSkipBtn.addEventListener('click', async () => {
+        if (!shadowFileObj || !shadowBaseBlob) return;
+        
+        const fileToProcess = shadowFileObj;
+        const blobToProcess = shadowBaseBlob;
+        
+        openPremultiplyModal(fileToProcess, blobToProcess, () => {
+            closeShadowModal();
+        });
+    });
+
+    shadowApplyBtn.addEventListener('click', () => {
+        if (!shadowCanvas || !shadowFileObj) return;
+        
+        const fileToProcess = shadowFileObj;
+        const w = shadowCanvas.width;
+        const h = shadowCanvas.height;
+        const imgData = shadowCanvas.getContext('2d').getImageData(0, 0, w, h);
+        
+        // Pixel-perfect сохранение с помощью UPNG
+        const pngBuffer = UPNG.encode([imgData.data.buffer], w, h, 0);
+        const blob = new Blob([pngBuffer], { type: "image/png" });
+        
+        openPremultiplyModal(fileToProcess, blob, () => {
+            closeShadowModal();
+        });
+    });
+}
+
+// --- Premultiply Alpha Logic ---
+
+function updatePremultiplyPreviewScale() {
+    const wrapper = document.getElementById('premult-preview-wrapper');
+    if (!wrapper || !premultImageObj) return;
+
+    const is1to1 = paramPremult1to1 && paramPremult1to1.checked;
+    const canvases = wrapper.querySelectorAll('canvas');
+
+    const applyStyles = () => {
+        if (is1to1) {
+            const bgW = window._cachedTrueInventoryBgDimensions ? window._cachedTrueInventoryBgDimensions.w : 375;
+            const bgH = window._cachedTrueInventoryBgDimensions ? window._cachedTrueInventoryBgDimensions.h : 375;
+            
+            const cellW = bgW / 5;
+            const cellH = bgH / 5;
+            const sizeW = cellW * 3;
+            const sizeH = cellH * 3;
+
+            wrapper.style.width = `${sizeW}px`;
+            wrapper.style.height = `${sizeH}px`;
+            wrapper.style.minWidth = `${sizeW}px`;
+            wrapper.style.minHeight = `${sizeH}px`;
+            
+            wrapper.style.backgroundPosition = `-${cellW}px -${cellH}px`;
+            wrapper.style.backgroundSize = `${bgW}px ${bgH}px`;
+            wrapper.style.backgroundRepeat = 'no-repeat';
+
+            canvases.forEach(canvas => {
+                canvas.style.width = `${premultImageObj.naturalWidth}px`;
+                canvas.style.height = `${premultImageObj.naturalHeight}px`;
+            });
+        } else {
+            wrapper.style.width = '';
+            wrapper.style.height = '';
+            wrapper.style.minWidth = '';
+            wrapper.style.minHeight = '';
+            wrapper.style.backgroundPosition = 'center';
+            wrapper.style.backgroundRepeat = '';
+            
+            canvases.forEach(canvas => {
+                canvas.style.width = '70%';
+                canvas.style.height = '70%';
+            });
+            
+            const rect = premultCanvas.getBoundingClientRect();
+            const scale = rect.width / premultImageObj.naturalWidth;
+            
+            const bgW = window._cachedTrueInventoryBgDimensions ? window._cachedTrueInventoryBgDimensions.w : 375;
+            const bgH = window._cachedTrueInventoryBgDimensions ? window._cachedTrueInventoryBgDimensions.h : 375;
+            wrapper.style.backgroundSize = `${bgW * scale}px ${bgH * scale}px`;
+        }
+    };
+
+    if (!window._cachedTrueInventoryBgDimensions) {
+        const tempBg = new Image();
+        tempBg.onload = () => {
+            window._cachedTrueInventoryBgImage = tempBg;
+            window._cachedTrueInventoryBgDimensions = { w: tempBg.naturalWidth, h: tempBg.naturalHeight };
+            applyStyles();
+        };
+        tempBg.src = 'trueinventorybackground.png';
+    } else {
+        applyStyles();
+    }
+}
+
+function openPremultiplyModal(file, blob, onReady) {
+    premultFileObj = file;
+    premultBaseBlob = blob;
+    paramPremultGameRender.checked = true;
+    if (paramPremult1to1) paramPremult1to1.checked = false;
+
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+        premultImageObj = img;
+        premultCanvas.width = img.naturalWidth;
+        premultCanvas.height = img.naturalHeight;
+        premultOrigCanvas.width = img.naturalWidth;
+        premultOrigCanvas.height = img.naturalHeight;
+
+        // Отрисовываем исходник для получения сырых пикселей
+        const origCtx = premultOrigCanvas.getContext('2d');
+        origCtx.imageSmoothingEnabled = false;
+        origCtx.clearRect(0, 0, img.naturalWidth, img.naturalHeight);
+        origCtx.drawImage(img, 0, 0);
+
+        // Извлекаем точные пиксели для математики (оригинал)
+        premultRawPixels = origCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight).data;
+
+        applyPremultiplyFilter();
+        premultiplyOverlay.classList.add('visible');
+        
+        // Закрываем предыдущее окно без мерцания интерфейса
+        if (onReady) onReady();
+
+        requestAnimationFrame(() => {
+            updatePremultiplyPreviewScale();
+        });
+    };
+    img.src = url;
+}
+
+function closePremultiplyModal() {
+    premultiplyOverlay.classList.remove('visible');
+    premultImageObj = null;
+    premultFileObj = null;
+    premultBaseBlob = null;
+    premultRawPixels = null;
+    premultProcessedPixels = null;
+}
+
+function applyPremultiplyFilter() {
+    if (!premultRawPixels) return;
+
+    const length = premultRawPixels.length;
+    premultProcessedPixels = new Uint8ClampedArray(length);
+
+    // Точная логика преумножения альфы
+    for (let i = 0; i < length; i += 4) {
+        const r = premultRawPixels[i];
+        const g = premultRawPixels[i + 1];
+        const b = premultRawPixels[i + 2];
+        const a = premultRawPixels[i + 3];
+
+        const coef = a / 255.0;
+        premultProcessedPixels[i] = Math.round(r * coef);
+        premultProcessedPixels[i + 1] = Math.round(g * coef);
+        premultProcessedPixels[i + 2] = Math.round(b * coef);
+        premultProcessedPixels[i + 3] = a; // Альфа остается нетронутой
+    }
+
+    renderPremultiplyPreview();
+}
+
+function renderPremultiplyPreview() {
+    if (!premultProcessedPixels || !premultRawPixels) return;
+
+    const w = premultCanvas.width;
+    const h = premultCanvas.height;
+    const ctx = premultCanvas.getContext('2d');
+    const origCtx = premultOrigCanvas.getContext('2d');
+    
+    const isGameRender = paramPremultGameRender.checked;
+    
+    // Всегда готовим подложку на виртуальном холсте, чтобы пиксели масштабировались идентично
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.width = w;
+    bgCanvas.height = h;
+    const bgCtx = bgCanvas.getContext('2d');
+    
+    if (window._cachedTrueInventoryBgDimensions && window._cachedTrueInventoryBgImage) {
+        const pattern = bgCtx.createPattern(window._cachedTrueInventoryBgImage, 'repeat');
+        
+        // Настраиваем точное смещение узора для идеального совпадения с фоном контейнера
+        const matrix = new DOMMatrix();
+        const patW = window._cachedTrueInventoryBgDimensions.w;
+        const patH = window._cachedTrueInventoryBgDimensions.h;
+        const dx = (w / 2) - (patW / 2);
+        const dy = (h / 2) - (patH / 2);
+        matrix.translateSelf(dx, dy);
+        pattern.setTransform(matrix);
+
+        bgCtx.fillStyle = pattern;
+        bgCtx.fillRect(0, 0, w, h);
+    } else {
+        bgCtx.fillStyle = '#1a1a1a';
+        bgCtx.fillRect(0, 0, w, h);
+    }
+    const bgData = bgCtx.getImageData(0, 0, w, h).data;
+    
+    const renderData = ctx.createImageData(w, h);
+    const rData = renderData.data;
+    
+    const renderOrigData = origCtx.createImageData(w, h);
+    const oData = renderOrigData.data;
+
+    for (let i = 0; i < premultProcessedPixels.length; i += 4) {
+        const a_src = premultProcessedPixels[i+3] / 255.0;
+        const invA = 1.0 - a_src;
+        
+        // ДО: Отрисовка зависит от галочки
+        if (isGameRender) {
+            // --- ИГРОВОЙ РЕНДЕР (Движок игры смешивает текстуры как аддитивные) ---
+            // ПОСЛЕ (Идеальный край в игре): Premultiplied + Bg * (1 - Alpha)
+            rData[i]   = Math.min(255, premultProcessedPixels[i]   + bgData[i] * invA);
+            rData[i+1] = Math.min(255, premultProcessedPixels[i+1] + bgData[i+1] * invA);
+            rData[i+2] = Math.min(255, premultProcessedPixels[i+2] + bgData[i+2] * invA);
+
+            // ДО (Багнутый край игры с белым ореолом): Raw + Bg * (1 - Alpha)
+            oData[i]   = Math.min(255, premultRawPixels[i]   + bgData[i] * invA);
+            oData[i+1] = Math.min(255, premultRawPixels[i+1] + bgData[i+1] * invA);
+            oData[i+2] = Math.min(255, premultRawPixels[i+2] + bgData[i+2] * invA);
+        } else {
+            // --- СТАНДАРТНЫЙ РЕНДЕР (Как картинка отображается в обычных вьюверах) ---
+            // ПОСЛЕ (Обычный вьювер накладывает альфу второй раз, темный край): Premultiplied * Alpha + Bg * (1 - Alpha)
+            rData[i]   = Math.min(255, Math.round(premultProcessedPixels[i] * a_src + bgData[i] * invA));
+            rData[i+1] = Math.min(255, Math.round(premultProcessedPixels[i+1] * a_src + bgData[i+1] * invA));
+            rData[i+2] = Math.min(255, Math.round(premultProcessedPixels[i+2] * a_src + bgData[i+2] * invA));
+
+            // ДО (Идеальный край в стандартных вьюверах): Raw * Alpha + Bg * (1 - Alpha)
+            oData[i]   = Math.min(255, Math.round(premultRawPixels[i] * a_src + bgData[i] * invA));
+            oData[i+1] = Math.min(255, Math.round(premultRawPixels[i+1] * a_src + bgData[i+1] * invA));
+            oData[i+2] = Math.min(255, Math.round(premultRawPixels[i+2] * a_src + bgData[i+2] * invA));
+        }
+        rData[i+3] = 255; // Делаем холст непрозрачным
+        oData[i+3] = 255; // Делаем холст непрозрачным
+    }
+    
+    ctx.putImageData(renderData, 0, 0);
+    origCtx.putImageData(renderOrigData, 0, 0);
+}
+
+function initPremultiplyButtons() {
+    paramPremultGameRender.addEventListener('change', paramPremultGameRenderEvent => {
+        renderPremultiplyPreview();
+    });
+
+    if (paramPremult1to1) {
+        paramPremult1to1.addEventListener('change', () => {
+            updatePremultiplyPreviewScale();
+        });
+    }
+
+    // Сравнение ДО и ПОСЛЕ
+    premultCompareBtn.addEventListener('mousedown', () => { premultOrigCanvas.style.opacity = '1'; premultCanvas.style.opacity = '0'; });
+    premultCompareBtn.addEventListener('mouseup', () => { premultOrigCanvas.style.opacity = '0'; premultCanvas.style.opacity = '1'; });
+    premultCompareBtn.addEventListener('mouseleave', () => { premultOrigCanvas.style.opacity = '0'; premultCanvas.style.opacity = '1'; });
+    premultCompareBtn.addEventListener('touchstart', (e) => { e.preventDefault(); premultOrigCanvas.style.opacity = '1'; premultCanvas.style.opacity = '0'; });
+    premultCompareBtn.addEventListener('touchend', (e) => { e.preventDefault(); premultOrigCanvas.style.opacity = '0'; premultCanvas.style.opacity = '1'; });
+
+    premultiplyOverlay.addEventListener('click', (e) => {
+        if (e.target === premultiplyOverlay) {
+            requestPipelineCancel(() => {
+                closePremultiplyModal();
+                pendingUploadQueue = [];
+                currentQueueIndex = 0;
+            });
+        }
+    });
+
+    premultCancelBtn.addEventListener('click', () => {
+        closePremultiplyModal();
+        pendingUploadQueue = [];
+        currentQueueIndex = 0;
+    });
+
+    premultSkipBtn.addEventListener('click', async () => {
+        if (!premultFileObj || !premultBaseBlob) return;
+        const fileToProcess = premultFileObj;
+        const blobToProcess = premultBaseBlob;
+        
+        closePremultiplyModal();
+        await processFileAndAddToLibrary(fileToProcess, blobToProcess);
+        currentQueueIndex++;
+        processNextInQueue();
+    });
+
+    premultApplyBtn.addEventListener('click', () => {
+        if (!premultProcessedPixels || !premultFileObj) return;
+        const fileToProcess = premultFileObj;
+        const w = premultCanvas.width;
+        const h = premultCanvas.height;
+        
+        // 100% ПИКСЕЛЬ-ПЁРФЕКТ сохранения: UPNG берет буфер без искажений Canvas
+        const pngBuffer = UPNG.encode([premultProcessedPixels.buffer], w, h, 0);
+        const blob = new Blob([pngBuffer], { type: "image/png" });
+        
+        closePremultiplyModal();
+        processFileAndAddToLibrary(fileToProcess, blob).then(() => {
+            currentQueueIndex++;
+            processNextInQueue();
+        });
+    });
 }
 
 initEditorUI();
