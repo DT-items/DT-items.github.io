@@ -656,77 +656,49 @@ function performDeleteWithShift() {
 }
 
 // --- ZOOM MODAL LOGIC (Сравнение сжатия UGS) ---
-let currentZoomOriginalImg = null;
 let loadedZoomBgImg = null;
 
 function renderZoomCanvas(showOriginal) {
-    if (!currentZoomOriginalImg) return;
+    if (!window._currentZoomPureData) return;
 
-    // 1. Отрисовываем исходник в 53x53
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = 53;
-    tempCanvas.height = 53;
-    const tCtx = tempCanvas.getContext('2d');
+    const pure53 = new Uint8ClampedArray(window._currentZoomPureData);
+    const zoomBlendToggle = document.getElementById('zoom-blend-toggle');
+    const useCustomBlend = zoomBlendToggle ? zoomBlendToggle.checked : false;
 
-    const img = currentZoomOriginalImg;
-    const w = img.width > 53 ? 53 : img.width;
-    const h = img.height > 53 ? 53 : img.height;
-
-    // Центрируем
-    const dx = (53 - w) / 2;
-    const dy = (53 - h) / 2;
-
-        tCtx.drawImage(img, 0, 0, img.width, img.height, dx, dy, w, h);
-
-        // 2. Получаем пиксели
-        const imgData = tCtx.getImageData(0, 0, 53, 53);
-        const data = imgData.data;
-
-        const zoomBlendToggle = document.getElementById('zoom-blend-toggle');
-        const useCustomBlend = zoomBlendToggle ? zoomBlendToggle.checked : false;
-
-        if (!showOriginal) {
-            // Применяем математику UGS сжатия (256 -> 17 цветов на канал)
-            for (let i = 0; i < data.length; i += 4) {
-                const a = Math.round(data[i+3] / 17);
-                if (a === 0) {
-                    // Если полностью прозрачный, обнуляем цвета
-                    data[i] = data[i+1] = data[i+2] = data[i+3] = 0;
-                } else {
-                    data[i] = Math.round(data[i] / 17) * 17;
-                    data[i+1] = Math.round(data[i+1] / 17) * 17;
-                    data[i+2] = Math.round(data[i+2] / 17) * 17;
-                    data[i+3] = a * 17;
-                }
+    // Симуляция сжатия цвета запускается ИСКЛЮЧИТЕЛЬНО для кастомных loose-картинок. 
+    // Ванильные UGS-иконки уже сжаты нативно, повторная процедура ломала их границы.
+    if (!showOriginal && isCurrentIconCustom) {
+        for (let i = 0; i < pure53.length; i += 4) {
+            const a = Math.round(pure53[i+3] / 17);
+            if (a === 0) {
+                pure53[i] = pure53[i+1] = pure53[i+2] = pure53[i+3] = 0;
+            } else {
+                pure53[i]   = Math.round(pure53[i]   / 17) * 17;
+                pure53[i+1] = Math.round(pure53[i+1] / 17) * 17;
+                pure53[i+2] = Math.round(pure53[i+2] / 17) * 17;
+                pure53[i+3] = a * 17;
             }
-            tCtx.putImageData(imgData, 0, 0);
-            zoomTitle.textContent = useCustomBlend 
-                ? "Сжатая для игры версия (17 цветов) — фактическое отображение в игре" 
-                : "Сжатая для игры версия (17 цветов)";
-            zoomTitle.style.color = "#ff6b6b"; // Красный
-        } else {
-            zoomTitle.textContent = useCustomBlend 
-                ? "Оригинальная картинка — фактическое отображение в игре" 
-                : "Оригинальная картинка";
-            zoomTitle.style.color = "#69f0ae"; // Зеленый
         }
+    }
 
-        // 3. Рисуем на финальный увеличенный канвас (212x212)
-        const ctx = zoomCanvas.getContext('2d');
-        ctx.imageSmoothingEnabled = false; // Отключаем сглаживание для пиксельности
-        ctx.clearRect(0, 0, 212, 212);
-        if (useCustomBlend && loadedZoomBgImg) {
-        // 1) Масштабируем 53x53 (tempCanvas) до 212x212 без сглаживания
-        const scaledIconCanvas = document.createElement('canvas');
-        scaledIconCanvas.width = 212;
-        scaledIconCanvas.height = 212;
-        const sCtx = scaledIconCanvas.getContext('2d');
-        sCtx.imageSmoothingEnabled = false;
-        sCtx.drawImage(tempCanvas, 0, 0, 53, 53, 0, 0, 212, 212);
-        const iconDataObj = sCtx.getImageData(0, 0, 212, 212);
-        const iconData = iconDataObj.data;
+    const pure212 = new Uint8ClampedArray(212 * 212 * 4);
+    for (let y = 0; y < 212; y++) {
+        for (let x = 0; x < 212; x++) {
+            const srcX = Math.floor(x / 4);
+            const srcY = Math.floor(y / 4);
+            const srcIdx = (srcY * 53 + srcX) * 4;
+            const dstIdx = (y * 212 + x) * 4;
+            pure212[dstIdx]   = pure53[srcIdx];
+            pure212[dstIdx+1] = pure53[srcIdx+1];
+            pure212[dstIdx+2] = pure53[srcIdx+2];
+            pure212[dstIdx+3] = pure53[srcIdx+3];
+        }
+    }
 
-        // 2) Замостим фон размером 212x212 со стандартным (100%) масштабом узора
+    const ctx = zoomCanvas.getContext('2d');
+    ctx.clearRect(0, 0, 212, 212);
+
+    if (useCustomBlend && loadedZoomBgImg) {
         const bgCanvas = document.createElement('canvas');
         bgCanvas.width = 212;
         bgCanvas.height = 212;
@@ -736,84 +708,92 @@ function renderZoomCanvas(showOriginal) {
         bgCtx.fillRect(0, 0, 212, 212);
         const bgData = bgCtx.getImageData(0, 0, 212, 212).data;
 
-        // 3) Попиксельно смешиваем по твоей формуле на полном разрешении (212x212)
-        for (let i = 0; i < iconData.length; i += 4) {
-            const a_src = iconData[i+3] / 255;
+        for (let i = 0; i < pure212.length; i += 4) {
+            const a_src = pure212[i+3] / 255;
             const oneMinusAlpha = 1 - a_src;
+            
+            const r = pure212[i]   + bgData[i]   * oneMinusAlpha;
+            const g = pure212[i+1] + bgData[i+1] * oneMinusAlpha;
+            const b = pure212[i+2] + bgData[i+2] * oneMinusAlpha;
 
-            // Формула: Result = PixelColor + (BackgroundColor * (1 - Alpha))
-            const r = iconData[i]   + bgData[i]   * oneMinusAlpha;
-            const g = iconData[i+1] + bgData[i+1] * oneMinusAlpha;
-            const b = iconData[i+2] + bgData[i+2] * oneMinusAlpha;
-
-            iconData[i]   = Math.min(255, Math.max(0, Math.round(r)));
-            iconData[i+1] = Math.min(255, Math.max(0, Math.round(g)));
-            iconData[i+2] = Math.min(255, Math.max(0, Math.round(b)));
-            iconData[i+3] = 255; // Запечатываем непрозрачностью
+            pure212[i]   = Math.min(255, Math.max(0, Math.round(r)));
+            pure212[i+1] = Math.min(255, Math.max(0, Math.round(g)));
+            pure212[i+2] = Math.min(255, Math.max(0, Math.round(b)));
+            pure212[i+3] = 255; 
         }
-
-        sCtx.putImageData(iconDataObj, 0, 0);
-        ctx.drawImage(scaledIconCanvas, 0, 0);
-    } else {
-        // Стандартный рендер (прозрачный спрайт, фон подгружается из CSS)
-        ctx.drawImage(tempCanvas, 0, 0, 53, 53, 0, 0, 212, 212);
     }
-}
 
-edZoomBtn.addEventListener('click', () => {
-    // Загружаем картинку напрямую из src элемента
-    if (!edIcon.src) return;
-    
-    let targetSrc = edIcon.src;
-    // Если это наша кастомная иконка, пытаемся достать несжатый оригинал
-    if (isCurrentIconCustom && window.originalCustomIcons && window.originalCustomIcons[targetSrc]) {
-        targetSrc = window.originalCustomIcons[targetSrc];
+        const outImgData = ctx.createImageData(212, 212);
+        outImgData.data.set(pure212);
+        ctx.putImageData(outImgData, 0, 0);
     }
-    
-    // Динамически получаем текущий фоновый рисунок из стилей обертки
-    const wrapper = document.querySelector('.zoom-image-wrapper');
-    const bgStyle = window.getComputedStyle(wrapper).backgroundImage;
-    const match = bgStyle.match(/url\(['"]?(.*?)['"]?\)/);
-    const bgUrl = match ? match[1] : '2background.png';
 
-    const img = new Image();
-    const bgImg = new Image();
-    img.crossOrigin = 'Anonymous';
+    edZoomBtn.addEventListener('click', async () => {
+        if (!edIcon.src) return;
+        
+        // Читаем чистый, несмешанный путь к оригинальной картинке из dataset
+        let targetSrc = edIcon.dataset.originalSrc || edIcon.src;
+        if (isCurrentIconCustom && window.originalCustomIcons && window.originalCustomIcons[targetSrc]) {
+            targetSrc = window.originalCustomIcons[targetSrc];
+        }
+        
+        const wrapper = document.querySelector('.zoom-image-wrapper');
+        const bgStyle = window.getComputedStyle(wrapper).backgroundImage;
+        const match = bgStyle.match(/url\(['"]?(.*?)['"]?\)/);
+        const bgUrl = match ? match[1] : '2background.png';
+
+        const bgImg = new Image();
     bgImg.crossOrigin = 'Anonymous';
+    await new Promise(r => { bgImg.onload = r; bgImg.onerror = r; bgImg.src = bgUrl; });
+    loadedZoomBgImg = bgImg;
 
-    let loadedCount = 0;
-    const checkLoaded = () => {
-        loadedCount++;
-        if (loadedCount === 2) {
-            currentZoomOriginalImg = img;
-            loadedZoomBgImg = bgImg;
-            
-            if (isCurrentIconCustom) {
-                zoomCompareBtn.disabled = false;
-                zoomCompareBtn.classList.add('btn-purple');
-                zoomCompareBtn.classList.remove('btn-grey');
-                zoomCompareBtn.textContent = 'Удерживайте для сравнения с оригинал';
-                zoomCompareBtn.title = "Нажмите и удерживайте, чтобы увидеть оригинал";
-            } else {
-                zoomCompareBtn.disabled = true;
-                zoomCompareBtn.classList.add('btn-grey');
-                zoomCompareBtn.classList.remove('btn-purple');
-                zoomCompareBtn.textContent = 'Оригинал (недоступно для стандартных)';
-                zoomCompareBtn.title = "Доступно только для своих (кастомных) картинок";
+    try {
+        const rawImgData = await window.getRawPixelData(targetSrc);
+        if (!rawImgData) throw new Error("Could not extract raw pixel data");
+
+        const rawWidth = rawImgData.width;
+        const rawHeight = rawImgData.height;
+        const rawData = rawImgData.data;
+
+        const targetData = new Uint8ClampedArray(53 * 53 * 4);
+        const w = Math.min(rawWidth, 53);
+        const h = Math.min(rawHeight, 53);
+        const dx = Math.floor((53 - w) / 2);
+        const dy = Math.floor((53 - h) / 2);
+
+        for(let y=0; y<h; y++){
+            for(let x=0; x<w; x++){
+                const srcIdx = (y * rawWidth + x) * 4;
+                const dstIdx = ((dy + y) * 53 + (dx + x)) * 4;
+                targetData[dstIdx]   = rawData[srcIdx];
+                targetData[dstIdx+1] = rawData[srcIdx+1];
+                targetData[dstIdx+2] = rawData[srcIdx+2];
+                targetData[dstIdx+3] = rawData[srcIdx+3];
             }
-            
-            renderZoomCanvas(false);
-            zoomOverlay.classList.add('visible');
         }
-    };
 
-    img.onload = checkLoaded;
-    img.onerror = () => console.error("Failed to load icon");
-    bgImg.onload = checkLoaded;
-    bgImg.onerror = checkLoaded; // В случае ошибки загрузки фона продолжаем работу
+        window._currentZoomPureData = targetData;
 
-    img.src = targetSrc;
-    bgImg.src = bgUrl;
+        if (isCurrentIconCustom) {
+            zoomCompareBtn.disabled = false;
+            zoomCompareBtn.classList.add('btn-purple');
+            zoomCompareBtn.classList.remove('btn-grey');
+            zoomCompareBtn.textContent = 'Удерживайте для сравнения с оригиналом';
+            zoomCompareBtn.title = "Нажмите и удерживайте, чтобы увидеть оригинал";
+        } else {
+            zoomCompareBtn.disabled = true;
+            zoomCompareBtn.classList.add('btn-grey');
+            zoomCompareBtn.classList.remove('btn-purple');
+            zoomCompareBtn.textContent = 'Оригинал (недоступно для стандартных)';
+            zoomCompareBtn.title = "Доступно только для своих (кастомных) картинок";
+        }
+
+        renderZoomCanvas(false);
+        zoomOverlay.classList.add('visible');
+
+    } catch (err) {
+        console.error("Failed to load RAW icon for zoom", err);
+    }
 });
 
 const closeZoomModal = () => {
@@ -1512,8 +1492,9 @@ const observer = new MutationObserver((mutations) => {
         if (mutation.type === "attributes" && mutation.attributeName === "src") {
             updateItemPreview();
             if (window.globalGameRenderActive) {
-                edIcon.removeAttribute('data-game-rendered');
-                window.applyGameRenderToImage(edIcon);
+                if (edIcon.dataset.gameRendered !== 'true') {
+                    window.applyGameRenderToImage(edIcon);
+                }
             }
         }
     });
@@ -1833,6 +1814,8 @@ function closeIconSelector() {
 
 async function selectIcon(path, isCustom = false, resolvedUrl = null) {
     isCurrentIconCustom = isCustom; // Обновляем глобальный флаг для Zoom
+    edIcon.removeAttribute('data-game-rendered');
+    edIcon.removeAttribute('data-original-src');
 
     // 1. If explicitly custom (already Data URL from file input), use it.
     if (isCustom) {
@@ -3488,6 +3471,8 @@ function fillEditorForm(item) {
     updateCharCounter();
     const counterEl = document.getElementById('ed-desc-count');
     if (counterEl) counterEl.textContent = edDesc.value.length;
+    edIcon.removeAttribute('data-game-rendered');
+    edIcon.removeAttribute('data-original-src');
     edIcon.src = window.resolveIconUrl(currentMode, item);
     // Сохраняем текущую иконку для редактора
     currentIconPath = item.Icon; 
@@ -3608,6 +3593,8 @@ function clearEditorForm() {
         setVal('plus'); setVal('eq'); setVal('percent');
     });
     
+    edIcon.removeAttribute('data-game-rendered');
+    edIcon.removeAttribute('data-original-src');
     edIcon.src = '';
     edIcon.removeAttribute('src'); 
     currentIconPath = ''; // Reset icon state
@@ -5805,36 +5792,6 @@ function encodeUGSPixel(r, g, b, a) {
     return val ^ 0xAAAA;
 }
 
-// ВАЖНО: Модифицированная функция получения пикселей
-// Она ИДЕАЛЬНО восстанавливает байты из нашего кэша, гарантируя 100% точность
-async function getRawPixelData(url) {
-    if (!url || url === 'empty') return null;
-    
-    // НОВОЕ: Если картинка была сгенерирована из UGS, берем сырые байты прямо из кэша!
-    // Это делает экспорт моментальным и гарантирует 100% точность (без искажений Canvas).
-    // САМОЕ ГЛАВНОЕ: берем сохраненные байты из кэша (избегая искажений Canvas)
-    if (window.ugsRawCache && window.ugsRawCache[url]) {
-        return window.ugsRawCache[url];
-    }
-
-    // Если в кэше нет (например, обычная PNG-картинка) - декодируем без Canvas!
-    try {
-        const response = await fetch(url);
-        const buffer = await response.arrayBuffer();
-        const img = UPNG.decode(buffer);
-        const rgbaBuffer = UPNG.toRGBA8(img)[0];
-        
-        return {
-            width: img.width,
-            height: img.height,
-            data: new Uint8Array(rgbaBuffer) 
-        };
-    } catch (e) {
-        console.warn("UPNG decode failed, fallback or invalid format:", url, e);
-        return null;
-    }
-}
-
 // Выносим генерацию UGS в отдельную функцию, чтобы получить буфер
 async function generateUGSBuffer() {
     let maxId = 0;
@@ -5862,7 +5819,7 @@ async function generateUGSBuffer() {
 
             if (item) {
                 const iconUrl = window.resolveIconUrl(currentMode, item);
-                const imgData = await getRawPixelData(iconUrl);
+                const imgData = await window.getRawPixelData(iconUrl);
                 
                 if (imgData) {
                     width = imgData.width;

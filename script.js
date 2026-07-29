@@ -1447,13 +1447,11 @@ btn.addEventListener('click', () => {
     }
 
     if (window.globalGameRenderActive) {
-      document.querySelectorAll('img[data-game-rendered]').forEach(img => {
-        img.removeAttribute('data-game-rendered');
-      });
-      for (const modName in window.modUGSCache) {
-        window.modUGSCache[modName] = {};
+      if (window.updateAllBoardImagesInPlace) {
+        window.updateAllBoardImagesInPlace();
+      } else if (window.refreshApp) {
+        window.refreshApp();
       }
-      if (window.refreshApp) window.refreshApp();
     }
   });
 
@@ -1904,8 +1902,10 @@ resetBtn.addEventListener('click', e=>{
   window.globalGameRenderActive = false;
   const globalGameRenderToggle = document.getElementById('global-game-render-toggle');
   if (globalGameRenderToggle) globalGameRenderToggle.checked = false;
-  for (const modName in window.modUGSCache) {
-    window.modUGSCache[modName] = {};
+  if (window.updateAllBoardImagesInPlace) {
+    window.updateAllBoardImagesInPlace();
+  } else if (window.refreshApp) {
+    window.refreshApp();
   }
 
   setSort(0);
@@ -3484,10 +3484,11 @@ btnHelp.style.cssText = `
       globalGameRenderToggle.checked = window.globalGameRenderActive;
       globalGameRenderToggle.addEventListener('change', (e) => {
           window.globalGameRenderActive = e.target.checked;
-          for (const modName in window.modUGSCache) {
-              window.modUGSCache[modName] = {};
+          if (window.updateAllBoardImagesInPlace) {
+              window.updateAllBoardImagesInPlace();
+          } else if (window.refreshApp) {
+              window.refreshApp();
           }
-          if (window.refreshApp) window.refreshApp();
       });
   }
 

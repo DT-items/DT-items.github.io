@@ -23,82 +23,215 @@ preloadBgGlobal.onload = () => {
 };
 preloadBgGlobal.src = 'trueinventorybackground.png';
 
-window.applyGameRenderToImage = function(img) {
-    if (!window.globalGameRenderActive) return;
-    if (!img || img.dataset.gameRendered === 'true') return;
-
-    if (!img.complete || img.naturalWidth === 0) {
-        img.addEventListener('load', () => window.applyGameRenderToImage(img), { once: true });
-        return;
+window.getRawPixelData = async function(url) {
+    if (!url || url === 'empty') return null;
+    if (window.ugsRawCache && window.ugsRawCache[url]) {
+        return window.ugsRawCache[url];
     }
-
-    img.dataset.gameRendered = 'true';
-
-    const width = img.naturalWidth;
-    const height = img.naturalHeight;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-
     try {
-        const imgData = ctx.getImageData(0, 0, width, height);
-        const dest = imgData.data;
+        const response = await fetch(url);
+        const buffer = await response.arrayBuffer();
+        const img = UPNG.decode(buffer);
+        const rgbaBuffer = UPNG.toRGBA8(img)[0];
+        return {
+            width: img.width,
+            height: img.height,
+            data: new Uint8Array(rgbaBuffer) 
+        };
+        } catch (e) {
+            console.warn("UPNG decode failed, fallback or invalid format:", url, e);
+            return null;
+        }
+    };
 
-        let hasAlpha = false;
-        for (let i = 3; i < dest.length; i += 4) {
-            if (dest[i] < 255) {
-                hasAlpha = true;
-                break;
+    window.applyGameRenderToImage = async function(img) {
+        if (!img || !img.src) return;
+
+        // Сохраняем исходный чистый путь к картинке
+        if (!img.dataset.originalSrc) {
+            if (img.src.startsWith('data:')) {
+                if (!img.dataset.originalSrc) {
+                    img.dataset.originalSrc = img.src;
+                }
+            } else {
+                img.dataset.originalSrc = img.src;
             }
         }
-        if (!hasAlpha) return;
 
-        const bgCanvas = document.createElement('canvas');
-        bgCanvas.width = width;
-        bgCanvas.height = height;
-        const bgCtx = bgCanvas.getContext('2d');
+        // Если глобальный игровой рендер выключен, бесшовно возвращаем оригинал на место
+        if (!window.globalGameRenderActive) {
+            if (img.dataset.gameRendered === 'true' || img.src !== img.dataset.originalSrc) {
+                img.src = img.dataset.originalSrc;
+                img.removeAttribute('data-game-rendered');
+            }
+            return;
+        }
 
+        if (img.dataset.gameRendered === 'true') return;
+
+        const originalSrc = img.dataset.originalSrc;
+        if (!originalSrc || originalSrc === 'empty') return;
+
+        // Вычисляем ключ кэша на основе пути картинки и текущего фона
         const bgStyle = getComputedStyle(document.documentElement).getPropertyValue('--background-tile');
         const match = bgStyle ? bgStyle.match(/url\(['"]?(.*?)['"]?\)/) : null;
         const currentBgName = match ? match[1].split('/').pop() : '2background.png';
-        const activeBgImg = window.preloadedBgs[currentBgName] || window._cachedTrueInventoryBgImage;
+        const cacheKey = originalSrc + "::" + currentBgName;
 
-        if (activeBgImg && activeBgImg.complete) {
-            const pattern = bgCtx.createPattern(activeBgImg, 'repeat');
-            bgCtx.fillStyle = pattern;
-            bgCtx.fillRect(0, 0, width, height);
-        } else {
-            bgCtx.fillStyle = '#1a1a1a';
-            bgCtx.fillRect(0, 0, width, height);
+        // Если картинка с таким фоном уже есть в кэше, применяем её мгновенно без Canvas-операций
+        if (window.blendedImageCache && window.blendedImageCache[cacheKey]) {
+            img.src = window.blendedImageCache[cacheKey];
+            img.dataset.gameRendered = 'true';
+            return;
         }
 
-        const bgData = bgCtx.getImageData(0, 0, width, height).data;
+        img.dataset.gameRendered = 'true';
 
-        for (let i = 0; i < dest.length; i += 4) {
-            const a_src = dest[i+3] / 255.0;
-            const invA = 1.0 - a_src;
-            dest[i]   = Math.min(255, Math.max(0, Math.round(dest[i]   + bgData[i]   * invA)));
-            dest[i+1] = Math.min(255, Math.max(0, Math.round(dest[i+1] + bgData[i+1] * invA)));
-            dest[i+2] = Math.min(255, Math.max(0, Math.round(dest[i+2] + bgData[i+2] * invA)));
-            dest[i+3] = 255;
+        try {
+            const imgData = await window.getRawPixelData(originalSrc);
+            if (!imgData) return;
+
+            const width = imgData.width;
+            const height = imgData.height;
+            const srcData = imgData.data;
+
+            let hasAlpha = false;
+            for (let i = 3; i < srcData.length; i += 4) {
+                if (srcData[i] < 255) {
+                    hasAlpha = true;
+                    break;
+                }
+            }
+            // Если прозрачности нет, то и смешивать нечего. Кэшируем оригинал.
+            if (!hasAlpha) {
+                if (img.src !== originalSrc) {
+                    img.src = originalSrc;
+                }
+                window.blendedImageCache[cacheKey] = originalSrc;
+                return;
+            }
+
+            const bgCanvas = document.createElement('canvas');
+            bgCanvas.width = width;
+            bgCanvas.height = height;
+            const bgCtx = bgCanvas.getContext('2d');
+
+            const activeBgImg = window.preloadedBgs[currentBgName] || window._cachedTrueInventoryBgImage;
+
+            if (activeBgImg && activeBgImg.complete) {
+                const pattern = bgCtx.createPattern(activeBgImg, 'repeat');
+                bgCtx.fillStyle = pattern;
+                bgCtx.fillRect(0, 0, width, height);
+            } else {
+                bgCtx.fillStyle = '#1a1a1a';
+                bgCtx.fillRect(0, 0, width, height);
+            }
+
+            const bgData = bgCtx.getImageData(0, 0, width, height).data;
+            const dest = new Uint8ClampedArray(srcData.length);
+
+            for (let i = 0; i < srcData.length; i += 4) {
+                const a_src = srcData[i+3] / 255.0;
+                const invA = 1.0 - a_src;
+                dest[i]   = Math.min(255, Math.max(0, Math.round(srcData[i]   + bgData[i]   * invA)));
+                dest[i+1] = Math.min(255, Math.max(0, Math.round(srcData[i+1] + bgData[i+1] * invA)));
+                dest[i+2] = Math.min(255, Math.max(0, Math.round(srcData[i+2] + bgData[i+2] * invA)));
+                dest[i+3] = 255;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            const outImgData = ctx.createImageData(width, height);
+            outImgData.data.set(dest);
+            ctx.putImageData(outImgData, 0, 0);
+
+            const blendedUrl = canvas.toDataURL('image/png');
+
+            // Сохраняем в кэш полученную DataURL
+            window.blendedImageCache[cacheKey] = blendedUrl;
+
+            // Подменяем src только если состояние рендера за время генерации не поменялось
+            if (window.globalGameRenderActive && img.dataset.originalSrc === originalSrc) {
+                img.src = blendedUrl;
+            }
+        } catch (e) {
+            console.warn("CORS or Canvas error during dynamic game render blending:", e);
+            if (img.src !== img.dataset.originalSrc) {
+                img.src = img.dataset.originalSrc;
+            }
         }
+    };
 
-        ctx.putImageData(imgData, 0, 0);
-        img.src = canvas.toDataURL('image/png');
-    } catch (e) {
-        console.warn("CORS or Canvas error during dynamic game render blending:", e);
-    }
-};
+    // Функция бесшовного обновления иконок прямо в DOM без пересоздания структуры
+    window.updateAllBoardImagesInPlace = function() {
+        const itemImages = document.querySelectorAll(
+            '.item > img, ' +
+            '.pinned-icon-container img, ' +
+            '.ct-item-icon, ' +
+            '.ed-list-icon, ' +
+            '#ed-icon'
+        );
 
-// --- Глобальные хранилища для UGS ---
-window.modUGS = {}; // { modName: ArrayBuffer }
-window.modUGSOffsets = {}; // { modName: [offset1, offset2, ...] }
-window.modUGSCache = {}; // { modName: { index: blobUrl } }
-// НОВОЕ: Кэш сырых байтов для моментального экспорта без потери качества
-window.ugsRawCache = {}; 
+        itemImages.forEach(img => {
+            if (img.classList.contains('gold-icon') || img.classList.contains('type-icon') || img.classList.contains('mod-icon') || img.classList.contains('ct-bonus-icon')) {
+                return;
+            }
+
+            const container = img.closest('.item') || img.closest('.pinned-item') || img.closest('.ct-item-header-inner') || img.closest('.ed-list-item');
+            let uid = null;
+
+            if (container) {
+                uid = container.dataset.uid || (container.querySelector('[data-uid]') ? container.querySelector('[data-uid]').dataset.uid : null);
+            }
+
+            if (img.id === 'ed-icon') {
+                const edId = document.getElementById('ed-id');
+                if (edId && edId.value) {
+                    uid = currentMode + '_' + edId.value;
+                }
+            }
+
+            if (uid) {
+                const [mod, globalId] = uid.split('_');
+                let itemData = null;
+                const sourceData = (mod === mod1) ? savedData1 : savedData2;
+                if (sourceData) {
+                    itemData = Object.values(sourceData).find(x => x.GlobalIndex === globalId);
+                }
+
+                if (itemData) {
+                    const isSecondIcon = img.parentElement.classList.contains('pinned-icon-container') && img.previousElementSibling;
+                    let freshUrl = '';
+                    if (isSecondIcon && itemData.Icon2) {
+                        freshUrl = window.resolveIconUrl(mod, { ...itemData, Icon: itemData.Icon2 });
+                    } else if (isSecondIcon && container.dataset.icon2) {
+                        freshUrl = container.dataset.icon2;
+                    } else {
+                        freshUrl = window.resolveIconUrl(mod, itemData);
+                    }
+
+                    if (freshUrl) {
+                        img.dataset.originalSrc = freshUrl;
+                        img.removeAttribute('data-game-rendered');
+                        window.applyGameRenderToImage(img);
+                    }
+                }
+            } else if (img.dataset.originalSrc) {
+                img.removeAttribute('data-game-rendered');
+                window.applyGameRenderToImage(img);
+            }
+        });
+    };
+
+    // --- Глобальные хранилища для UGS ---
+    window.modUGS = {}; // { modName: ArrayBuffer }
+    window.modUGSOffsets = {}; // { modName: [offset1, offset2, ...] }
+    window.modUGSCache = {}; // { modName: { index: blobUrl } }
+    window.blendedImageCache = {}; // Кэш обработанных картинок игрового рендера
+    // НОВОЕ: Кэш сырых байтов для моментального экспорта без потери качества
+    window.ugsRawCache = {}; 
 
 // --- КАРТЫ СОПОСТАВЛЕНИЙ ДЛЯ NATIVE INI ---
 window.BONUS_MAP = {
@@ -260,90 +393,58 @@ window.getUGSIconUrl = function(modName, globalIndexStr) {
     const offset = offsets[arrayIndex];
     const view = new DataView(buffer);
 
-    const width = view.getUint16(offset, true);
-    const height = view.getUint16(offset + 2, true);
-    const pixelsPerImage = width * height;
+        const width = view.getUint16(offset, true);
+        const height = view.getUint16(offset + 2, true);
+        const pixelsPerImage = width * height;
 
-    const rgbaBuffer = new Uint8Array(pixelsPerImage * 4);
-    let bytePtr = offset + 4;
+        const rgbaBuffer = new Uint8Array(pixelsPerImage * 4);
+        let bytePtr = offset + 4;
 
-    for (let i = 0; i < pixelsPerImage; i++) {
-        let rawWord = view.getUint16(bytePtr, true);
-        bytePtr += 2;
-        const idx = i * 4;
+        for (let i = 0; i < pixelsPerImage; i++) {
+            let rawWord = view.getUint16(bytePtr, true);
+            bytePtr += 2;
+            const idx = i * 4;
 
-        if (rawWord === 0xAAAA) {
-            rgbaBuffer[idx] = 0; rgbaBuffer[idx + 1] = 0; rgbaBuffer[idx + 2] = 0; rgbaBuffer[idx + 3] = 0;
-            continue;
+            if (rawWord === 0xAAAA) {
+                rgbaBuffer[idx] = 0; rgbaBuffer[idx + 1] = 0; rgbaBuffer[idx + 2] = 0; rgbaBuffer[idx + 3] = 0;
+                continue;
+            }
+
+            let val = rawWord ^ 0xAAAA;
+            const r4 = (val >> 11) & 0xF;
+            const g4 = (val >> 7) & 0xF;
+            const b4 = (val >> 3) & 0xF;
+            const alpha_high = val & 0x7;
+            const alpha_low = (val >> 15) & 0x1;
+            const a4 = (alpha_high << 1) | alpha_low;
+
+            rgbaBuffer[idx] = r4 * 17;
+            rgbaBuffer[idx + 1] = g4 * 17;
+            rgbaBuffer[idx + 2] = b4 * 17;
+            rgbaBuffer[idx + 3] = a4 * 17;
         }
 
-        let val = rawWord ^ 0xAAAA;
-        const r4 = (val >> 11) & 0xF;
-        const g4 = (val >> 7) & 0xF;
-        const b4 = (val >> 3) & 0xF;
-        const alpha_high = val & 0x7;
-        const alpha_low = (val >> 15) & 0x1;
-        const a4 = (alpha_high << 1) | alpha_low;
+        // ИСПОЛЬЗУЕМ ВСТРОЕННЫЙ CANVAS ДЛЯ ОТОБРАЖЕНИЯ НА САЙТЕ (работает моментально)
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        const imgData = ctx.createImageData(width, height);
+        imgData.data.set(rgbaBuffer);
+        ctx.putImageData(imgData, 0, 0);
 
-        rgbaBuffer[idx] = r4 * 17;
-        rgbaBuffer[idx + 1] = g4 * 17;
-        rgbaBuffer[idx + 2] = b4 * 17;
-        rgbaBuffer[idx + 3] = a4 * 17;
-    }
-
-    // ИСПОЛЬЗУЕМ ВСТРОЕННЫЙ CANVAS ДЛЯ ОТОБРАЖЕНИЯ НА САЙТЕ (работает моментально)
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    const imgData = ctx.createImageData(width, height);
-    imgData.data.set(rgbaBuffer);
-
-    if (window.globalGameRenderActive) {
-        const bgCanvas = document.createElement('canvas');
-        bgCanvas.width = width;
-        bgCanvas.height = height;
-        const bgCtx = bgCanvas.getContext('2d');
+        const url = canvas.toDataURL('image/png');
         
-        const bgStyle = getComputedStyle(document.documentElement).getPropertyValue('--background-tile');
-        const match = bgStyle ? bgStyle.match(/url\(['"]?(.*?)['"]?\)/) : null;
-        const currentBgName = match ? match[1].split('/').pop() : '2background.png';
-        const activeBgImg = window.preloadedBgs[currentBgName] || window._cachedTrueInventoryBgImage;
+        // СОХРАНЯЕМ СЫРЫЕ, НЕИСКАЖЕННЫЕ БАЙТЫ В КЭШ ДЛЯ ЭКСПОРТА (гарантирует байт-в-байт точность)
+        if (!window.ugsRawCache) window.ugsRawCache = {};
+        window.ugsRawCache[url] = { width, height, data: rgbaBuffer };
 
-        if (activeBgImg && activeBgImg.complete) {
-            const pattern = bgCtx.createPattern(activeBgImg, 'repeat');
-            bgCtx.fillStyle = pattern;
-            bgCtx.fillRect(0, 0, width, height);
-        } else {
-            bgCtx.fillStyle = '#1a1a1a';
-            bgCtx.fillRect(0, 0, width, height);
-        }
-        const bgData = bgCtx.getImageData(0, 0, width, height).data;
-        const dest = imgData.data;
-        for (let i = 0; i < dest.length; i += 4) {
-            const a_src = dest[i+3] / 255.0;
-            const invA = 1.0 - a_src;
-            dest[i]   = Math.min(255, Math.max(0, Math.round(dest[i]   + bgData[i]   * invA)));
-            dest[i+1] = Math.min(255, Math.max(0, Math.round(dest[i+1] + bgData[i+1] * invA)));
-            dest[i+2] = Math.min(255, Math.max(0, Math.round(dest[i+2] + bgData[i+2] * invA)));
-            dest[i+3] = 255;
-        }
-    }
+        window.modUGSCache[modName][index] = url;
+        
+        return url;
+    };
 
-    ctx.putImageData(imgData, 0, 0);
-
-    const url = canvas.toDataURL('image/png');
-    
-    // СОХРАНЯЕМ СЫРЫЕ, НЕИСКАЖЕННЫЕ БАЙТЫ В КЭШ ДЛЯ ЭКСПОРТА (гарантирует байт-в-байт точность)
-    if (!window.ugsRawCache) window.ugsRawCache = {};
-    window.ugsRawCache[url] = { width, height, data: rgbaBuffer };
-
-    window.modUGSCache[modName][index] = url;
-    
-    return url;
-};
-
-window.resolveIconUrl = function(mod, item) {
+    window.resolveIconUrl = function(mod, item) {
     if (!item) return '';
 
     if (item.Icon && item.Icon.startsWith('data:')) {
