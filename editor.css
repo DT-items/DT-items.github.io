@@ -1465,9 +1465,9 @@ input[type=range].vertical-slider::-moz-range-thumb {
   padding: 24px;
   border-radius: 8px;
   width: 90vw;
-  max-width: 1100px;
-  height: 90vh; 
-  max-height: 90vh; 
+  max-width: 800px;
+  height: 80vh; 
+  max-height: 80vh; 
   display: flex;
   flex-direction: column;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
@@ -1864,7 +1864,7 @@ input[type=range].vertical-slider::-moz-range-thumb {
 #sharpness-overlay .sharpness-sidebar-controls,
 #shadow-overlay .sharpness-sidebar-controls,
 #premultiply-overlay .sharpness-sidebar-controls {
-    width: 240px;
+    width: 270px; /* Увеличено с 240px для большего простора настроек */
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -1873,6 +1873,90 @@ input[type=range].vertical-slider::-moz-range-thumb {
     padding: 10px;
     border-radius: 6px;
     border: 1px solid var(--top-bar-border);
+    box-sizing: border-box; /* Гарантирует точный учет отступов в ширине */
+    overflow-y: auto;       /* Одинаковое поведение скроллбара исключает сдвиги */
+}
+#sharpness-overlay .pipeline-preview-area,
+#shadow-overlay .pipeline-preview-area,
+#premultiply-overlay .pipeline-preview-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid var(--top-bar-border);
+    box-sizing: border-box;
+}
+.premult-body-layout {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    gap: 15px;
+    margin-top: 15px;
+    box-sizing: border-box;
+}
+.premult-top-explanation {
+    background: var(--control-bg);
+    border: 1px solid var(--top-bar-border);
+    border-radius: 6px;
+    padding: 12px 15px;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    width: 100%;
+}
+.premult-dual-layout {
+    flex: 1;
+    display: flex;
+    gap: 15px;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+.premult-option-card {
+    flex: 1;
+    background: #111111;
+    border: 1px solid var(--top-bar-border);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: space-between;
+}
+.premult-option-header {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: var(--special-stat-color);
+    text-align: center;
+    margin-bottom: 8px;
+}
+.premult-preview-wrapper {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    max-width: 100%;
+    display: grid;
+    place-items: center;
+    border-radius: 6px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    box-sizing: border-box;
+}
+.premult-preview-wrapper canvas {
+    width: 159px; /* Масштабирование 53 * 3 = 159 для наглядного отображения */
+    height: 159px;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+.premult-option-footer {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
 }
 #sharpness-overlay .sharpness-preview-wrapper,
 #shadow-overlay .sharpness-preview-wrapper,
@@ -2010,6 +2094,10 @@ input[type=range].vertical-slider::-moz-range-thumb {
     transition: opacity 0.15s ease-in-out;
 }
 
-
-
+/* Уплотненный стиль для предотвращения расширения кнопок в модальном окне */
+.premult-footer-btn {
+    padding: 4px 6px !important;
+    font-size: 0.75rem !important;
+    letter-spacing: -0.3px !important;
+}
 

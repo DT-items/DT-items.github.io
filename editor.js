@@ -14,6 +14,12 @@ const edCopyBtn     = document.getElementById('ed-copy-btn');   // Кнопка 
 const edPasteBtn    = document.getElementById('ed-paste-btn');  // Кнопка вставки
 const edZoomBtn     = document.getElementById('ed-zoom-btn');   // Новая кнопка Zoom
 
+const sharpnessBackBtn = document.getElementById('sharpness-back-btn');
+const shadowBackBtn = document.getElementById('shadow-back-btn');
+const premultBackBtn = document.getElementById('premult-back-btn');
+const premultSkipBtn = document.getElementById('premult-skip-btn');
+const premultApplyBtn = document.getElementById('premult-apply-btn');
+
 const contextMenu   = document.getElementById('custom-context-menu');
 const ctxOpenEditor = document.getElementById('ctx-open-editor');
 
@@ -68,6 +74,9 @@ let globalIsAutoProcessEnabled = true;
 let pendingUploadQueue = [];
 let currentQueueIndex = 0;
 let processedBlob = null;
+let pipelineStepBlobs = { rmbgInput: null, cropInput: null, sharpnessInput: null, shadowInput: null, premultiplyInput: null };
+let currentSessionCropState = null; // Сохраняем состояние кропа в рамках текущей сессии обработки картинки
+let globalScale1to1 = false; // Глобальное состояние масштаба 1к1 для всего пайплайна
 let rmbgElapsedInterval = null;
 let rmbgWiggleInterval = null;
 let rmbgAutoPlay = true;
@@ -119,15 +128,15 @@ const shadowSkipBtn = document.getElementById('shadow-skip-btn');
 const shadowApplyBtn = document.getElementById('shadow-apply-btn');
 const shadowCompareBtn = document.getElementById('shadow-compare-btn');
 
-// --- Элементы Преумножения альфы (Premultiply) ---
+// --- Элементы совместимости краев (Импорт) ---
 const premultiplyOverlay = document.getElementById('premultiply-overlay');
-const premultCanvas = document.getElementById('premult-canvas');
-const premultOrigCanvas = document.getElementById('premult-orig-canvas');
+const premultCanvasA = document.getElementById('premult-canvas-a');
+const premultCanvasB = document.getElementById('premult-canvas-b');
 const premultCancelBtn = document.getElementById('premult-cancel-btn');
-const premultSkipBtn = document.getElementById('premult-skip-btn');
-const premultApplyBtn = document.getElementById('premult-apply-btn');
-const premultCompareBtn = document.getElementById('premult-compare-btn');
-const paramPremultGameRender = document.getElementById('param-premult-gamerender');
+const premultSelectABtn = document.getElementById('premult-select-a-btn');
+const premultSelectBBtn = document.getElementById('premult-select-b-btn');
+const premultCompareABtn = document.getElementById('premult-compare-a-btn');
+const premultCompareBBtn = document.getElementById('premult-compare-b-btn');
 
 let premultImageObj = null;
 let premultFileObj = null;
@@ -170,6 +179,12 @@ let shadowState = {
     g: 0,
     b: 0,
     shadowOnly: false
+};
+
+let sharpnessState = {
+    amount: 60,
+    radius: 0.9,
+    threshold: 0
 };
 
 const confirmOverlay = document.getElementById('confirm-processing-overlay');
@@ -954,6 +969,10 @@ async function processNextInQueue() {
         return;
     }
     
+    processedBlob = null;
+    pipelineStepBlobs = { rmbgInput: null, cropInput: null, sharpnessInput: null, shadowInput: null, premultiplyInput: null };
+    currentSessionCropState = null; // Сбрасываем кроп для новой сессии картинки
+    
     let file = pendingUploadQueue[currentQueueIndex];
     try {
         file = await ensurePngFile(file);
@@ -989,8 +1008,21 @@ function startRMBGProcessing(file) {
     if (!rmbgOverlay) return;
     rmbgOverlay.classList.add('visible');
     
+    pipelineStepBlobs.rmbgInput = file; // Сохраняем оригинал для истории возвратов
+    
     const rmbgStartView = document.getElementById('rmbg-start-view');
     const rmbgStartImg = document.getElementById('rmbg-start-preview-img');
+    
+    if (processedBlob) {
+        if (rmbgStartView) rmbgStartView.style.display = 'none';
+        rmbgLoadingView.style.display = 'none';
+        rmbgSliderView.style.display = 'flex';
+        if (rmbgDownloadBtn) rmbgDownloadBtn.style.display = 'inline-block';
+        rmbgContinueBtn.disabled = false;
+        rmbgContinueBtn.style.display = 'inline-block';
+        updateSliderPosition(Number(rmbgRangeInput.value || 50));
+        return;
+    }
     
     if (rmbgStartView) rmbgStartView.style.display = 'flex';
     rmbgLoadingView.style.display = 'none';
@@ -1468,25 +1500,29 @@ function initEditorUI() {
         populateItemList();
     });
     
-    edSearchClear.addEventListener('click', () => {
-        edSearchInput.value = '';
-        updateSearchClearBtn();
-        populateItemList();
-        edSearchInput.focus();
-    });
-    
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            if (mutation.type === "attributes" && mutation.attributeName === "src") {
-                updateItemPreview();
-            }
-        });
-    });
-    observer.observe(edIcon, { attributes: true });
+edSearchClear.addEventListener('click', () => {
+    edSearchInput.value = '';
+    updateSearchClearBtn();
+    populateItemList();
+    edSearchInput.focus();
+});
 
-    document.addEventListener('keydown', handlePhysicsListKeyNav);
-    startScrollLoop();
-    edList.addEventListener('scroll', handleManualScroll);
+const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.type === "attributes" && mutation.attributeName === "src") {
+            updateItemPreview();
+            if (window.globalGameRenderActive) {
+                edIcon.removeAttribute('data-game-rendered');
+                window.applyGameRenderToImage(edIcon);
+            }
+        }
+    });
+});
+observer.observe(edIcon, { attributes: true });
+
+document.addEventListener('keydown', handlePhysicsListKeyNav);
+startScrollLoop();
+edList.addEventListener('scroll', handleManualScroll);
     
     // --- ICON SELECTOR INIT ---
     edIconWrapper.addEventListener('click', openIconSelector);
@@ -1566,15 +1602,37 @@ function initEditorUI() {
         });
     }
 
+    let confirmMouseDownStarted = false;
+    if (confirmOverlay) {
+        confirmOverlay.addEventListener('mousedown', (e) => {
+            confirmMouseDownStarted = (e.target === confirmOverlay);
+        });
+        confirmOverlay.addEventListener('click', (e) => {
+            if (e.target === confirmOverlay && confirmMouseDownStarted) {
+                requestPipelineCancel(() => {
+                    confirmOverlay.classList.remove('visible');
+                    pendingUploadQueue = [];
+                    currentQueueIndex = 0;
+                });
+            }
+            confirmMouseDownStarted = false;
+        });
+    }
+
+    let rmbgMouseDownStarted = false;
     if (rmbgOverlay) {
+        rmbgOverlay.addEventListener('mousedown', (e) => {
+            rmbgMouseDownStarted = (e.target === rmbgOverlay);
+        });
         rmbgOverlay.addEventListener('click', (e) => {
-            if (e.target === rmbgOverlay) {
+            if (e.target === rmbgOverlay && rmbgMouseDownStarted) {
                 requestPipelineCancel(() => {
                     closeRMBGModal();
                     pendingUploadQueue = [];
                     currentQueueIndex = 0;
                 });
             }
+            rmbgMouseDownStarted = false;
         });
     }
 
@@ -2833,23 +2891,28 @@ function populateItemList() {
         items.forEach((item, index) => {
             const iconSrc = window.resolveIconUrl(currentMode, item);
             const isSelected = index === selectedListItemIndex ? 'selected' : '';
-        listHTML += `
-            <div class="ed-list-item ${isSelected}" data-index="${index}">
-                <img class="ed-list-icon" src="${iconSrc}">
-                <div style="display:flex; flex-direction:column; overflow:hidden;">
-                    <span class="ed-list-name">${item.Name}</span>
-                    <span style="font-size:11px; color:#666;">
-                        ID: ${item.GlobalIndex}
-                        <span class="ed-list-cost">${item.Cost}</span>
-                    </span>
-                </div>
-            </div>
-        `;
-    });
-    listHTML += '<div class="list-spacer"></div>';
-    edList.innerHTML = listHTML;
-    const domItems = edList.querySelectorAll('.ed-list-item');
-    domItems.forEach(div => {
+listHTML += `
+    <div class="ed-list-item ${isSelected}" data-index="${index}">
+        <img class="ed-list-icon" src="${iconSrc}">
+        <div style="display:flex; flex-direction:column; overflow:hidden;">
+            <span class="ed-list-name">${item.Name}</span>
+            <span style="font-size:11px; color:#666;">
+                ID: ${item.GlobalIndex}
+                <span class="ed-list-cost">${item.Cost}</span>
+            </span>
+        </div>
+    </div>
+`;
+});
+listHTML += '<div class="list-spacer"></div>';
+edList.innerHTML = listHTML;
+
+edList.querySelectorAll('.ed-list-icon').forEach(img => {
+    window.applyGameRenderToImage(img);
+});
+
+const domItems = edList.querySelectorAll('.ed-list-item');
+domItems.forEach(div => {
         div.addEventListener('click', () => {
             const idx = parseInt(div.dataset.index);
             handlePhysicsItemClick(idx);
@@ -3682,12 +3745,18 @@ function applyZoom() {
         zoomLabel.textContent = `${Math.round(cropZoom * 100)}%`;
     }
     
+    if (currentSessionCropState) {
+        currentSessionCropState.zoom = cropZoom;
+    }
+    
     updateCropUI();
 }
 
-function openCropModal(file, blob = null) {
+function openCropModal(file, blob = null, onReady = null) {
     cropImageFile = file;
     cropImageBlob = blob || file;
+    
+    pipelineStepBlobs.cropInput = cropImageBlob; // Сохраняем входные данные для истории
     
     const cropOverlay = document.getElementById('crop-overlay');
     const cropImage = document.getElementById('crop-image');
@@ -3696,6 +3765,7 @@ function openCropModal(file, blob = null) {
     cropImage.src = objectUrl;
     
     cropOverlay.classList.add('visible');
+    if (onReady) onReady();
     
     const img = new Image();
     img.onload = () => {
@@ -3715,14 +3785,25 @@ function openCropModal(file, blob = null) {
             cropBaseWidth = maxHeight * ratio;
         }
         
-        cropZoom = 1.0;
-        applyZoom();
-        
-        // Автоопределение границ видимой области спрайта
-        autoCropTransparency(img, (autoCoords) => {
-            cropCoords = autoCoords;
-            updateCropUI();
-        });
+        // Проверяем, есть ли уже сохраненное состояние обрезки для этой картинки
+        if (currentSessionCropState) {
+            cropCoords = { ...currentSessionCropState.coords };
+            cropZoom = currentSessionCropState.zoom;
+            applyZoom();
+        } else {
+            cropZoom = 1.0;
+            applyZoom();
+            
+            // Автоопределение границ видимой области спрайта
+            autoCropTransparency(img, (autoCoords) => {
+                cropCoords = autoCoords;
+                currentSessionCropState = {
+                    coords: { ...cropCoords },
+                    zoom: cropZoom
+                };
+                updateCropUI();
+            });
+        }
     };
     img.src = objectUrl;
 }
@@ -3889,6 +3970,9 @@ function handlePointerMove(e) {
     }
     
     cropCoords = { x, y, w, h };
+    if (currentSessionCropState) {
+        currentSessionCropState.coords = { ...cropCoords };
+    }
     updateCropUI();
 }
 
@@ -3914,14 +3998,19 @@ function initCropButtons() {
         applyCropAndContinue();
     });
     
+    let cropMouseDownStarted = false;
+    cropOverlay.addEventListener('mousedown', (e) => {
+        cropMouseDownStarted = (e.target === cropOverlay);
+    });
     cropOverlay.addEventListener('click', (e) => {
-        if (e.target === cropOverlay) {
+        if (e.target === cropOverlay && cropMouseDownStarted) {
             requestPipelineCancel(() => {
                 closeCropModal();
                 pendingUploadQueue = [];
                 currentQueueIndex = 0;
             });
         }
+        cropMouseDownStarted = false;
     });
 
     // Блокируем контекстное меню для возможности перетаскивания камеры на ПКМ
@@ -4146,11 +4235,17 @@ function openSharpnessModal(file, blob, onReady) {
     sharpnessFileObj = file;
     sharpnessBaseBlob = blob;
     
-    // Reset parameters to defaults: Amount: 60, Radius: 0.9, Threshold: 0
-    paramSharpAmount.value = 60;
-    paramSharpRadius.value = 0.9;
-    paramSharpThreshold.value = 0;
-    if (paramSharp1to1) paramSharp1to1.checked = false;
+    pipelineStepBlobs.sharpnessInput = blob; // Сохраняем входные данные для истории
+    
+    if (sharpnessBackBtn) {
+        sharpnessBackBtn.style.display = pipelineStepBlobs.cropInput ? 'inline-block' : 'none';
+    }
+    
+    // Используем глобальные сохраненные настройки резкости
+    paramSharpAmount.value = sharpnessState.amount;
+    paramSharpRadius.value = sharpnessState.radius;
+    paramSharpThreshold.value = sharpnessState.threshold;
+    if (paramSharp1to1) paramSharp1to1.checked = globalScale1to1;
     
     updateSharpnessUIValues();
     
@@ -4260,35 +4355,72 @@ function applySharpnessFilter() {
 function initSharpnessButtons() {
     [paramSharpAmount, paramSharpRadius, paramSharpThreshold].forEach(input => {
         input.addEventListener('input', () => {
+            sharpnessState.amount = parseInt(paramSharpAmount.value, 10) || 60;
+            sharpnessState.radius = parseFloat(paramSharpRadius.value) || 0.9;
+            sharpnessState.threshold = parseInt(paramSharpThreshold.value, 10) || 0;
+            
             updateSharpnessUIValues();
             clearTimeout(sharpnessTimeout);
             sharpnessTimeout = setTimeout(applySharpnessFilter, 50);
         });
     });
 
+    const sharpnessResetBtn = document.getElementById('sharpness-reset-btn');
+    if (sharpnessResetBtn) {
+        sharpnessResetBtn.addEventListener('click', () => {
+            sharpnessState.amount = 60;
+            sharpnessState.radius = 0.9;
+            sharpnessState.threshold = 0;
+            
+            paramSharpAmount.value = sharpnessState.amount;
+            paramSharpRadius.value = sharpnessState.radius;
+            paramSharpThreshold.value = sharpnessState.threshold;
+            
+            updateSharpnessUIValues();
+            applySharpnessFilter();
+        });
+    }
+
     if (paramSharp1to1) {
-        paramSharp1to1.addEventListener('change', () => {
+        paramSharp1to1.addEventListener('change', (e) => {
+            globalScale1to1 = e.target.checked;
             updateSharpnessPreviewScale();
         });
     }
 
+    let sharpnessMouseDownStarted = false;
+    sharpnessOverlay.addEventListener('mousedown', (e) => {
+        sharpnessMouseDownStarted = (e.target === sharpnessOverlay);
+    });
     sharpnessOverlay.addEventListener('click', (e) => {
-        if (e.target === sharpnessOverlay) {
+        if (e.target === sharpnessOverlay && sharpnessMouseDownStarted) {
             requestPipelineCancel(() => {
                 closeSharpnessModal();
                 pendingUploadQueue = [];
                 currentQueueIndex = 0;
             });
         }
+        sharpnessMouseDownStarted = false;
     });
 
     sharpnessCancelBtn.addEventListener('click', () => {
-        closeSharpnessModal();
-        pendingUploadQueue = [];
-        currentQueueIndex = 0;
-    });
+                closeSharpnessModal();
+                pendingUploadQueue = [];
+                currentQueueIndex = 0;
+            });
 
-    sharpnessSkipBtn.addEventListener('click', async () => {
+            if (sharpnessBackBtn) {
+                sharpnessBackBtn.addEventListener('click', () => {
+                    const file = sharpnessFileObj;
+                    if (pipelineStepBlobs.cropInput) {
+                        openCropModal(file, pipelineStepBlobs.cropInput, () => {
+                            closeSharpnessModal();
+                        });
+                    }
+                });
+            }
+
+            sharpnessSkipBtn.addEventListener('click', async () => {
         if (!sharpnessFileObj || !sharpnessBaseBlob) return;
         
         const fileToProcess = sharpnessFileObj;
@@ -4401,11 +4533,9 @@ window.addEventListener('resize', () => {
     if (sharpnessOverlay && sharpnessOverlay.classList.contains('visible')) {
         updateSharpnessPreviewScale();
     }
-    const premultiplyOverlay = document.getElementById('premultiply-overlay');
-    if (premultiplyOverlay && premultiplyOverlay.classList.contains('visible')) {
-        updatePremultiplyPreviewScale();
-    }
 });
+
+
 
 // --- Shadow Logic ---
 
@@ -4429,6 +4559,12 @@ function openShadowModal(file, blob, onReady) {
     shadowFileObj = file;
     shadowBaseBlob = blob;
     
+    pipelineStepBlobs.shadowInput = blob; // Сохраняем входные данные для истории
+    
+    if (shadowBackBtn) {
+        shadowBackBtn.style.display = pipelineStepBlobs.sharpnessInput ? 'inline-block' : 'none';
+    }
+    
     paramShadowRadius.value = shadowState.radius;
     numShadowRadius.value = shadowState.radius.toFixed(1);
     paramShadowDist.value = shadowState.distance;
@@ -4436,8 +4572,8 @@ function openShadowModal(file, blob, onReady) {
     paramShadowOpacity.value = shadowState.opacity;
     numShadowOpacity.value = shadowState.opacity.toFixed(2);
     numShadowAngle.value = shadowState.angle;
-    paramShadowOnly.checked = false;
-    if (paramShadow1to1) paramShadow1to1.checked = false;
+    paramShadowOnly.checked = shadowState.shadowOnly;
+    if (paramShadow1to1) paramShadow1to1.checked = globalScale1to1;
     if (paramShadowShowBorder) paramShadowShowBorder.checked = false;
     updateShadowCanvasBorder();
 
@@ -4771,7 +4907,6 @@ function initShadowButtons() {
         if (e.buttons === 1) handleShadowAngleDial(e);
     });
 
-    shadowColorPreview.addEventListener('click', () => shadowColorPicker.click());
     shadowColorPicker.addEventListener('input', (e) => {
         const hex = e.target.value;
         shadowState.r = parseInt(hex.slice(1, 3), 16);
@@ -4785,27 +4920,17 @@ function initShadowButtons() {
         shadowTimeout = setTimeout(applyShadowFilter, 20);
     });
 
-    [shadowRgbR, shadowRgbG, shadowRgbB].forEach(input => {
-        input.addEventListener('input', () => {
-            shadowState.r = Math.max(0, Math.min(255, parseInt(shadowRgbR.value) || 0));
-            shadowState.g = Math.max(0, Math.min(255, parseInt(shadowRgbG.value) || 0));
-            shadowState.b = Math.max(0, Math.min(255, parseInt(shadowRgbB.value) || 0));
-                    updateShadowColorPreview();
-                    clearTimeout(shadowTimeout);
-                    shadowTimeout = setTimeout(applyShadowFilter, 20);
-                });
-            });
+    paramShadowOnly.addEventListener('change', (e) => {
+        shadowState.shadowOnly = e.target.checked;
+        applyShadowFilter();
+    });
 
-            paramShadowOnly.addEventListener('change', (e) => {
-                shadowState.shadowOnly = e.target.checked;
-                applyShadowFilter();
-            });
-
-            if (paramShadow1to1) {
-                paramShadow1to1.addEventListener('change', () => {
-                    updateShadowPreviewScale();
-                });
-            }
+    if (paramShadow1to1) {
+        paramShadow1to1.addEventListener('change', (e) => {
+            globalScale1to1 = e.target.checked;
+            updateShadowPreviewScale();
+        });
+    }
 
             if (paramShadowShowBorder) {
                 paramShadowShowBorder.addEventListener('change', () => {
@@ -4859,23 +4984,74 @@ function initShadowButtons() {
         shadowCanvas.style.opacity = '1';
     });
 
+    let shadowMouseDownStarted = false;
+    shadowOverlay.addEventListener('mousedown', (e) => {
+        shadowMouseDownStarted = (e.target === shadowOverlay);
+    });
     shadowOverlay.addEventListener('click', (e) => {
-        if (e.target === shadowOverlay) {
+        if (e.target === shadowOverlay && shadowMouseDownStarted) {
             requestPipelineCancel(() => {
                 closeShadowModal();
                 pendingUploadQueue = [];
                 currentQueueIndex = 0;
             });
         }
+        shadowMouseDownStarted = false;
     });
+
+    const shadowResetBtn = document.getElementById('shadow-reset-btn');
+    if (shadowResetBtn) {
+        shadowResetBtn.addEventListener('click', () => {
+            shadowState.radius = 5.0;
+            shadowState.distance = 5.0;
+            shadowState.angle = -45;
+            shadowState.opacity = 0.70;
+            shadowState.r = 0;
+            shadowState.g = 0;
+            shadowState.b = 0;
+            shadowState.shadowOnly = false;
+            
+            paramShadowRadius.value = shadowState.radius;
+            numShadowRadius.value = shadowState.radius.toFixed(1);
+            paramShadowDist.value = shadowState.distance;
+            numShadowDist.value = shadowState.distance.toFixed(1);
+            paramShadowOpacity.value = shadowState.opacity;
+            numShadowOpacity.value = shadowState.opacity.toFixed(2);
+            numShadowAngle.value = shadowState.angle;
+            paramShadowOnly.checked = shadowState.shadowOnly;
+            
+            shadowRgbR.value = shadowState.r;
+            shadowRgbG.value = shadowState.g;
+            shadowRgbB.value = shadowState.b;
+            
+            document.getElementById('val-shadow-radius').textContent = shadowState.radius.toFixed(1);
+            document.getElementById('val-shadow-dist').textContent = shadowState.distance.toFixed(1);
+            document.getElementById('val-shadow-opacity').textContent = shadowState.opacity.toFixed(2);
+            
+            updateShadowColorPreview();
+            updateShadowAngleDial();
+            applyShadowFilter();
+        });
+    }
 
     shadowCancelBtn.addEventListener('click', () => {
-        closeShadowModal();
-        pendingUploadQueue = [];
-        currentQueueIndex = 0;
-    });
+                closeShadowModal();
+                pendingUploadQueue = [];
+                currentQueueIndex = 0;
+            });
 
-    shadowSkipBtn.addEventListener('click', async () => {
+            if (shadowBackBtn) {
+                shadowBackBtn.addEventListener('click', () => {
+                    const file = shadowFileObj;
+                    if (pipelineStepBlobs.sharpnessInput) {
+                        openSharpnessModal(file, pipelineStepBlobs.sharpnessInput, () => {
+                            closeShadowModal();
+                        });
+                    }
+                });
+            }
+
+            shadowSkipBtn.addEventListener('click', async () => {
         if (!shadowFileObj || !shadowBaseBlob) return;
         
         const fileToProcess = shadowFileObj;
@@ -4974,8 +5150,15 @@ function updatePremultiplyPreviewScale() {
 function openPremultiplyModal(file, blob, onReady) {
     premultFileObj = file;
     premultBaseBlob = blob;
+    
+    pipelineStepBlobs.premultiplyInput = blob; // Сохраняем входные данные для истории
+    
+    if (premultBackBtn) {
+        premultBackBtn.style.display = pipelineStepBlobs.shadowInput ? 'inline-block' : 'none';
+    }
+    
     paramPremultGameRender.checked = true;
-    if (paramPremult1to1) paramPremult1to1.checked = false;
+    if (paramPremult1to1) paramPremult1to1.checked = globalScale1to1;
 
     const url = URL.createObjectURL(blob);
     const img = new Image();
@@ -5017,40 +5200,66 @@ function closePremultiplyModal() {
     premultProcessedPixels = null;
 }
 
-function applyPremultiplyFilter() {
-    if (!premultRawPixels) return;
-
-    const length = premultRawPixels.length;
-    premultProcessedPixels = new Uint8ClampedArray(length);
-
-    // Точная логика преумножения альфы
-    for (let i = 0; i < length; i += 4) {
-        const r = premultRawPixels[i];
-        const g = premultRawPixels[i + 1];
-        const b = premultRawPixels[i + 2];
-        const a = premultRawPixels[i + 3];
-
-        const coef = a / 255.0;
-        premultProcessedPixels[i] = Math.round(r * coef);
-        premultProcessedPixels[i + 1] = Math.round(g * coef);
-        premultProcessedPixels[i + 2] = Math.round(b * coef);
-        premultProcessedPixels[i + 3] = a; // Альфа остается нетронутой
+function openPremultiplyModal(file, blob, onReady) {
+    premultFileObj = file;
+    premultBaseBlob = blob;
+    
+    pipelineStepBlobs.premultiplyInput = blob; // Сохраняем входные данные для истории
+    
+    if (premultBackBtn) {
+        premultBackBtn.style.display = pipelineStepBlobs.shadowInput ? 'inline-block' : 'none';
     }
 
-    renderPremultiplyPreview();
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+        premultImageObj = img;
+        premultCanvasA.width = img.naturalWidth;
+        premultCanvasA.height = img.naturalHeight;
+        premultCanvasB.width = img.naturalWidth;
+        premultCanvasB.height = img.naturalHeight;
+
+        // Создаем вспомогательный холст для извлечения пикселей исходного формата
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = img.naturalWidth;
+        tempCanvas.height = img.naturalHeight;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.drawImage(img, 0, 0);
+        premultRawPixels = tempCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight).data;
+
+        // Математическое преумножение RGB-каналов на Alpha
+        const length = premultRawPixels.length;
+        premultProcessedPixels = new Uint8ClampedArray(length);
+        for (let i = 0; i < length; i += 4) {
+            const r = premultRawPixels[i];
+            const g = premultRawPixels[i + 1];
+            const b = premultRawPixels[i + 2];
+            const a = premultRawPixels[i + 3];
+
+            const coef = a / 255.0;
+            premultProcessedPixels[i] = Math.round(r * coef);
+            premultProcessedPixels[i + 1] = Math.round(g * coef);
+            premultProcessedPixels[i + 2] = Math.round(b * coef);
+            premultProcessedPixels[i + 3] = a;
+        }
+
+        // Рисуем дефолтные превью для обеих колонок
+        drawPremultPreview(premultCanvasA, premultRawPixels);       // Вариант А: Исходный, с ободками
+        drawPremultPreview(premultCanvasB, premultProcessedPixels); // Вариант Б: Оптимизированный, чистый
+
+        premultiplyOverlay.classList.add('visible');
+        
+        if (onReady) onReady();
+    };
+    img.src = url;
 }
 
-function renderPremultiplyPreview() {
-    if (!premultProcessedPixels || !premultRawPixels) return;
-
-    const w = premultCanvas.width;
-    const h = premultCanvas.height;
-    const ctx = premultCanvas.getContext('2d');
-    const origCtx = premultOrigCanvas.getContext('2d');
+function drawPremultPreview(canvas, pixels) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const ctx = canvas.getContext('2d');
     
-    const isGameRender = paramPremultGameRender.checked;
-    
-    // Всегда готовим подложку на виртуальном холсте, чтобы пиксели масштабировались идентично
+    // Отрисовываем фоновую плитку инвентаря
     const bgCanvas = document.createElement('canvas');
     bgCanvas.width = w;
     bgCanvas.height = h;
@@ -5058,8 +5267,6 @@ function renderPremultiplyPreview() {
     
     if (window._cachedTrueInventoryBgDimensions && window._cachedTrueInventoryBgImage) {
         const pattern = bgCtx.createPattern(window._cachedTrueInventoryBgImage, 'repeat');
-        
-        // Настраиваем точное смещение узора для идеального совпадения с фоном контейнера
         const matrix = new DOMMatrix();
         const patW = window._cachedTrueInventoryBgDimensions.w;
         const patH = window._cachedTrueInventoryBgDimensions.h;
@@ -5078,72 +5285,35 @@ function renderPremultiplyPreview() {
     
     const renderData = ctx.createImageData(w, h);
     const rData = renderData.data;
-    
-    const renderOrigData = origCtx.createImageData(w, h);
-    const oData = renderOrigData.data;
 
-    for (let i = 0; i < premultProcessedPixels.length; i += 4) {
-        const a_src = premultProcessedPixels[i+3] / 255.0;
+    for (let i = 0; i < pixels.length; i += 4) {
+        const a_src = pixels[i+3] / 255.0;
         const invA = 1.0 - a_src;
         
-        // ДО: Отрисовка зависит от галочки
-        if (isGameRender) {
-            // --- ИГРОВОЙ РЕНДЕР (Движок игры смешивает текстуры как аддитивные) ---
-            // ПОСЛЕ (Идеальный край в игре): Premultiplied + Bg * (1 - Alpha)
-            rData[i]   = Math.min(255, premultProcessedPixels[i]   + bgData[i] * invA);
-            rData[i+1] = Math.min(255, premultProcessedPixels[i+1] + bgData[i+1] * invA);
-            rData[i+2] = Math.min(255, premultProcessedPixels[i+2] + bgData[i+2] * invA);
-
-            // ДО (Багнутый край игры с белым ореолом): Raw + Bg * (1 - Alpha)
-            oData[i]   = Math.min(255, premultRawPixels[i]   + bgData[i] * invA);
-            oData[i+1] = Math.min(255, premultRawPixels[i+1] + bgData[i+1] * invA);
-            oData[i+2] = Math.min(255, premultRawPixels[i+2] + bgData[i+2] * invA);
-        } else {
-            // --- СТАНДАРТНЫЙ РЕНДЕР (Как картинка отображается в обычных вьюверах) ---
-            // ПОСЛЕ (Обычный вьювер накладывает альфу второй раз, темный край): Premultiplied * Alpha + Bg * (1 - Alpha)
-            rData[i]   = Math.min(255, Math.round(premultProcessedPixels[i] * a_src + bgData[i] * invA));
-            rData[i+1] = Math.min(255, Math.round(premultProcessedPixels[i+1] * a_src + bgData[i+1] * invA));
-            rData[i+2] = Math.min(255, Math.round(premultProcessedPixels[i+2] * a_src + bgData[i+2] * invA));
-
-            // ДО (Идеальный край в стандартных вьюверах): Raw * Alpha + Bg * (1 - Alpha)
-            oData[i]   = Math.min(255, Math.round(premultRawPixels[i] * a_src + bgData[i] * invA));
-            oData[i+1] = Math.min(255, Math.round(premultRawPixels[i+1] * a_src + bgData[i+1] * invA));
-            oData[i+2] = Math.min(255, Math.round(premultRawPixels[i+2] * a_src + bgData[i+2] * invA));
-        }
-        rData[i+3] = 255; // Делаем холст непрозрачным
-        oData[i+3] = 255; // Делаем холст непрозрачным
+        // Всегда рендерим по формуле игрового движка
+        rData[i]   = Math.min(255, pixels[i]   + bgData[i] * invA);
+        rData[i+1] = Math.min(255, pixels[i+1] + bgData[i+1] * invA);
+        rData[i+2] = Math.min(255, pixels[i+2] + bgData[i+2] * invA);
+        rData[i+3] = 255;
     }
     
     ctx.putImageData(renderData, 0, 0);
-    origCtx.putImageData(renderOrigData, 0, 0);
 }
 
 function initPremultiplyButtons() {
-    paramPremultGameRender.addEventListener('change', paramPremultGameRenderEvent => {
-        renderPremultiplyPreview();
+    let premultiplyMouseDownStarted = false;
+    premultiplyOverlay.addEventListener('mousedown', (e) => {
+        premultiplyMouseDownStarted = (e.target === premultiplyOverlay);
     });
-
-    if (paramPremult1to1) {
-        paramPremult1to1.addEventListener('change', () => {
-            updatePremultiplyPreviewScale();
-        });
-    }
-
-    // Сравнение ДО и ПОСЛЕ
-    premultCompareBtn.addEventListener('mousedown', () => { premultOrigCanvas.style.opacity = '1'; premultCanvas.style.opacity = '0'; });
-    premultCompareBtn.addEventListener('mouseup', () => { premultOrigCanvas.style.opacity = '0'; premultCanvas.style.opacity = '1'; });
-    premultCompareBtn.addEventListener('mouseleave', () => { premultOrigCanvas.style.opacity = '0'; premultCanvas.style.opacity = '1'; });
-    premultCompareBtn.addEventListener('touchstart', (e) => { e.preventDefault(); premultOrigCanvas.style.opacity = '1'; premultCanvas.style.opacity = '0'; });
-    premultCompareBtn.addEventListener('touchend', (e) => { e.preventDefault(); premultOrigCanvas.style.opacity = '0'; premultCanvas.style.opacity = '1'; });
-
     premultiplyOverlay.addEventListener('click', (e) => {
-        if (e.target === premultiplyOverlay) {
+        if (e.target === premultiplyOverlay && premultiplyMouseDownStarted) {
             requestPipelineCancel(() => {
                 closePremultiplyModal();
                 pendingUploadQueue = [];
                 currentQueueIndex = 0;
             });
         }
+        premultiplyMouseDownStarted = false;
     });
 
     premultCancelBtn.addEventListener('click', () => {
@@ -5152,24 +5322,77 @@ function initPremultiplyButtons() {
         currentQueueIndex = 0;
     });
 
-    premultSkipBtn.addEventListener('click', async () => {
-        if (!premultFileObj || !premultBaseBlob) return;
+    if (premultBackBtn) {
+        premultBackBtn.addEventListener('click', () => {
+            const file = premultFileObj;
+            if (pipelineStepBlobs.shadowInput) {
+                openShadowModal(file, pipelineStepBlobs.shadowInput, () => {
+                    closePremultiplyModal();
+                });
+            }
+        });
+    }
+
+    if (premultSkipBtn) {
+        premultSkipBtn.addEventListener('click', () => {
+            if (!premultRawPixels || !premultFileObj) return;
+            const fileToProcess = premultFileObj;
+            const w = premultCanvasA.width;
+            const h = premultCanvasA.height;
+            
+            const pngBuffer = UPNG.encode([premultRawPixels.buffer], w, h, 0);
+            const blob = new Blob([pngBuffer], { type: "image/png" });
+            
+            closePremultiplyModal();
+            processFileAndAddToLibrary(fileToProcess, blob).then(() => {
+                currentQueueIndex++;
+                processNextInQueue();
+            });
+        });
+    }
+
+    if (premultApplyBtn) {
+        premultApplyBtn.addEventListener('click', () => {
+            if (!premultProcessedPixels || !premultFileObj) return;
+            const fileToProcess = premultFileObj;
+            const w = premultCanvasB.width;
+            const h = premultCanvasB.height;
+            
+            const pngBuffer = UPNG.encode([premultProcessedPixels.buffer], w, h, 0);
+            const blob = new Blob([pngBuffer], { type: "image/png" });
+            
+            closePremultiplyModal();
+            processFileAndAddToLibrary(fileToProcess, blob).then(() => {
+                currentQueueIndex++;
+                processNextInQueue();
+            });
+        });
+    }
+
+    // Выбор Варианта А (Без изменений)
+    premultSelectABtn.addEventListener('click', () => {
+        if (!premultRawPixels || !premultFileObj) return;
         const fileToProcess = premultFileObj;
-        const blobToProcess = premultBaseBlob;
+        const w = premultCanvasA.width;
+        const h = premultCanvasA.height;
+        
+        const pngBuffer = UPNG.encode([premultRawPixels.buffer], w, h, 0);
+        const blob = new Blob([pngBuffer], { type: "image/png" });
         
         closePremultiplyModal();
-        await processFileAndAddToLibrary(fileToProcess, blobToProcess);
-        currentQueueIndex++;
-        processNextInQueue();
+        processFileAndAddToLibrary(fileToProcess, blob).then(() => {
+            currentQueueIndex++;
+            processNextInQueue();
+        });
     });
 
-    premultApplyBtn.addEventListener('click', () => {
+    // Выбор Варианта Б (Преумноженные пиксели)
+    premultSelectBBtn.addEventListener('click', () => {
         if (!premultProcessedPixels || !premultFileObj) return;
         const fileToProcess = premultFileObj;
-        const w = premultCanvas.width;
-        const h = premultCanvas.height;
+        const w = premultCanvasB.width;
+        const h = premultCanvasB.height;
         
-        // 100% ПИКСЕЛЬ-ПЁРФЕКТ сохранения: UPNG берет буфер без искажений Canvas
         const pngBuffer = UPNG.encode([premultProcessedPixels.buffer], w, h, 0);
         const blob = new Blob([pngBuffer], { type: "image/png" });
         
@@ -5179,6 +5402,36 @@ function initPremultiplyButtons() {
             processNextInQueue();
         });
     });
+
+    // --- Интерактивное зажатие кнопок сравнения (Blink Comparison) ---
+    
+    // Кнопка А: при зажатии показываем Вариант Б
+    const startCompareA = () => {
+        if (premultProcessedPixels) drawPremultPreview(premultCanvasA, premultProcessedPixels);
+    };
+    const endCompareA = () => {
+        if (premultRawPixels) drawPremultPreview(premultCanvasA, premultRawPixels);
+    };
+
+    premultCompareABtn.addEventListener('mousedown', startCompareA);
+    premultCompareABtn.addEventListener('mouseup', endCompareA);
+    premultCompareABtn.addEventListener('mouseleave', endCompareA);
+    premultCompareABtn.addEventListener('touchstart', (e) => { e.preventDefault(); startCompareA(); });
+    premultCompareABtn.addEventListener('touchend', (e) => { e.preventDefault(); endCompareA(); });
+
+    // Кнопка Б: при зажатии показываем Вариант А
+    const startCompareB = () => {
+        if (premultRawPixels) drawPremultPreview(premultCanvasB, premultRawPixels);
+    };
+    const endCompareB = () => {
+        if (premultProcessedPixels) drawPremultPreview(premultCanvasB, premultProcessedPixels);
+    };
+
+    premultCompareBBtn.addEventListener('mousedown', startCompareB);
+    premultCompareBBtn.addEventListener('mouseup', endCompareB);
+    premultCompareBBtn.addEventListener('mouseleave', endCompareB);
+    premultCompareBBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startCompareB(); });
+    premultCompareBBtn.addEventListener('touchend', (e) => { e.preventDefault(); endCompareB(); });
 }
 
 initEditorUI();

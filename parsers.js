@@ -1,6 +1,98 @@
 // parsers.js
 // Модуль для работы с данными, парсинга форматов и обработки изображений
 
+window.globalGameRenderActive = false;
+window.preloadedBgs = {};
+const bgList = [
+    'background.png', '2background.png', '3background.png',
+    '4background.png', '5background.png', '6background.png',
+    '7background.png', 'RagnPhone.png'
+];
+bgList.forEach(bg => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+        window.preloadedBgs[bg] = img;
+    };
+    img.src = bg;
+});
+const preloadBgGlobal = new Image();
+preloadBgGlobal.onload = () => {
+    window._cachedTrueInventoryBgImage = preloadBgGlobal;
+    window._cachedTrueInventoryBgDimensions = { w: preloadBgGlobal.naturalWidth, h: preloadBgGlobal.naturalHeight };
+};
+preloadBgGlobal.src = 'trueinventorybackground.png';
+
+window.applyGameRenderToImage = function(img) {
+    if (!window.globalGameRenderActive) return;
+    if (!img || img.dataset.gameRendered === 'true') return;
+
+    if (!img.complete || img.naturalWidth === 0) {
+        img.addEventListener('load', () => window.applyGameRenderToImage(img), { once: true });
+        return;
+    }
+
+    img.dataset.gameRendered = 'true';
+
+    const width = img.naturalWidth;
+    const height = img.naturalHeight;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+
+    try {
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const dest = imgData.data;
+
+        let hasAlpha = false;
+        for (let i = 3; i < dest.length; i += 4) {
+            if (dest[i] < 255) {
+                hasAlpha = true;
+                break;
+            }
+        }
+        if (!hasAlpha) return;
+
+        const bgCanvas = document.createElement('canvas');
+        bgCanvas.width = width;
+        bgCanvas.height = height;
+        const bgCtx = bgCanvas.getContext('2d');
+
+        const bgStyle = getComputedStyle(document.documentElement).getPropertyValue('--background-tile');
+        const match = bgStyle ? bgStyle.match(/url\(['"]?(.*?)['"]?\)/) : null;
+        const currentBgName = match ? match[1].split('/').pop() : '2background.png';
+        const activeBgImg = window.preloadedBgs[currentBgName] || window._cachedTrueInventoryBgImage;
+
+        if (activeBgImg && activeBgImg.complete) {
+            const pattern = bgCtx.createPattern(activeBgImg, 'repeat');
+            bgCtx.fillStyle = pattern;
+            bgCtx.fillRect(0, 0, width, height);
+        } else {
+            bgCtx.fillStyle = '#1a1a1a';
+            bgCtx.fillRect(0, 0, width, height);
+        }
+
+        const bgData = bgCtx.getImageData(0, 0, width, height).data;
+
+        for (let i = 0; i < dest.length; i += 4) {
+            const a_src = dest[i+3] / 255.0;
+            const invA = 1.0 - a_src;
+            dest[i]   = Math.min(255, Math.max(0, Math.round(dest[i]   + bgData[i]   * invA)));
+            dest[i+1] = Math.min(255, Math.max(0, Math.round(dest[i+1] + bgData[i+1] * invA)));
+            dest[i+2] = Math.min(255, Math.max(0, Math.round(dest[i+2] + bgData[i+2] * invA)));
+            dest[i+3] = 255;
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+        img.src = canvas.toDataURL('image/png');
+    } catch (e) {
+        console.warn("CORS or Canvas error during dynamic game render blending:", e);
+    }
+};
+
 // --- Глобальные хранилища для UGS ---
 window.modUGS = {}; // { modName: ArrayBuffer }
 window.modUGSOffsets = {}; // { modName: [offset1, offset2, ...] }
@@ -206,6 +298,38 @@ window.getUGSIconUrl = function(modName, globalIndexStr) {
     const ctx = canvas.getContext('2d');
     const imgData = ctx.createImageData(width, height);
     imgData.data.set(rgbaBuffer);
+
+    if (window.globalGameRenderActive) {
+        const bgCanvas = document.createElement('canvas');
+        bgCanvas.width = width;
+        bgCanvas.height = height;
+        const bgCtx = bgCanvas.getContext('2d');
+        
+        const bgStyle = getComputedStyle(document.documentElement).getPropertyValue('--background-tile');
+        const match = bgStyle ? bgStyle.match(/url\(['"]?(.*?)['"]?\)/) : null;
+        const currentBgName = match ? match[1].split('/').pop() : '2background.png';
+        const activeBgImg = window.preloadedBgs[currentBgName] || window._cachedTrueInventoryBgImage;
+
+        if (activeBgImg && activeBgImg.complete) {
+            const pattern = bgCtx.createPattern(activeBgImg, 'repeat');
+            bgCtx.fillStyle = pattern;
+            bgCtx.fillRect(0, 0, width, height);
+        } else {
+            bgCtx.fillStyle = '#1a1a1a';
+            bgCtx.fillRect(0, 0, width, height);
+        }
+        const bgData = bgCtx.getImageData(0, 0, width, height).data;
+        const dest = imgData.data;
+        for (let i = 0; i < dest.length; i += 4) {
+            const a_src = dest[i+3] / 255.0;
+            const invA = 1.0 - a_src;
+            dest[i]   = Math.min(255, Math.max(0, Math.round(dest[i]   + bgData[i]   * invA)));
+            dest[i+1] = Math.min(255, Math.max(0, Math.round(dest[i+1] + bgData[i+1] * invA)));
+            dest[i+2] = Math.min(255, Math.max(0, Math.round(dest[i+2] + bgData[i+2] * invA)));
+            dest[i+3] = 255;
+        }
+    }
+
     ctx.putImageData(imgData, 0, 0);
 
     const url = canvas.toDataURL('image/png');

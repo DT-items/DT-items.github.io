@@ -117,27 +117,31 @@ window.addToComparePanel = function(originalCard) {
       }
   }
 
-  // Создаем контейнер для иконок (одной или двух)
-  const iconContainer = document.createElement('div');
-  iconContainer.className = 'pinned-icon-container';
-  
-  // 1. Первая иконка (всегда есть)
-  const originalImg = originalCard.querySelector('img');
-  if (originalImg) {
-    iconContainer.appendChild(originalImg.cloneNode(true));
+// Создаем контейнер для иконок (одной или двух)
+const iconContainer = document.createElement('div');
+iconContainer.className = 'pinned-icon-container';
+
+// 1. Первая иконка (всегда есть)
+const originalImg = originalCard.querySelector('img');
+if (originalImg) {
+  const clonedImg = originalImg.cloneNode(true);
+  clonedImg.removeAttribute('data-game-rendered');
+  iconContainer.appendChild(clonedImg);
+  window.applyGameRenderToImage(clonedImg);
+}
+
+if (tt2 && window.compareMode) {
+  // 2. Вторая иконка (если есть в dataset)
+  if (originalCard.dataset.icon2) {
+    const img2 = document.createElement('img');
+    img2.src = originalCard.dataset.icon2;
+    iconContainer.appendChild(img2);
+    window.applyGameRenderToImage(img2);
   }
-  
-  if (tt2 && window.compareMode) {
-    // 2. Вторая иконка (если есть в dataset)
-    if (originalCard.dataset.icon2) {
-      const img2 = document.createElement('img');
-      img2.src = originalCard.dataset.icon2;
-      iconContainer.appendChild(img2);
-    }
-  }
-  
-  // Добавляем контейнер иконок в карточку
-  pinnedItem.appendChild(iconContainer);
+}
+
+// Добавляем контейнер иконок в карточку
+pinnedItem.appendChild(iconContainer);
   
   // Клонируем первый тултип
   const tt1 = originalCard.querySelector('.tooltip-1');

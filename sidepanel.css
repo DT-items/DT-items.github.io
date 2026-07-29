@@ -596,6 +596,10 @@
   bottom: -180px; /* подберите значение под вашу высоту фильтров */
 }
 
+.side-panel:not(.advanced-open) .global-render-advanced-wrapper {
+  display: none !important;
+}
+
 /* --- Контейнер кнопок импорта --- */
 .side-panel .import-controls {
     position: relative;

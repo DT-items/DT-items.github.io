@@ -649,10 +649,13 @@ const isStatFiltered = (key) => {
   // === Удаляем предыдущую панель и блок «Все предметы», сохраняя их состояние ===
   const existingPanel = document.querySelector('.side-panel');
   let preservedClasses = [];
+  let preservedScrollTop = 0;
   if (existingPanel) {
     preservedClasses = Array.from(existingPanel.classList);
+    preservedScrollTop = existingPanel.scrollTop;
     existingPanel.remove();
   }
+  const preservedWindowScrollTop = window.scrollY || document.documentElement.scrollTop;
   const existingAll = document.getElementById('group-all');
   if (existingAll) existingAll.remove();
 
@@ -997,8 +1000,8 @@ if (lbl) lbl.style.display = 'none';
   tierModeWrapper.innerHTML = `
     <button type="button" id="tier-mode-toggle" class="tier-mode-btn ${tierMode ? 'active' : ''}">Tier List</button>
   `;
-  // Вставляем сразу после сравнения с Ваниллой
-  simpleCompareWrapper.after(tierModeWrapper);
+  // Вставляем в common-controls
+  sidePanel.querySelector('.common-controls').append(tierModeWrapper);
   
   const tierToggle = tierModeWrapper.querySelector('#tier-mode-toggle');
 
@@ -1009,15 +1012,71 @@ if (lbl) lbl.style.display = 'none';
   tierExportBtn.textContent = 'Экспорт .png';
   tierExportBtn.style.display = tierMode ? 'inline-block' : 'none';
   tierModeWrapper.after(tierExportBtn);
+  
+  // === NEW TIER IMPORT BUTTON ===
+  const tierImportBtn = document.createElement('button');
+  tierImportBtn.id = 'tier-import-btn';
+  tierImportBtn.className = 'tier-import-btn';
+  tierImportBtn.textContent = 'Импорт .png';
+  tierImportBtn.style.display = tierMode ? 'inline-block' : 'none';
+  tierExportBtn.after(tierImportBtn);
 
-  // === NEW TIER RANDOM RE-POPULATE BUTTON FOR DEBUGGING ===
-  const tierRandomBtn = document.createElement('button');
-  tierRandomBtn.id = 'tier-random-btn';
-  tierRandomBtn.className = 'tier-random-btn';
-  tierRandomBtn.textContent = 'Рандом';
-  tierRandomBtn.title = 'Случайное заполнение тир-листа для отладки';
-  tierRandomBtn.style.display = tierMode ? 'inline-block' : 'none';
-  tierExportBtn.after(tierRandomBtn);
+  const tierImportInput = document.createElement('input');
+  tierImportInput.type = 'file';
+  tierImportInput.accept = '.png';
+  tierImportInput.style.display = 'none';
+  tierImportBtn.after(tierImportInput);
+
+  tierImportBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      tierImportInput.click();
+  });
+
+  tierImportInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const loader = document.getElementById('loading-overlay');
+      if (loader) loader.classList.add('visible');
+
+      try {
+          const metaStr = await window.extractMetadataFromPNG(file, 'TierListMeta');
+          if (!metaStr) {
+              showNotification('В этом изображении нет данных тир-листа!', 'error');
+              return;
+          }
+
+          const data = JSON.parse(metaStr);
+          
+          // Восстанавливаем предметы
+          if (data.items) {
+              savedData1 = data.items;
+          }
+          
+          // Восстанавливаем тиры
+          if (data.tierLayout) {
+              if (!tierDataStorage) tierDataStorage = {};
+              tierDataStorage[currentMode] = data.tierLayout;
+          }
+          
+          // Восстанавливаем заголовки
+          if (data.tierTitles) {
+              if (!window.tierTitlesStorage) window.tierTitlesStorage = {};
+              window.tierTitlesStorage[currentMode] = data.tierTitles;
+          }
+
+          renderItems();
+          if (window.refreshApp) window.refreshApp();
+          showNotification('Тир-лист успешно импортирован!', 'success');
+
+      } catch (err) {
+          console.error('Ошибка импорта тирлиста:', err);
+          showNotification('Ошибка чтения метаданных', 'error');
+      } finally {
+          if (loader) loader.classList.remove('visible');
+          e.target.value = ''; 
+      }
+  });
   
   // Инициализируем переключатели в зависимости от режима тирлиста
   const groupToggleWrapper = sidePanel.querySelector('.group-toggle-wrapper');
@@ -1056,18 +1115,18 @@ if (lbl) lbl.style.display = 'none';
       const groupToggleWrapper = document.querySelector('.group-toggle-wrapper');
       const tierSortWrapper = document.getElementById('tier-sort-wrapper');
       const tExportBtn = document.getElementById('tier-export-btn');
-      const tRandomBtn = document.getElementById('tier-random-btn');
+      const tImportBtn = document.getElementById('tier-import-btn');
       
       if (tierMode) {
           if (groupToggleWrapper) groupToggleWrapper.style.display = 'none';
           if (tierSortWrapper) tierSortWrapper.style.display = 'inline-flex';
           if (tExportBtn) tExportBtn.style.display = 'inline-block';
-          if (tRandomBtn) tRandomBtn.style.display = 'inline-block';
+          if (tImportBtn) tImportBtn.style.display = 'inline-block';
       } else {
           if (groupToggleWrapper) groupToggleWrapper.style.display = 'inline-flex';
           if (tierSortWrapper) tierSortWrapper.style.display = 'none';
           if (tExportBtn) tExportBtn.style.display = 'none';
-          if (tRandomBtn) tRandomBtn.style.display = 'none';
+          if (tImportBtn) tImportBtn.style.display = 'none';
       }
       
       // Инициализация хранилища для текущего мода при включении
@@ -1155,36 +1214,8 @@ if (lbl) lbl.style.display = 'none';
           }
       }
   });
-
-  // Логика случайного заполнения тир-листа (отладка)
-  tierRandomBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (!savedData1) return;
-      
-      const allItemIds = ItemsData.map(card => card.dataset.globalId).filter(Boolean);
-      if (allItemIds.length === 0) {
-          showNotification('Нет предметов в текущем пуле для распределения.', 'error');
-          return;
-      }
-      
-      // Инициализируем чистую структуру групп
-      tierDataStorage[currentMode] = {};
-      for (let i = 1; i <= 10; i++) {
-          tierDataStorage[currentMode][i] = [];
-      }
-      
-      // Случайно раскидываем каждый предмет по группам 1-10
-      allItemIds.forEach(id => {
-          const randomGroup = Math.floor(Math.random() * 10) + 1; // Группы 1-10
-          tierDataStorage[currentMode][randomGroup].push(id);
-      });
-      
-      renderItems();
-      showNotification('Тир-лист успешно заполнен случайным образом!', 'success');
-  });
-
+  
   // ==============================
-
   const compareSelectWrapper = sidePanel.querySelector('.compare-select-wrapper');
   const compareVanillaCheckbox = simpleCompareWrapper.querySelector('#compare-vanilla');
   compareVanillaCheckbox.checked = (mod2 === 'Vanilla');
@@ -1298,10 +1329,21 @@ if (!mod2) {
     }
   }
 
+  // Восстановление позиции прокрутки
+  if (preservedScrollTop > 0) {
+    sidePanel.scrollTop = preservedScrollTop;
+    requestAnimationFrame(() => {
+      sidePanel.scrollTop = preservedScrollTop;
+    });
+  }
 
-
-
-
+  // Восстановление прокрутки главного окна (body)
+  if (preservedWindowScrollTop > 0) {
+    window.scrollTo(0, preservedWindowScrollTop);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, preservedWindowScrollTop);
+    });
+  }
 
 
 const compareToggle = document.getElementById('toggle-compare');
@@ -1398,16 +1440,26 @@ btn.addEventListener('click', () => {
       ? 'tooltip-bg.png'
       : 'tooltip-ragn.png';
 
-    // пробегаем по всем тултипам и перезаписываем inline-стиль
-    document.querySelectorAll('.tooltip').forEach(tt => {
-      tt.style.backgroundImage = `url('${img}')`;
-    });
-  }
-});
+      // пробегаем по всем тултипам и перезаписываем inline-стиль
+      document.querySelectorAll('.tooltip').forEach(tt => {
+        tt.style.backgroundImage = `url('${img}')`;
+      });
+    }
 
+    if (window.globalGameRenderActive) {
+      document.querySelectorAll('img[data-game-rendered]').forEach(img => {
+        img.removeAttribute('data-game-rendered');
+      });
+      for (const modName in window.modUGSCache) {
+        window.modUGSCache[modName] = {};
+      }
+      if (window.refreshApp) window.refreshApp();
+    }
   });
 
-  // Приклеиваем блок в конец .side-panel
+    });
+
+    // Приклеиваем блок в конец .side-panel
   sidePanel.append(bgControls);
 
   // === ДОБАВЛЯЕМ КНОПКИ ИМПОРТА ПОД ФОНАМИ ===
@@ -1599,29 +1651,27 @@ btn.addEventListener('click', () => {
     const simpleContainer = document.getElementById('simple-filters');
     // Восстанавливаем класс панели из глобального флага:
     if (advanced) {
-	
-	
-	
-	
-  advContainer.style.display    = '';
-  simpleContainer.style.display = 'none';
-  advToggle.classList.add('active');
-  simpleContainer.style.display = 'none';
-} else {
-  advContainer.style.display    = 'none';
-  simpleContainer.style.display = 'flex';
-  advToggle.classList.remove('active');
-}
+      advContainer.style.display    = '';
+      simpleContainer.style.display = 'none';
+      advToggle.classList.add('active');
+      simpleContainer.style.display = 'none';
+      sidePanel.classList.add('advanced-open');
+    } else {
+      advContainer.style.display    = 'none';
+      simpleContainer.style.display = 'flex';
+      advToggle.classList.remove('active');
+      sidePanel.classList.remove('advanced-open');
+    }
 
-  // сразу находи блок, обёртку дропдауна, и ставь видимость для compare-UI
-  const compareDropdownWrapper = sidePanel.querySelector('.compare-select-wrapper');
-  // сам выпадающий дропдаун
-  compareContainer.style.display       = advanced ? ''        : 'none';
-  // его обёртка (лейбл + кнопка + дропдаун)
-  compareDropdownWrapper.style.display = advanced ? ''        : 'none';
-  // чекбокс "Сравнить с Vanilla" и Tier
-  simpleCompareWrapper.style.display   = advanced ? 'none'    : 'inline-flex';
-  tierModeWrapper.style.display        = advanced ? 'none'    : 'inline-flex';
+    // сразу находи блок, обёртку дропдауна, и ставь видимость для compare-UI
+    const compareDropdownWrapper = sidePanel.querySelector('.compare-select-wrapper');
+    // сам выпадающий дропдаун
+    compareContainer.style.display       = advanced ? ''        : 'none';
+    // его обёртка (лейбл + кнопка + дропдаун)
+    compareDropdownWrapper.style.display = advanced ? ''        : 'none';
+    // чекбокс "Сравнить с Vanilla" и Tier
+    simpleCompareWrapper.style.display   = advanced ? 'none'    : 'inline-flex';
+    tierModeWrapper.style.display        = 'inline-flex';
 
 advToggle.addEventListener('click', e => {
   e.stopPropagation();
@@ -1635,9 +1685,9 @@ advToggle.addEventListener('click', e => {
     simpleContainer.style.display = 'none';
     // в расширённом режиме: дропдаун виден, чекбокс скрыт
     compareContainer.style.display      = '';
-	compareSelectWrapper.style.display   = '';
+    compareSelectWrapper.style.display   = '';
     simpleCompareWrapper.style.display  = 'none';
-    tierModeWrapper.style.display       = 'none';
+    tierModeWrapper.style.display       = 'inline-flex';
 
     // **сбрасываем выделение простых кнопок:**
     simpleFilterKey = null;
@@ -1654,17 +1704,6 @@ advToggle.addEventListener('click', e => {
     compareSelectWrapper.style.display  = 'none';
     simpleCompareWrapper.style.display = 'inline-flex';
     tierModeWrapper.style.display      = 'inline-flex';
-
-    // убираем прежнее !important-скрытие простых фильтров и кнопок режима
-    const simpleFilters = document.getElementById('simple-filters');
-    if (simpleFilters) {
-      simpleFilters.style.removeProperty('display');
-    }
-    const modeCtr = document.getElementById('simple-mode-controls');
-    if (modeCtr) {
-      modeCtr.style.removeProperty('display');
-    }
-
     // **сбрасываем все продвинутые фильтры:**
     Object.keys(attrModes).forEach(k=> attrModes[k] = 'none');
     document
@@ -1854,18 +1893,26 @@ searchClearBtn.addEventListener('click', () => {
       });
     });
 
-    // сброс всеобщий
-    resetBtn.addEventListener('click', e=>{
-      e.stopPropagation();
-	    // 1) сброс состояния “Только отличия”
+// сброс всеобщий
+resetBtn.addEventListener('click', e=>{
+  e.stopPropagation();
+    // 1) сброс состояния “Только отличия”
   diffOnly = false;
   const diffCheckbox = document.getElementById('diff-only');
   if (diffCheckbox) diffCheckbox.checked = false;
-      setSort(0);
-      groupToggle.checked = true; showGroups = true;
-      Object.values(magicBtns).forEach(x=>x.classList.remove('active'));
-      magicBtns.all.classList.add('active');
-      magicFilter = 'all';
+
+  window.globalGameRenderActive = false;
+  const globalGameRenderToggle = document.getElementById('global-game-render-toggle');
+  if (globalGameRenderToggle) globalGameRenderToggle.checked = false;
+  for (const modName in window.modUGSCache) {
+    window.modUGSCache[modName] = {};
+  }
+
+  setSort(0);
+  groupToggle.checked = true; showGroups = true;
+  Object.values(magicBtns).forEach(x=>x.classList.remove('active'));
+  magicBtns.all.classList.add('active');
+  magicFilter = 'all';
       Object.keys(attrModes).forEach(k=>{
         attrModes[k] = 'none';
         document.querySelectorAll(`.attr-filter-row button[data-key="${k}"]`)
@@ -1930,9 +1977,10 @@ compareToggle.dispatchEvent(new Event('change'));
   if (tExportBtn) {
       tExportBtn.style.display = 'none';
   }
-  const tRandomBtn = document.getElementById('tier-random-btn');
-  if (tRandomBtn) {
-      tRandomBtn.style.display = 'none';
+  
+  const tImportBtn = document.getElementById('tier-import-btn');
+  if (tImportBtn) {
+      tImportBtn.style.display = 'none';
   }
   
   // Сброс типа сортировки пула тир-листа
@@ -2234,16 +2282,19 @@ if (item2 && item2.Icon) {
         <li class="spacer"></li>
       </ul>
       <div class="tooltip-id">ID: ${cost2}</div>
-      <div class="tooltip-price">
-        ${cost2}<img src="gold.png" class="gold-icon" alt="Gold">
-      </div>
-    </div>
-    ` : ''}
-  `;
+            <div class="tooltip-price">
+              ${cost2}<img src="gold.png" class="gold-icon" alt="Gold">
+            </div>
+          </div>
+          ` : ''}
+        `;
 
-  // позиционирование
-  const tt1 = card.querySelector('.tooltip-1');
-  const tt2 = card.querySelector('.tooltip-2');
+        const mainImg = card.querySelector('img');
+        if (mainImg) window.applyGameRenderToImage(mainImg);
+
+        // позиционирование
+        const tt1 = card.querySelector('.tooltip-1');
+        const tt2 = card.querySelector('.tooltip-2');
 
   // Хелпер для определения верхней границы
   const getTopBoundary = () => {
@@ -3406,15 +3457,44 @@ btnHelp.style.cssText = `
     font-size: 0.85em;
     padding: 4px;
     display: block;
-`;
-btnHelp.addEventListener('click', () => showBonusHelp(''));
-bonusContainer.appendChild(btnHelp);
+  `;
+  btnHelp.addEventListener('click', () => showBonusHelp(''));
+  bonusContainer.appendChild(btnHelp);
 
+  // --- Вставка переключателя Глобального игрового рендера под кнопкой Справка ---
+  const globalRenderWrapper = document.createElement('div');
+  globalRenderWrapper.className = 'global-render-advanced-wrapper';
+  globalRenderWrapper.style.cssText = `
+      margin-top: 15px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+  `;
+  globalRenderWrapper.innerHTML = `
+      <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="global-game-render-toggle">
+          <span style="font-size: 0.9em; color: #ffffff; user-select: none;">Глобальный игровой рендер</span>
+      </label>
+  `;
+  bonusContainer.appendChild(globalRenderWrapper);
 
-// ← причина: восстанавливаем визуальную подсветку бонус‑фильтра
-// 1) снимем active со всех пунктов
-const bonusItems = bonusContainer.querySelectorAll('.dropdown-item');
-bonusItems.forEach(it => it.classList.remove('active'));
+  const globalGameRenderToggle = globalRenderWrapper.querySelector('#global-game-render-toggle');
+  if (globalGameRenderToggle) {
+      globalGameRenderToggle.checked = window.globalGameRenderActive;
+      globalGameRenderToggle.addEventListener('change', (e) => {
+          window.globalGameRenderActive = e.target.checked;
+          for (const modName in window.modUGSCache) {
+              window.modUGSCache[modName] = {};
+          }
+          if (window.refreshApp) window.refreshApp();
+      });
+  }
+
+  // ← причина: восстанавливаем визуальную подсветку бонус‑фильтра
+  // 1) снимем active со всех пунктов
+  const bonusItems = bonusContainer.querySelectorAll('.dropdown-item');
+  bonusItems.forEach(it => it.classList.remove('active'));
 
 // 2) найдём текущий bonusFilter и поставим ему active
 const activeBonus = bonusContainer.querySelector(
@@ -3480,10 +3560,10 @@ if (toggleBtn) {
              if (type) h2.textContent = defaultNames[type];
         }
         
-        document.getElementById(id).style.display = showGroups?'block':'none';
+        document.getElementById(id).style.display = (showGroups || tierMode)?'block':'none';
       });
       allContainer.innerHTML = '';
-      allGroup.style.display = showGroups?'none':'block';
+      allGroup.style.display = (showGroups || tierMode)?'none':'block';
 
       // фильтр магии
       let visible = ItemsData.filter(c=>
@@ -3586,7 +3666,7 @@ if (window.pinnedItemIds) {
 }
 
 		  // вставка в DOM
-		  if (showGroups) {
+		  if (showGroups || tierMode) {
 		    if (tierMode) {
 		        // --- TIER RENDER LOGIC ---
 		        // 1. Инициализируем хранилище если пусто (при первом рендере может быть)
@@ -4431,6 +4511,92 @@ window.updateTierExportPreview = async function() {
     window._currentGeneratedTierCanvas = canvas;
 };
 
+// --- ИНСТРУМЕНТЫ ДЛЯ РАБОТЫ С МЕТАДАННЫМИ В PNG (ЧАНКИ tEXt) ---
+const crcTable = (function() {
+    let c;
+    let table = [];
+    for (let n = 0; n < 256; n++) {
+        c = n;
+        for (let k = 0; k < 8; k++) {
+            c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+        }
+        table[n] = c >>> 0;
+    }
+    return table;
+})();
+
+function crc32(buf, offset, length) {
+    let crc = 0 ^ (-1);
+    for (let i = offset; i < offset + length; i++) {
+        crc = (crc >>> 8) ^ crcTable[(crc ^ buf[i]) & 0xFF];
+    }
+    return (crc ^ (-1)) >>> 0;
+}
+
+window.injectMetadataIntoPNG = async function(blob, keyword, text) {
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+
+    const encoder = new TextEncoder();
+    const keywordBytes = encoder.encode(keyword);
+    const textBytes = encoder.encode(text);
+    
+    // Структура Data: keyword + Null (0) + text
+    const chunkData = new Uint8Array(keywordBytes.length + 1 + textBytes.length);
+    chunkData.set(keywordBytes, 0);
+    chunkData[keywordBytes.length] = 0; 
+    chunkData.set(textBytes, keywordBytes.length + 1);
+
+    const chunkLen = chunkData.length;
+    const chunkType = encoder.encode("tEXt");
+
+    const newChunk = new Uint8Array(4 + 4 + chunkLen + 4);
+    const view = new DataView(newChunk.buffer);
+    view.setUint32(0, chunkLen, false); // Длина
+    newChunk.set(chunkType, 4); // Тип
+    newChunk.set(chunkData, 8); // Данные
+
+    const crc = crc32(newChunk, 4, 4 + chunkLen);
+    view.setUint32(8 + chunkLen, crc, false); // CRC32
+
+    // Стандартный PNG всегда заканчивается чанком IEND (12 байт: 0000 0000 4945 4E44 AE42 6082)
+    // Разрезаем файл ПЕРЕД IEND и вставляем наш чанк
+    if (uint8.length < 12) return blob; 
+    const beforeIEND = uint8.subarray(0, uint8.length - 12);
+    const iend = uint8.subarray(uint8.length - 12);
+
+    return new Blob([beforeIEND, newChunk, iend], { type: 'image/png' });
+};
+
+window.extractMetadataFromPNG = async function(blob, targetKeyword) {
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    const view = new DataView(arrayBuffer);
+
+    let offset = 8; // Пропускаем сигнатуру PNG
+    const decoder = new TextDecoder();
+
+    while (offset < uint8.length) {
+        const length = view.getUint32(offset, false);
+        const type = decoder.decode(uint8.subarray(offset + 4, offset + 8));
+        const dataOffset = offset + 8;
+
+        if (type === 'tEXt') {
+            let nullIdx = dataOffset;
+            while (nullIdx < dataOffset + length && uint8[nullIdx] !== 0) {
+                nullIdx++;
+            }
+            const keyword = decoder.decode(uint8.subarray(dataOffset, nullIdx));
+            if (keyword === targetKeyword) {
+                return decoder.decode(uint8.subarray(nullIdx + 1, dataOffset + length));
+            }
+        }
+        offset += 12 + length;
+    }
+    return null;
+};
+// --------------------------------------------------------------
+
 document.addEventListener('DOMContentLoaded', () => {
     const teOverlay = document.getElementById('tier-export-overlay');
     const teCloseBtn = document.getElementById('te-close-btn');
@@ -4501,9 +4667,20 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         if (canvas.toBlob) {
-            canvas.toBlob((blob) => {
+            canvas.toBlob(async (blob) => {
                 if (blob) {
-                    downloadBlobLocal(blob, fileName, 'image/png');
+                    // --- Инжект метаданных в PNG ---
+                    const meta = {
+                        items: savedData1,
+                        tierLayout: tierDataStorage[currentMode] || {},
+                        tierTitles: window.tierTitlesStorage[currentMode] || {}
+                    };
+                    const metaStr = JSON.stringify(meta);
+                    
+                    const finalBlob = await window.injectMetadataIntoPNG(blob, 'TierListMeta', metaStr);
+                    // -------------------------------
+                    
+                    downloadBlobLocal(finalBlob, fileName, 'image/png');
                     if (typeof showNotification === 'function') {
                         showNotification('Тир-лист успешно сохранен!', 'success');
                     }

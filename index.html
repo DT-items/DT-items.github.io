@@ -134,7 +134,7 @@
 <!-- оверлей + модальное окно -->
 <div id="about-overlay" class="about-overlay"></div>
 <div id="about-popup" class="about-popup">
-  <span class="about-popup__version">Версия 1.2.9</span>
+  <span class="about-popup__version">Версия 1.3.1</span>
   <!-- картинка внутри окна -->
   <img src="qrds.png" alt="QR код" class="about-popup__image">
   <!-- ваш текст -->
@@ -509,7 +509,7 @@
   <div id="rmbg-overlay" class="editor-overlay" style="z-index: 6016;">
       <div class="rmbg-popup">
           <h3 style="margin: 0; color: #fff;">Нейросетевое удаление фона (RMBG-2.0)</h3>
-          <p style="font-size: 0.85rem; color: #888; margin: 5px 0 0 0;">Вы можете удалить фон тут: <a href="https://huggingface.co/spaces/briaai/BRIA-RMBG-2.0" target="_blank" style="color: #674DF2; text-decoration: underline;">https://huggingface.co/spaces/briaai/BRIA-RMBG-2.0</a></p>
+          <p style="font-size: 0.85rem; color: #888; margin: 5px 0 0 0;">Вы можете удалить фон тут: <a href="https://huggingface.co/spaces/LiXiang12/RMBG2.0-gradio" target="_blank" style="color: #674DF2; text-decoration: underline;">https://huggingface.co/spaces/LiXiang12/RMBG2.0-gradio</a></p>
           
           <div class="rmbg-content-area">
               <!-- Стартовый вид с вопросом и превью до обработки -->
@@ -651,19 +651,21 @@
                           </label>
                       </div>
                       <button id="sharpness-compare-btn" class="editor-btn btn-cancel" style="height: 30px; margin-top: 10px; padding: 0 12px; font-size: 0.8rem; user-select: none; width: 100%;">Удерживайте: ДО</button>
+                      <button id="sharpness-reset-btn" class="editor-btn btn-cancel" style="height: 30px; margin-top: 5px; width: 100%;">Сбросить настройки</button>
                   </div>
                   
                   <!-- Правая колонка превью -->
-                  <div class="rmbg-content-area" style="flex: 1; position: relative; overflow: hidden; background: #1a1a1a; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--top-bar-border);">
+                  <div class="pipeline-preview-area">
                       <div class="sharpness-preview-wrapper" id="sharpness-preview-wrapper" style="background: url('trueinventorybackground.png') repeat center;">
                           <canvas id="sharpness-canvas"></canvas>
                           <canvas id="sharpness-orig-canvas"></canvas>
                       </div>
-                  </div>
               </div>
+          </div>
 
               <div class="rmbg-footer" style="margin-top: 15px;">
               <button id="sharpness-cancel-btn" class="editor-btn btn-cancel">Отмена</button>
+              <button id="sharpness-back-btn" class="editor-btn btn-cancel" style="display: none;">Назад</button>
               <button id="sharpness-skip-btn" class="editor-btn btn-cancel">Пропустить</button>
               <button id="sharpness-apply-btn" class="editor-btn btn-save">Применить</button>
           </div>
@@ -679,7 +681,7 @@
           
           <div class="sharpness-body-layout">
               <!-- Левая колонка настроек -->
-              <div class="sharpness-sidebar-controls" style="width: 240px; overflow-y: auto; padding-right: 5px;">
+              <div class="sharpness-sidebar-controls">
                   
                   <div class="te-option-group">
                       <label>Радиус: <span id="val-shadow-radius" style="color: #ffcc00; font-weight: bold;">5.0</span></label>
@@ -717,8 +719,9 @@
                   <div class="te-option-group">
                       <label>Цвет тени:</label>
                       <div class="shadow-color-section">
-                          <div class="shadow-color-preview" id="shadow-color-preview"></div>
-                          <input type="color" id="shadow-color-picker" style="display: none;" value="#000000">
+                          <div class="shadow-color-preview" id="shadow-color-preview" style="position: relative;">
+                              <input type="color" id="shadow-color-picker" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: none; padding: 0; margin: 0; box-sizing: border-box;" value="#000000">
+                          </div>
                           <div class="shadow-rgb-inputs">
                               <div><span>R:</span> <input type="number" id="shadow-rgb-r" min="0" max="255" value="0" class="shadow-num-input tiny"></div>
                               <div><span>G:</span> <input type="number" id="shadow-rgb-g" min="0" max="255" value="0" class="shadow-num-input tiny"></div>
@@ -749,10 +752,11 @@
                   </div>
 
                   <button id="shadow-compare-btn" class="editor-btn btn-cancel" style="height: 30px; margin-top: 10px; padding: 0 12px; font-size: 0.8rem; user-select: none; width: 100%;">Удерживайте: ДО</button>
+                  <button id="shadow-reset-btn" class="editor-btn btn-cancel" style="height: 30px; margin-top: 5px; width: 100%;">Сбросить настройки</button>
               </div>
               
               <!-- Правая колонка превью -->
-              <div class="rmbg-content-area" style="flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--top-bar-border);">
+              <div class="pipeline-preview-area">
                       <div class="sharpness-preview-wrapper" id="shadow-preview-wrapper" style="background: url('trueinventorybackground.png') repeat center;">
                           <canvas id="shadow-canvas"></canvas>
                           <canvas id="shadow-orig-canvas"></canvas>
@@ -762,53 +766,65 @@
 
               <div class="rmbg-footer" style="margin-top: 15px;">
               <button id="shadow-cancel-btn" class="editor-btn btn-cancel">Отмена</button>
+                  <button id="shadow-back-btn" class="editor-btn btn-cancel" style="display: none;">Назад</button>
                   <button id="shadow-skip-btn" class="editor-btn btn-cancel">Пропустить</button>
-              <button id="shadow-apply-btn" class="editor-btn btn-save">Применить</button>
+                  <button id="shadow-apply-btn" class="editor-btn btn-save">Применить</button>
+              </div>
           </div>
       </div>
-  </div>
 
   <!-- Модальное окно "Преумножение альфы (Premultiply)" -->
   <div id="premultiply-overlay" class="editor-overlay" style="z-index: 6020;">
       <div class="rmbg-popup" style="width: 90vw; max-width: 800px; height: 80vh; max-height: 80vh;">
           <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--top-bar-border); padding-bottom: 10px;">
-              <h3 style="margin: 0; color: #fff;">Преумножение альфы (Premultiply)</h3>
+              <h3 style="margin: 0; color: #fff;">Преумножение альфы</h3>
           </div>
           
-          <div class="sharpness-body-layout">
-              <div class="sharpness-sidebar-controls" style="width: 240px; display: flex; flex-direction: column;">
-                  <p style="font-size: 0.85rem; color: #aaa; margin-top: 0; line-height: 1.4;">
-                      Умножает значения цветов RGB на альфа-канал. Этот шаг критически важен, так как движок игры использует нестандартный режим смешивания, из-за которого обычные картинки имеют светлые границы.<br><br>При активной галочке вы видите точный результат того, как игра отобразит предмет на фоне инвентаря.
+          <div class="premult-body-layout">
+              <!-- Верхний блок объяснения -->
+              <div class="premult-top-explanation">
+                  <h4 style="margin: 0 0 5px 0; color: var(--special-stat-color); font-size: 1rem;">Как этот предмет будет выглядеть в игре?</h4>
+                  <p style="font-size: 0.85rem; color: #aaa; margin: 0; line-height: 1.4;">
+                      Игровой движок отображает полупрозрачные края предметов особым образом (у картинок появляется белый ореол). 
+                      <br>Выберите вариант импорта, который выглядит чисто и правильно. 
+                      <br><strong>Вариант А:</strong> Импорт без изменений (если файл уже оптимизирован). 
+                      <br><strong>Вариант Б:</strong> Оптимизация края под игровой рендеринг (рекомендуется). 
+                      <br>💡 Используйте кнопку зажатия под каждым вариантом для быстрого сравнения «в один миг».
                   </p>
-                  
-                  <div class="te-option-group" style="margin-top: 10px;">
-                      <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-                          <input type="checkbox" id="param-premult-gamerender" checked>
-                          <span style="font-size: 0.85rem; color: #aaa;">Игровой рендер (Фон)</span>
-                      </label>
-                  </div>
-                  <div class="te-option-group" style="margin-top: 5px;">
-                      <label class="bg-toggle-wrapper" style="margin: 0; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-                          <input type="checkbox" id="param-premult-1to1">
-                          <span style="font-size: 0.85rem; color: #aaa;">Отобразить в масштабе 1к1</span>
-                      </label>
-                  </div>
-
-                  <button id="premult-compare-btn" class="editor-btn btn-cancel" style="height: 30px; margin-top: auto; padding: 0 12px; font-size: 0.8rem; user-select: none; width: 100%;">Удерживайте: ДО</button>
               </div>
               
-              <div class="rmbg-content-area" style="flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--top-bar-border); background: #1a1a1a;">
-                  <div class="sharpness-preview-wrapper" id="premult-preview-wrapper" style="background: url('trueinventorybackground.png') repeat center;">
-                      <canvas id="premult-canvas"></canvas>
-                      <canvas id="premult-orig-canvas"></canvas>
+              <div class="premult-dual-layout">
+                  <!-- Вариант А: Без изменения -->
+                  <div class="premult-option-card">
+                      <div class="premult-option-header">Вариант А: Без изменений</div>
+                      <div class="premult-preview-wrapper" style="background: url('trueinventorybackground.png') repeat center;">
+                          <canvas id="premult-canvas-a"></canvas>
+                      </div>
+                      <div class="premult-option-footer">
+                          <button id="premult-select-a-btn" class="editor-btn btn-save" style="width: 100%;">Выбрать вариант А</button>
+                          <button id="premult-compare-a-btn" class="editor-btn btn-cancel" style="width: 100%; user-select: none;">Зажать для сравнения</button>
+                      </div>
+                  </div>
+                  
+                  <!-- Вариант Б: С исправлением -->
+                  <div class="premult-option-card">
+                      <div class="premult-option-header">Вариант Б: Оптимизация (Рекоменд.)</div>
+                      <div class="premult-preview-wrapper" style="background: url('trueinventorybackground.png') repeat center;">
+                          <canvas id="premult-canvas-b"></canvas>
+                      </div>
+                      <div class="premult-option-footer">
+                          <button id="premult-select-b-btn" class="editor-btn btn-save" style="width: 100%;">Выбрать вариант Б</button>
+                          <button id="premult-compare-b-btn" class="editor-btn btn-cancel" style="width: 100%; user-select: none;">Зажать для сравнения</button>
+                      </div>
                   </div>
               </div>
           </div>
 
           <div class="rmbg-footer" style="margin-top: 15px;">
               <button id="premult-cancel-btn" class="editor-btn btn-cancel">Отмена</button>
-              <button id="premult-skip-btn" class="editor-btn btn-cancel">Пропустить</button>
-              <button id="premult-apply-btn" class="editor-btn btn-save">Применить</button>
+              <button id="premult-back-btn" class="editor-btn btn-cancel" style="display: none;">Назад</button>
+              <button id="premult-skip-btn" class="editor-btn btn-cancel premult-footer-btn">Пропустить (А)</button>
+              <button id="premult-apply-btn" class="editor-btn btn-save premult-footer-btn">Применить (Б)</button>
           </div>
       </div>
   </div>

@@ -58,6 +58,7 @@
 #color-sign-toggle,
 #comparator-toggle,
 #ct-highlight-toggle,
+#global-game-render-toggle,
 #tier-sort-type-toggle {
   /* убираем дефолтный вид */
   -webkit-appearance: none;
@@ -78,6 +79,7 @@
 #color-sign-toggle:not(:checked),
 #comparator-toggle:not(:checked),
 #ct-highlight-toggle:not(:checked),
+#global-game-render-toggle:not(:checked),
 #tier-sort-type-toggle:not(:checked) {
   background-image: url('ChkBxOff.png');
 }
@@ -137,6 +139,28 @@
 }
 .tier-export-btn:active {
   background-color: #1b5e20;
+}
+
+/* Кнопка импорта тир-листа */
+.tier-import-btn {
+  display: inline-block;
+  padding: 6px 12px;
+  background-color: #0277bd; /* Синий */
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: bold;
+  margin-left: 6px;
+  transition: background-color 0.2s;
+  vertical-align: middle;
+}
+.tier-import-btn:hover {
+  background-color: #0288d1;
+}
+.tier-import-btn:active {
+  background-color: #01579b;
 }
 
 /* Кнопка случайного заполнения тир-листа для отладки */
