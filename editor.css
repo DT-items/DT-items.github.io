@@ -1500,6 +1500,22 @@ input[type=range].vertical-slider::-moz-range-thumb {
   box-sizing: border-box;
 }
 
+.rmbg-frame-loader-container {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 5px auto;
+}
+
+.rmbg-frame-loader-container img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
 .rmbg-footer {
   display: flex;
   justify-content: flex-end;

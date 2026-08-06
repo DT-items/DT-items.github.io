@@ -82,6 +82,35 @@ let rmbgWiggleInterval = null;
 let rmbgAutoPlay = true;
 let rmbgLastMouseX = null;
 let rmbgLastMouseY = null;
+let rmbgFrameInterval = null;
+let rmbgCurrentFrame = 1;
+
+// Предварительная загрузка кадров анимации для предотвращения мерцания
+for (let i = 1; i <= 64; i++) {
+    const img = new Image();
+    img.src = `loader/frame-${i}.png`;
+}
+
+function startRmbgFrameAnimation() {
+    const imgEl = document.getElementById('rmbg-frame-loader');
+    if (!imgEl) return;
+    
+    rmbgCurrentFrame = 1;
+    imgEl.src = `loader/frame-${rmbgCurrentFrame}.png`;
+    
+    if (rmbgFrameInterval) clearInterval(rmbgFrameInterval);
+    rmbgFrameInterval = setInterval(() => {
+        rmbgCurrentFrame = (rmbgCurrentFrame % 64) + 1;
+        imgEl.src = `loader/frame-${rmbgCurrentFrame}.png`;
+    }, 250); // 4 кадра в секунду (250мс на кадр)
+}
+
+function stopRmbgFrameAnimation() {
+    if (rmbgFrameInterval) {
+        clearInterval(rmbgFrameInterval);
+        rmbgFrameInterval = null;
+    }
+}
 
 // --- Элементы автоматической и интерактивной обрезки (Crop) ---
 let cropImageFile = null;
@@ -116,6 +145,7 @@ let sharpnessImageObj = null;
 let sharpnessFileObj = null;
 let sharpnessBaseBlob = null;
 let sharpnessOriginalPixels = null;
+let sharpnessProcessedPixels = null; // Буфер чистых пикселей без шума Canvas
 let sharpnessIsProcessing = false;
 let sharpnessTimeout = null;
 
@@ -167,6 +197,8 @@ const paramPremult1to1 = document.getElementById('param-premult-1to1');
 let shadowImageObj = null;
         let shadowFileObj = null;
         let shadowBaseBlob = null;
+let shadowOriginalPixels = null;
+let shadowProcessedPixels = null; // Буфер чистых пикселей без шума Canvas
 let shadowIsProcessing = false;
 let shadowTimeout = null;
 
@@ -836,9 +868,7 @@ async function handleIconUpload(e) {
     pendingUploadQueue = Array.from(e.target.files);
     currentQueueIndex = 0;
     e.target.value = '';
-    
     if (!window.originalCustomIcons) window.originalCustomIcons = {};
-    
     processNextInQueue();
 }
 
@@ -903,34 +933,24 @@ async function ensurePngFile(file) {
 
 async function processFileWithDirectPremultiply(file) {
     try {
-        const dataUrl = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (ev) => resolve(ev.target.result);
-            reader.readAsDataURL(file);
-        });
+        const arrayBuffer = await file.arrayBuffer();
+        const img = UPNG.decode(arrayBuffer);
+        const w = img.width;
+        const h = img.height;
 
-        const img = new Image();
-        await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.src = dataUrl;
-        });
-
-        let finalUrl = dataUrl;
-        if (img.width > 53 || img.height > 53) {
+        let finalBlob = file;
+        if (w > 53 || h > 53) {
             const decision = await showSizeWarning();
             if (decision === 'cancel') {
                 return false;
             } else if (decision === 'resize') {
-                finalUrl = resizeImageTo53(img);
+                finalBlob = await resizeImageTo53Pure(file);
             }
-        } else if (img.width < 53 || img.height < 53) {
-            finalUrl = padImageTo53(img);
+        } else if (w < 53 || h < 53) {
+            finalBlob = await padImageTo53Pure(file);
         }
 
-        const res = await fetch(finalUrl);
-        const blob = await res.blob();
-
-        openPremultiplyModal(file, blob, null);
+        openPremultiplyModal(file, finalBlob, null);
         return true;
     } catch (err) {
         console.error("Ошибка при обработке файла без автообработки:", file.name, err);
@@ -1051,6 +1071,7 @@ async function runRMBGProcessing(file) {
     if (rmbgStartView) rmbgStartView.style.display = 'none';
     
     rmbgLoadingView.style.display = 'flex';
+    startRmbgFrameAnimation();
     rmbgSliderView.style.display = 'none';
     rmbgErrorView.style.display = 'none';
     if (rmbgDownloadBtn) rmbgDownloadBtn.style.display = 'none';
@@ -1075,14 +1096,19 @@ async function runRMBGProcessing(file) {
         elapsed = (Date.now() - startTime) / 1000;
         rmbgStatElapsed.textContent = `⏱ Прошло: ${elapsed.toFixed(1)}s`;
         
-        if (serverEta > 0) {
-            const estimatedTotal = elapsed + serverEta;
-            progress = Math.min((elapsed / estimatedTotal) * 100, 98);
-            rmbgProgressFill.style.width = `${progress}%`;
-        } else if (serverStage === 'generating') {
-            progress = Math.min(progress + 0.3, 95);
-            rmbgProgressFill.style.width = `${progress}%`;
+        // Алгоритм псевдо-прогресса:
+        // 0 -> 60 сек: линейно до 85%
+        // 60 -> 180 сек (еще 2 минуты): замедление, линейно от 85% до 99.9%
+        let progress = 0;
+        if (elapsed <= 60) {
+            progress = (elapsed / 60) * 85;
+        } else {
+            progress = 85 + ((elapsed - 60) / 120) * 14.9;
         }
+        progress = Math.min(progress, 99.9);
+        rmbgProgressFill.style.width = `${progress.toFixed(1)}%`;
+        
+        rmbgStatEta.textContent = "⏳ Среднее время ожидания 60 сек";
     }, 100);
 
     try {
@@ -1101,10 +1127,8 @@ async function runRMBGProcessing(file) {
                 
                 if (msg.eta !== undefined) {
                     serverEta = msg.eta;
-                    rmbgStatEta.textContent = `⏳ Осталось: ~${serverEta.toFixed(1)}s${queueText}`;
-                } else {
-                    rmbgStatEta.textContent = `⏳ Статус: ${serverStage}${queueText}`;
                 }
+                rmbgStatEta.textContent = "⏳ Среднее время ожидания 60 сек";
                 
                 rmbgServerLog.textContent = `Стадия: ${msg.stage}${queueText}`;
             } 
@@ -1143,6 +1167,7 @@ async function runRMBGProcessing(file) {
                 rmbgImgBefore.src = originalUrl;
                 
                 rmbgLoadingView.style.display = 'none';
+                stopRmbgFrameAnimation();
                 rmbgSliderView.style.display = 'flex';
                 if (rmbgDownloadBtn) rmbgDownloadBtn.style.display = 'inline-block';
 
@@ -1156,6 +1181,7 @@ async function runRMBGProcessing(file) {
     } catch (err) {
         console.error("RMBG Error:", err);
         clearInterval(rmbgElapsedInterval);
+        stopRmbgFrameAnimation();
         rmbgLoadingView.style.display = 'none';
         rmbgErrorView.style.display = 'flex';
         rmbgErrorText.textContent = err.message || "Неизвестная ошибка связи с сервером";
@@ -1203,72 +1229,236 @@ function closeRMBGModal() {
     if (rmbgOverlay) rmbgOverlay.classList.remove('visible');
     if (rmbgElapsedInterval) clearInterval(rmbgElapsedInterval);
     if (rmbgWiggleInterval) clearInterval(rmbgWiggleInterval);
+    stopRmbgFrameAnimation();
     if (rmbgDownloadBtn) rmbgDownloadBtn.style.display = 'none';
+    const rmbgStartView = document.getElementById('rmbg-start-view');
+    if (rmbgStartView) rmbgStartView.style.display = 'none';
     processedBlob = null;
+}
+
+function resizeBicubic(src, srcW, srcH, dstW, dstH) {
+    const scaleX = dstW / srcW;
+    const scaleY = dstH / srcH;
+    
+    // Бикубический фильтр (Catmull-Rom сплайн, a = -0.5)
+    function filter(x) {
+        const a = -0.5;
+        x = Math.abs(x);
+        if (x <= 1) return (a + 2) * x * x * x - (a + 3) * x * x + 1;
+        if (x < 2) return a * x * x * x - 5 * a * x * x + 8 * a * x - 4 * a;
+        return 0;
+    }
+    
+    const filterRadius = 2.0;
+
+    // Шаг 1: Сжатие по оси X
+    const tmp = new Float32Array(dstW * srcH * 4);
+    const radiusX = Math.max(filterRadius, filterRadius / scaleX);
+    const scaleX_inv = Math.min(1.0, scaleX);
+    
+    for (let x = 0; x < dstW; x++) {
+        const center = (x + 0.5) / scaleX;
+        const left = Math.floor(center - radiusX);
+        const right = Math.ceil(center + radiusX);
+        
+        let totalWeight = 0;
+        const weights = new Float32Array(right - left);
+        for (let i = left; i < right; i++) {
+            const w = filter((center - (i + 0.5)) * scaleX_inv) * scaleX_inv;
+            weights[i - left] = w;
+            totalWeight += w;
+        }
+        if (totalWeight !== 0) {
+            for (let i = 0; i < weights.length; i++) weights[i] /= totalWeight;
+        }
+        
+        for (let y = 0; y < srcH; y++) {
+            let r = 0, g = 0, b = 0, a_val = 0;
+            for (let i = left; i < right; i++) {
+                const srcX = Math.min(Math.max(i, 0), srcW - 1);
+                const idx = (y * srcW + srcX) * 4;
+                const w = weights[i - left];
+                
+                // Преумноженная альфа для идеальных краев
+                const alpha = src[idx + 3];
+                r += src[idx] * alpha * w;
+                g += src[idx + 1] * alpha * w;
+                b += src[idx + 2] * alpha * w;
+                a_val += alpha * w;
+            }
+            const dstIdx = (y * dstW + x) * 4;
+            tmp[dstIdx] = r;
+            tmp[dstIdx + 1] = g;
+            tmp[dstIdx + 2] = b;
+            tmp[dstIdx + 3] = a_val;
+        }
+    }
+    
+    // Шаг 2: Сжатие по оси Y
+    const dst = new Uint8Array(dstW * dstH * 4);
+    const radiusY = Math.max(filterRadius, filterRadius / scaleY);
+    const scaleY_inv = Math.min(1.0, scaleY);
+    
+    for (let y = 0; y < dstH; y++) {
+        const center = (y + 0.5) / scaleY;
+        const top = Math.floor(center - radiusY);
+        const bottom = Math.ceil(center + radiusY);
+        
+        let totalWeight = 0;
+        const weights = new Float32Array(bottom - top);
+        for (let i = top; i < bottom; i++) {
+            const w = filter((center - (i + 0.5)) * scaleY_inv) * scaleY_inv;
+            weights[i - top] = w;
+            totalWeight += w;
+        }
+        if (totalWeight !== 0) {
+            for (let i = 0; i < weights.length; i++) weights[i] /= totalWeight;
+        }
+        
+        for (let x = 0; x < dstW; x++) {
+            let r = 0, g = 0, b = 0, a_val = 0;
+            for (let i = top; i < bottom; i++) {
+                const srcY = Math.min(Math.max(i, 0), srcH - 1);
+                const w = weights[i - top];
+                const idx = (srcY * dstW + x) * 4;
+                
+                r += tmp[idx] * w;
+                g += tmp[idx + 1] * w;
+                b += tmp[idx + 2] * w;
+                a_val += tmp[idx + 3] * w;
+            }
+            
+            const dstIdx = (y * dstW + x) * 4;
+            if (a_val > 0) {
+                // Восстановление из преумноженной альфы
+                dst[dstIdx] = Math.max(0, Math.min(255, Math.round(r / a_val)));
+                dst[dstIdx + 1] = Math.max(0, Math.min(255, Math.round(g / a_val)));
+                dst[dstIdx + 2] = Math.max(0, Math.min(255, Math.round(b / a_val)));
+                dst[dstIdx + 3] = Math.max(0, Math.min(255, Math.round(a_val)));
+            } else {
+                dst[dstIdx] = dst[dstIdx + 1] = dst[dstIdx + 2] = dst[dstIdx + 3] = 0;
+            }
+        }
+    }
+    
+    return dst;
+}
+
+async function resizeImageTo53Pure(blob) {
+    const arrayBuffer = await blob.arrayBuffer();
+    const img = UPNG.decode(arrayBuffer);
+    const rgba = new Uint8Array(UPNG.toRGBA8(img)[0]);
+    const w = img.width;
+    const h = img.height;
+    
+    const ratio = w / h;
+    let drawWidth, drawHeight;
+    
+    if (w > h) {
+        drawWidth = 53;
+        drawHeight = Math.round(53 / ratio);
+    } else {
+        drawHeight = 53;
+        drawWidth = Math.round(53 * ratio);
+    }
+    
+    const scaledRgba = resizeBicubic(rgba, w, h, drawWidth, drawHeight);
+    
+    const finalRgba = new Uint8Array(53 * 53 * 4);
+    const dx = Math.floor((53 - drawWidth) / 2);
+    const dy = Math.floor((53 - drawHeight) / 2);
+    
+    for (let y = 0; y < drawHeight; y++) {
+        const srcOffset = y * drawWidth * 4;
+        const dstOffset = ((dy + y) * 53 + dx) * 4;
+        finalRgba.set(scaledRgba.subarray(srcOffset, srcOffset + drawWidth * 4), dstOffset);
+    }
+    
+    const pngBuf = UPNG.encode([finalRgba.buffer], 53, 53, 0);
+    return new Blob([pngBuf], { type: 'image/png' });
+}
+
+async function padImageTo53Pure(blob) {
+    const arrayBuffer = await blob.arrayBuffer();
+    const img = UPNG.decode(arrayBuffer);
+    const rgba = new Uint8Array(UPNG.toRGBA8(img)[0]);
+    const w = img.width;
+    const h = img.height;
+    
+    const finalRgba = new Uint8Array(53 * 53 * 4);
+    const dx = Math.floor((53 - w) / 2);
+    const dy = Math.floor((53 - h) / 2);
+    
+    for (let y = 0; y < h; y++) {
+        const srcOffset = y * w * 4;
+        const dstOffset = ((dy + y) * 53 + dx) * 4;
+        finalRgba.set(rgba.subarray(srcOffset, srcOffset + w * 4), dstOffset);
+    }
+    
+    const pngBuf = UPNG.encode([finalRgba.buffer], 53, 53, 0);
+    return new Blob([pngBuf], { type: 'image/png' });
+}
+
+async function applyUGSCompressionPure(blob) {
+    const arrayBuffer = await blob.arrayBuffer();
+    const img = UPNG.decode(arrayBuffer);
+    const rgba = new Uint8Array(UPNG.toRGBA8(img)[0]);
+    const w = img.width;
+    const h = img.height;
+    
+    const compressedRgba = new Uint8Array(rgba.length);
+    for (let i = 0; i < rgba.length; i += 4) {
+        const a = Math.round(rgba[i+3] / 17);
+        if (a === 0) {
+            compressedRgba[i] = compressedRgba[i+1] = compressedRgba[i+2] = compressedRgba[i+3] = 0;
+        } else {
+            compressedRgba[i]   = Math.round(rgba[i]   / 17) * 17;
+            compressedRgba[i+1] = Math.round(rgba[i+1] / 17) * 17;
+            compressedRgba[i+2] = Math.round(rgba[i+2] / 17) * 17;
+            compressedRgba[i+3] = a * 17;
+        }
+    }
+    
+    const pngBuf = UPNG.encode([compressedRgba.buffer], w, h, 0);
+    const finalBlob = new Blob([pngBuf], { type: 'image/png' });
+    const url = URL.createObjectURL(finalBlob);
+    
+    if (!window.ugsRawCache) window.ugsRawCache = {};
+    window.ugsRawCache[url] = { width: w, height: h, data: compressedRgba };
+    
+    return url;
 }
 
 async function processFileAndAddToLibrary(file, customBlob = null) {
     try {
-        let dataUrl;
         let finalName = file.name;
+        let activeBlob = customBlob || file;
+        
         if (customBlob) {
-            dataUrl = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (ev) => resolve(ev.target.result);
-                reader.readAsDataURL(customBlob);
-            });
             const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
             finalName = "rmbg_" + baseName + ".png";
-        } else {
-            const ext = file.name.split('.').pop().toLowerCase();
-            if (ext === 'tga') {
-                dataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => {
-                        try {
-                            const tga = new TgaLoader();
-                            tga.load(new Uint8Array(ev.target.result));
-                            resolve(tga.getDataURL('image/png'));
-                        } catch (err) {
-                            reject(new Error('Не удалось прочитать TGA файл: ' + err.message));
-                        }
-                    };
-                    reader.readAsArrayBuffer(file);
-                });
-            } else {
-                dataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => resolve(ev.target.result);
-                    reader.readAsDataURL(file);
-                });
-            }
         }
 
-        const img = new Image();
-        await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.src = dataUrl;
-        });
+        const arrayBuffer = await activeBlob.arrayBuffer();
+        const img = UPNG.decode(arrayBuffer);
+        const w = img.width;
+        const h = img.height;
 
-        let finalUrl = dataUrl;
-        if (img.width > 53 || img.height > 53) {
+        let finalBlob = activeBlob;
+        if (w > 53 || h > 53) {
             const decision = await showSizeWarning();
             if (decision === 'cancel') {
                 return false;
             } else if (decision === 'resize') {
-                finalUrl = resizeImageTo53(img);
+                finalBlob = await resizeImageTo53Pure(activeBlob);
             }
-        } else if (img.width < 53 || img.height < 53) {
-            finalUrl = padImageTo53(img);
+        } else if (w < 53 || h < 53) {
+            finalBlob = await padImageTo53Pure(activeBlob);
         }
 
-        const compImg = new Image();
-        await new Promise((resolve) => {
-            compImg.onload = resolve;
-            compImg.src = finalUrl;
-        });
-        const compressedUrl = applyUGSCompression(compImg);
+        const compressedUrl = await applyUGSCompressionPure(finalBlob);
         
+        const finalUrl = URL.createObjectURL(finalBlob);
         window.originalCustomIcons[compressedUrl] = finalUrl;
 
         customIcons.unshift({
@@ -1617,32 +1807,34 @@ edList.addEventListener('scroll', handleManualScroll);
         });
     }
 
-    if (rmbgCancelBtn) {
-        rmbgCancelBtn.addEventListener('click', () => {
-            closeRMBGModal();
-            pendingUploadQueue = [];
-            currentQueueIndex = 0;
-        });
-    }
+            if (rmbgCancelBtn) {
+                rmbgCancelBtn.addEventListener('click', () => {
+                    closeRMBGModal();
+                    pendingUploadQueue = [];
+                    currentQueueIndex = 0;
+                });
+            }
 
-    if (rmbgSkipBtn) {
-        rmbgSkipBtn.addEventListener('click', async () => {
-            closeRMBGModal();
-            const file = pendingUploadQueue[currentQueueIndex];
-            openCropModal(file);
-        });
-    }
+            if (rmbgSkipBtn) {
+                rmbgSkipBtn.addEventListener('click', async () => {
+                    const file = pendingUploadQueue[currentQueueIndex];
+                    openCropModal(file, null, () => {
+                        closeRMBGModal();
+                    });
+                });
+            }
 
-    if (rmbgContinueBtn) {
-        rmbgContinueBtn.addEventListener('click', async () => {
-            const blobToProcess = processedBlob;
-            closeRMBGModal();
-            const file = pendingUploadQueue[currentQueueIndex];
-            openCropModal(file, blobToProcess);
-        });
-    }
+            if (rmbgContinueBtn) {
+                rmbgContinueBtn.addEventListener('click', async () => {
+                    const blobToProcess = processedBlob;
+                    const file = pendingUploadQueue[currentQueueIndex];
+                    openCropModal(file, blobToProcess, () => {
+                        closeRMBGModal();
+                    });
+                });
+            }
 
-        if (rmbgRangeInput) {
+            if (rmbgRangeInput) {
             rmbgRangeInput.addEventListener('input', (e) => {
                 rmbgAutoPlay = false;
                 if (rmbgWiggleInterval) clearInterval(rmbgWiggleInterval);
@@ -1954,39 +2146,189 @@ function renderCustomIcons() {
     });
 }
 
-// --- Image Resize Helper ---
-function resizeImageTo53(img) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 53;
-    canvas.height = 53;
-    const ctx = canvas.getContext('2d');
-    
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    
-    const ratio = img.width / img.height;
-    let drawWidth, drawHeight;
-    
-    if (img.width > img.height) {
-        drawWidth = 53;
-        drawHeight = 53 / ratio;
-    } else {
-        drawHeight = 53;
-        drawWidth = 53 * ratio;
+function resizeSmoothAreaAverage(srcRGBA, srcW, srcH, dstW, dstH) {
+    const dstRGBA = new Uint8Array(dstW * dstH * 4);
+    const scaleX = srcW / dstW;
+    const scaleY = srcH / dstH;
+
+    for (let y = 0; y < dstH; y++) {
+        const ySrcStart = y * scaleY;
+        const ySrcEnd = (y + 1) * scaleY;
+        const yStartIdx = Math.floor(ySrcStart);
+        const yEndIdx = Math.min(srcH, Math.ceil(ySrcEnd));
+
+        for (let x = 0; x < dstW; x++) {
+            const xSrcStart = x * scaleX;
+            const xSrcEnd = (x + 1) * scaleX;
+            const xStartIdx = Math.floor(xSrcStart);
+            const xEndIdx = Math.min(srcW, Math.ceil(xSrcEnd));
+
+            let r = 0, g = 0, b = 0, a = 0;
+            let weightSum = 0;
+            let colorWeightSum = 0;
+
+            for (let sy = yStartIdx; sy < yEndIdx; sy++) {
+                const yWeight = Math.min(sy + 1, ySrcEnd) - Math.max(sy, ySrcStart);
+                
+                for (let sx = xStartIdx; sx < xEndIdx; sx++) {
+                    const xWeight = Math.min(sx + 1, xSrcEnd) - Math.max(sx, xSrcStart);
+                    const weight = xWeight * yWeight;
+                    
+                    const srcIdx = (sy * srcW + sx) * 4;
+                    const srcA = srcRGBA[srcIdx + 3];
+                    
+                    // Преумножаем на альфу для защиты от темных (грязных) контуров
+                    a += srcA * weight;
+                    weightSum += weight;
+                    
+                    if (srcA > 0) {
+                        r += srcRGBA[srcIdx] * srcA * weight;
+                        g += srcRGBA[srcIdx + 1] * srcA * weight;
+                        b += srcRGBA[srcIdx + 2] * srcA * weight;
+                        colorWeightSum += srcA * weight;
+                    }
+                }
+            }
+
+            const dstIdx = (y * dstW + x) * 4;
+            if (weightSum > 0) {
+                dstRGBA[dstIdx + 3] = Math.round(a / weightSum);
+            } else {
+                dstRGBA[dstIdx + 3] = 0;
+            }
+            
+            if (colorWeightSum > 0) {
+                dstRGBA[dstIdx] = Math.round(r / colorWeightSum);
+                dstRGBA[dstIdx + 1] = Math.round(g / colorWeightSum);
+                dstRGBA[dstIdx + 2] = Math.round(b / colorWeightSum);
+            } else {
+                dstRGBA[dstIdx] = dstRGBA[dstIdx + 1] = dstRGBA[dstIdx + 2] = 0;
+            }
+        }
     }
-    
-    const dx = (53 - drawWidth) / 2;
-    const dy = (53 - drawHeight) / 2;
-    
-    ctx.drawImage(img, dx, dy, drawWidth, drawHeight);
-    return canvas.toDataURL('image/png');
+    return dstRGBA;
 }
 
-function padImageTo53(img) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 53;
-    canvas.height = 53;
-    const ctx = canvas.getContext('2d');
+async function resizeImageTo53Pure(blob) {
+    const arrayBuffer = await blob.arrayBuffer();
+    const img = UPNG.decode(arrayBuffer);
+    const rgba = new Uint8Array(UPNG.toRGBA8(img)[0]);
+    const w = img.width;
+    const h = img.height;
+    
+    const ratio = w / h;
+    let drawWidth, drawHeight;
+    
+    if (w > h) {
+        drawWidth = 53;
+        drawHeight = Math.round(53 / ratio);
+    } else {
+        drawHeight = 53;
+        drawWidth = Math.round(53 * ratio);
+    }
+    
+    const scaledRgba = resizeSmoothAreaAverage(rgba, w, h, drawWidth, drawHeight);
+    
+    const finalRgba = new Uint8Array(53 * 53 * 4);
+    const dx = Math.floor((53 - drawWidth) / 2);
+    const dy = Math.floor((53 - drawHeight) / 2);
+    
+    for (let y = 0; y < drawHeight; y++) {
+        const srcOffset = y * drawWidth * 4;
+        const dstOffset = ((dy + y) * 53 + dx) * 4;
+        finalRgba.set(scaledRgba.subarray(srcOffset, srcOffset + drawWidth * 4), dstOffset);
+    }
+    
+    const pngBuf = UPNG.encode([finalRgba.buffer], 53, 53, 0);
+    return new Blob([pngBuf], { type: 'image/png' });
+}
+
+async function padImageTo53Pure(blob) {
+    const arrayBuffer = await blob.arrayBuffer();
+    const img = UPNG.decode(arrayBuffer);
+    const rgba = new Uint8Array(UPNG.toRGBA8(img)[0]);
+    const w = img.width;
+    const h = img.height;
+    
+    const finalRgba = new Uint8Array(53 * 53 * 4);
+    const dx = Math.floor((53 - w) / 2);
+    const dy = Math.floor((53 - h) / 2);
+    
+    for (let y = 0; y < h; y++) {
+        const srcOffset = y * w * 4;
+        const dstOffset = ((dy + y) * 53 + dx) * 4;
+        finalRgba.set(rgba.subarray(srcOffset, srcOffset + w * 4), dstOffset);
+    }
+    
+    const pngBuf = UPNG.encode([finalRgba.buffer], 53, 53, 0);
+    return new Blob([pngBuf], { type: 'image/png' });
+}
+
+async function applyUGSCompressionPure(blob) {
+    const arrayBuffer = await blob.arrayBuffer();
+    const img = UPNG.decode(arrayBuffer);
+    const rgba = new Uint8Array(UPNG.toRGBA8(img)[0]);
+    const w = img.width;
+    const h = img.height;
+    
+    const compressedRgba = new Uint8Array(rgba.length);
+    for (let i = 0; i < rgba.length; i += 4) {
+        const a = Math.round(rgba[i+3] / 17);
+        if (a === 0) {
+            compressedRgba[i] = compressedRgba[i+1] = compressedRgba[i+2] = compressedRgba[i+3] = 0;
+        } else {
+            compressedRgba[i]   = Math.round(rgba[i]   / 17) * 17;
+            compressedRgba[i+1] = Math.round(rgba[i+1] / 17) * 17;
+            compressedRgba[i+2] = Math.round(rgba[i+2] / 17) * 17;
+            compressedRgba[i+3] = a * 17;
+        }
+    }
+    
+        const pngBuf = UPNG.encode([compressedRgba.buffer], w, h, 0);
+        const finalBlob = new Blob([pngBuf], { type: 'image/png' });
+        const url = URL.createObjectURL(finalBlob);
+        
+        if (!window.ugsRawCache) window.ugsRawCache = {};
+        window.ugsRawCache[url] = { width: w, height: h, data: compressedRgba };
+        
+        return url;
+    }
+
+    function ensurePngBlob(blob) {
+        if (blob.type === 'image/png') {
+            return Promise.resolve(blob);
+        }
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob((newBlob) => {
+                    URL.revokeObjectURL(url);
+                    if (newBlob) {
+                        resolve(newBlob);
+                    } else {
+                        reject(new Error("Ошибка конвертации изображения в PNG"));
+                    }
+                }, 'image/png');
+            };
+            img.onerror = (err) => {
+                URL.revokeObjectURL(url);
+                reject(err);
+            };
+            img.src = url;
+        });
+    }
+
+    function padImageTo53(img) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 53;
+        canvas.height = 53;
+        const ctx = canvas.getContext('2d');
     
     // Центрируем изображение на прозрачном холсте 53x53
     const dx = Math.floor((53 - img.width) / 2);
@@ -3476,7 +3818,7 @@ function fillEditorForm(item) {
     edIcon.src = window.resolveIconUrl(currentMode, item);
     // Сохраняем текущую иконку для редактора
     currentIconPath = item.Icon; 
-    isCurrentIconCustom = currentIconPath && currentIconPath.startsWith('data:'); // Обновляем флаг
+    isCurrentIconCustom = currentIconPath && (currentIconPath.startsWith('data:') || currentIconPath.startsWith('blob:')); // Обновляем флаг
     
     if (item.Type && edTypeContainer._setValue) {
         edTypeContainer._setValue(item.Type);
@@ -3732,70 +4074,86 @@ function applyZoom() {
         zoomLabel.textContent = `${Math.round(cropZoom * 100)}%`;
     }
     
-    if (currentSessionCropState) {
-        currentSessionCropState.zoom = cropZoom;
+        if (currentSessionCropState) {
+            currentSessionCropState.zoom = cropZoom;
+        }
+        
+        updateCropUI();
     }
-    
-    updateCropUI();
-}
 
 function openCropModal(file, blob = null, onReady = null) {
     cropImageFile = file;
-    cropImageBlob = blob || file;
     
-    pipelineStepBlobs.cropInput = cropImageBlob; // Сохраняем входные данные для истории
-    
-    const cropOverlay = document.getElementById('crop-overlay');
-    const cropImage = document.getElementById('crop-image');
-    
-    const objectUrl = URL.createObjectURL(cropImageBlob);
-    cropImage.src = objectUrl;
-    
-    cropOverlay.classList.add('visible');
-    if (onReady) onReady();
-    
-    const img = new Image();
-    img.onload = () => {
-        cropImageObj = img;
+    ensurePngBlob(blob || file).then(pngBlob => {
+        cropImageBlob = pngBlob;
+        pipelineStepBlobs.cropInput = pngBlob; // Сохраняем входные данные для истории
         
-        const contentArea = document.querySelector('#crop-overlay .rmbg-content-area');
-        const maxWidth = contentArea.clientWidth - 40;
-        const maxHeight = contentArea.clientHeight - 40;
-        const ratio = img.naturalWidth / img.naturalHeight;
+        const cropOverlay = document.getElementById('crop-overlay');
+        const cropImage = document.getElementById('crop-image');
         
-        // Автоприближение: всегда масштабируем картинку до краев области просмотра
-        if (maxWidth / ratio <= maxHeight) {
-            cropBaseWidth = maxWidth;
-            cropBaseHeight = maxWidth / ratio;
-        } else {
-            cropBaseHeight = maxHeight;
-            cropBaseWidth = maxHeight * ratio;
-        }
+        const objectUrl = URL.createObjectURL(pngBlob);
+        cropImage.src = objectUrl;
         
-        // Проверяем, есть ли уже сохраненное состояние обрезки для этой картинки
-        if (currentSessionCropState) {
-            cropCoords = { ...currentSessionCropState.coords };
-            cropZoom = currentSessionCropState.zoom;
-            applyZoom();
-        } else {
-            cropZoom = 1.0;
-            applyZoom();
-            
-            // Автоопределение границ видимой области спрайта
-            autoCropTransparency(img, (autoCoords) => {
-                cropCoords = autoCoords;
-                currentSessionCropState = {
-                    coords: { ...cropCoords },
-                    zoom: cropZoom
-                };
-                updateCropUI();
+        cropOverlay.classList.add('visible');
+        
+        const triggerOnReady = () => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (onReady) onReady();
+                });
             });
-        }
-    };
-    img.src = objectUrl;
-}
+        };
+        
+        const img = new Image();
+        img.onload = () => {
+            cropImageObj = img;
+            
+            const contentArea = document.querySelector('#crop-overlay .rmbg-content-area');
+            const maxWidth = contentArea.clientWidth - 40;
+            const maxHeight = contentArea.clientHeight - 40;
+            const ratio = img.naturalWidth / img.naturalHeight;
+            
+            // Автоприближение: всегда масштабируем картинку до краев области просмотра
+            if (maxWidth / ratio <= maxHeight) {
+                cropBaseWidth = maxWidth;
+                cropBaseHeight = maxWidth / ratio;
+            } else {
+                cropBaseHeight = maxHeight;
+                cropBaseWidth = maxHeight * ratio;
+            }
+            
+            // Проверяем, есть ли уже сохраненное состояние обрезки для этой картинки
+            if (currentSessionCropState) {
+                cropCoords = { ...currentSessionCropState.coords };
+                cropZoom = currentSessionCropState.zoom;
+                applyZoom();
+                triggerOnReady();
+            } else {
+                cropZoom = 1.0;
+                applyZoom();
+                
+                // Автоопределение границ видимой области спрайта
+                autoCropTransparency(img, (autoCoords) => {
+                    cropCoords = autoCoords;
+                    currentSessionCropState = {
+                        coords: { ...cropCoords },
+                        zoom: cropZoom
+                    };
+                    updateCropUI();
+                    triggerOnReady();
+                });
+            }
+        };
+        img.src = objectUrl;
+    }).catch(err => {
+        console.error("Ошибка при подготовке PNG для Crop:", err);
+        if (typeof showNotification === 'function') {
+                showNotification("Ошибка подготовки изображения", "error");
+            }
+        });
+    }
 
-function autoCropTransparency(img, callback) {
+    function autoCropTransparency(img, callback) {
     const width = img.naturalWidth;
     const height = img.naturalHeight;
     
@@ -4236,30 +4594,39 @@ function openSharpnessModal(file, blob, onReady) {
     
     updateSharpnessUIValues();
     
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => {
-        sharpnessImageObj = img;
+    blob.arrayBuffer().then(arrayBuffer => {
+        const upngImg = UPNG.decode(arrayBuffer);
+        sharpnessOriginalPixels = new Uint8ClampedArray(UPNG.toRGBA8(upngImg)[0]);
         
-        sharpnessCanvas.width = img.naturalWidth;
-        sharpnessCanvas.height = img.naturalHeight;
-        sharpnessOrigCanvas.width = img.naturalWidth;
-        sharpnessOrigCanvas.height = img.naturalHeight;
+        sharpnessCanvas.width = upngImg.width;
+        sharpnessCanvas.height = upngImg.height;
+        sharpnessOrigCanvas.width = upngImg.width;
+        sharpnessOrigCanvas.height = upngImg.height;
         
-        const origCtx = sharpnessOrigCanvas.getContext('2d');
-        origCtx.drawImage(img, 0, 0);
-        sharpnessOriginalPixels = origCtx.getImageData(0, 0, img.width, img.height).data;
-        
-        applySharpnessFilter();
-        sharpnessOverlay.classList.add('visible');
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+            sharpnessImageObj = img;
+            
+            const origCtx = sharpnessOrigCanvas.getContext('2d');
+            origCtx.drawImage(img, 0, 0);
+            
+            applySharpnessFilter();
+            sharpnessOverlay.classList.add('visible');
 
-        if (onReady) onReady();
+            // Откладываем закрытие предыдущего шага, чтобы избежать мерцания
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (onReady) onReady();
+                });
+            });
 
-        requestAnimationFrame(() => {
-            updateSharpnessPreviewScale();
-        });
-    };
-    img.src = url;
+            requestAnimationFrame(() => {
+                updateSharpnessPreviewScale();
+            });
+        };
+        img.src = url;
+    });
 }
 
 function closeSharpnessModal() {
@@ -4268,6 +4635,7 @@ function closeSharpnessModal() {
     sharpnessFileObj = null;
     sharpnessBaseBlob = null;
     sharpnessOriginalPixels = null;
+    sharpnessProcessedPixels = null;
 }
 
 function updateSharpnessUIValues() {
@@ -4307,9 +4675,7 @@ function applySharpnessFilter() {
     
     const dB = straightGaussianBlur(preparedPixels, width, height, radius);
     
-    const resCtx = sharpnessCanvas.getContext('2d');
-    const resData = resCtx.createImageData(width, height);
-    const resultPixels = resData.data;
+    const pureDest = new Uint8Array(length);
     
     for (let i = 0; i < length; i += 4) {
         for (let c = 0; c < 3; c++) { 
@@ -4321,20 +4687,25 @@ function applySharpnessFilter() {
             
             if (threshold === 0) {
                 let val = origVal + diff * amount;
-                resultPixels[idx] = val < 0 ? 0 : (val > 255 ? 255 : val);
+                pureDest[idx] = val < 0 ? 0 : (val > 255 ? 255 : val);
             } else {
                 if (absDiff <= threshold) {
-                    resultPixels[idx] = origVal;
+                    pureDest[idx] = origVal;
                 } else {
                     const softWeight = Math.min(1, (absDiff - threshold) / Math.max(1, threshold * 0.5));
                     let val = origVal + diff * amount * softWeight;
-                    resultPixels[idx] = val < 0 ? 0 : (val > 255 ? 255 : val);
+                    pureDest[idx] = val < 0 ? 0 : (val > 255 ? 255 : val);
                 }
             }
         }
-        resultPixels[i + 3] = sharpnessOriginalPixels[i + 3];
+        pureDest[i + 3] = sharpnessOriginalPixels[i + 3];
     }
     
+    sharpnessProcessedPixels = pureDest;
+    
+    const resCtx = sharpnessCanvas.getContext('2d');
+    const resData = resCtx.createImageData(width, height);
+    resData.data.set(pureDest);
     resCtx.putImageData(resData, 0, 0);
     sharpnessIsProcessing = false;
 }
@@ -4419,16 +4790,19 @@ function initSharpnessButtons() {
     });
 
     sharpnessApplyBtn.addEventListener('click', () => {
-        if (!sharpnessCanvas || !sharpnessFileObj) return;
+        if (!sharpnessProcessedPixels || !sharpnessFileObj) return;
         
         const fileToProcess = sharpnessFileObj;
-        sharpnessCanvas.toBlob(async (blob) => {
-            if (blob) {
-                openShadowModal(fileToProcess, blob, () => {
-                    closeSharpnessModal();
-                });
-            }
-        }, 'image/png');
+        const w = sharpnessCanvas.width;
+        const h = sharpnessCanvas.height;
+
+        // Кодируем чистый массив из памяти, минуя Canvas
+        const pngBuf = UPNG.encode([sharpnessProcessedPixels.buffer], w, h, 0);
+        const blob = new Blob([pngBuf], { type: 'image/png' });
+        
+        openShadowModal(fileToProcess, blob, () => {
+            closeSharpnessModal();
+        });
     });
 
     sharpnessCompareBtn.addEventListener('mousedown', () => {
@@ -4474,37 +4848,55 @@ async function applyCropAndContinue() {
     let drawWidth, drawHeight;
     if (croppedWidth > croppedHeight) {
         drawWidth = targetSize;
-        drawHeight = targetSize / ratio;
+        drawHeight = Math.round(targetSize / ratio);
     } else {
         drawHeight = targetSize;
-        drawWidth = targetSize * ratio;
+        drawWidth = Math.round(targetSize * ratio);
     }
 
-    const dx = (targetSize - drawWidth) / 2;
-    const dy = (targetSize - drawHeight) / 2;
+    const dx = Math.floor((targetSize - drawWidth) / 2);
+    const dy = Math.floor((targetSize - drawHeight) / 2);
 
-    const canvas = document.createElement('canvas');
-    canvas.width = targetSize;
-    canvas.height = targetSize;
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
+    // Decode original cropImageBlob via UPNG
+    const arrayBuffer = await cropImageBlob.arrayBuffer();
+    const img = UPNG.decode(arrayBuffer);
+    const rgba = new Uint8Array(UPNG.toRGBA8(img)[0]);
+    const w = img.width;
+    const h = img.height;
+
+    // Crop in pure JS
+    const cropX = Math.round(cropCoords.x);
+    const cropY = Math.round(cropCoords.y);
+    const croppedRgba = new Uint8Array(croppedWidth * croppedHeight * 4);
     
-    ctx.drawImage(
-        cropImageObj,
-        Math.round(cropCoords.x), Math.round(cropCoords.y), Math.round(cropCoords.w), Math.round(cropCoords.h),
-        dx, dy, drawWidth, drawHeight
-    );
-    
+    for (let cy = 0; cy < croppedHeight; cy++) {
+        const srcY = cropY + cy;
+        if (srcY < 0 || srcY >= h) continue;
+        const srcOffset = (srcY * w + cropX) * 4;
+        const dstOffset = cy * croppedWidth * 4;
+        croppedRgba.set(rgba.subarray(srcOffset, srcOffset + croppedWidth * 4), dstOffset);
+    }
+
+    // Scale in pure JS using high-quality Area Average
+    const scaledRgba = resizeSmoothAreaAverage(croppedRgba, croppedWidth, croppedHeight, drawWidth, drawHeight);
+
+    // Pad in pure JS to 53x53
+    const finalRgba = new Uint8Array(53 * 53 * 4);
+    for (let cy = 0; cy < drawHeight; cy++) {
+        const srcOffset = cy * drawWidth * 4;
+        const dstOffset = ((dy + cy) * 53 + dx) * 4;
+        finalRgba.set(scaledRgba.subarray(srcOffset, srcOffset + drawWidth * 4), dstOffset);
+    }
+
+    // Encode back to PNG using UPNG
+    const pngBuf = UPNG.encode([finalRgba.buffer], 53, 53, 0);
+    const blob = new Blob([pngBuf], { type: 'image/png' });
+
     const fileToProcess = cropImageFile;
     
-    canvas.toBlob(async (blob) => {
-        if (blob) {
-            openSharpnessModal(fileToProcess, blob, () => {
-                closeCropModal();
-            });
-        }
-    }, 'image/png');
+    openSharpnessModal(fileToProcess, blob, () => {
+        closeCropModal();
+    });
 }
 
 window.addEventListener('resize', () => {
@@ -4575,29 +4967,39 @@ function openShadowModal(file, blob, onReady) {
     updateShadowColorPreview();
     updateShadowAngleDial();
 
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => {
-        shadowImageObj = img;
-        shadowCanvas.width = img.naturalWidth;
-        shadowCanvas.height = img.naturalHeight;
-        shadowOrigCanvas.width = img.naturalWidth;
-        shadowOrigCanvas.height = img.naturalHeight;
+    blob.arrayBuffer().then(arrayBuffer => {
+        const upngImg = UPNG.decode(arrayBuffer);
+        shadowOriginalPixels = new Uint8ClampedArray(UPNG.toRGBA8(upngImg)[0]);
+        
+        shadowCanvas.width = upngImg.width;
+        shadowCanvas.height = upngImg.height;
+        shadowOrigCanvas.width = upngImg.width;
+        shadowOrigCanvas.height = upngImg.height;
+        
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+            shadowImageObj = img;
+            
+            const origCtx = shadowOrigCanvas.getContext('2d');
+            origCtx.drawImage(img, 0, 0);
 
-        // Рисуем исходник на невидимый по умолчанию верхний слой для мгновенного сравнения
-        const origCtx = shadowOrigCanvas.getContext('2d');
-        origCtx.drawImage(img, 0, 0);
+            applyShadowFilter();
+            shadowOverlay.classList.add('visible');
 
-        applyShadowFilter();
-        shadowOverlay.classList.add('visible');
+            // Скрываем оверлей обрезки только после полной отрисовки тени
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (onReady) onReady();
+                });
+            });
 
-        if (onReady) onReady();
-
-        requestAnimationFrame(() => {
-            updateShadowPreviewScale();
-        });
-    };
-    img.src = url;
+            requestAnimationFrame(() => {
+                updateShadowPreviewScale();
+            });
+        };
+        img.src = url;
+    });
 }
 
 function updateShadowPreviewScale() {
@@ -4691,6 +5093,8 @@ function updateShadowPreviewScale() {
             shadowImageObj = null;
             shadowFileObj = null;
             shadowBaseBlob = null;
+            shadowOriginalPixels = null;
+            shadowProcessedPixels = null;
 }
 
 function updateShadowColorPreview() {
@@ -4719,7 +5123,7 @@ function handleShadowAngleDial(e) {
 }
 
 function applyShadowFilter() {
-    if (!shadowImageObj || shadowIsProcessing) return;
+    if (!shadowOriginalPixels || shadowIsProcessing) return;
     shadowIsProcessing = true;
 
     const radius = Math.max(0, shadowState.radius);
@@ -4729,18 +5133,8 @@ function applyShadowFilter() {
     const dx = distance * Math.cos(angleRad);
     const dy = -distance * Math.sin(angleRad);
 
-    const origW = shadowImageObj.width;
-    const origH = shadowImageObj.height;
-
-    shadowCanvas.width = origW;
-    shadowCanvas.height = origH;
-
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = origW;
-    tempCanvas.height = origH;
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.drawImage(shadowImageObj, 0, 0);
-    const origImageData = tempCtx.getImageData(0, 0, origW, origH);
+    const origW = shadowCanvas.width;
+    const origH = shadowCanvas.height;
 
     const pad = Math.ceil(radius * 3);
     const padW = origW + pad * 2;
@@ -4751,7 +5145,7 @@ function applyShadowFilter() {
         for (let x = 0; x < origW; x++) {
             const origIndex = (y * origW + x) * 4 + 3;
             const targetIndex = (y + pad) * padW + (x + pad);
-            alphaIn[targetIndex] = origImageData.data[origIndex];
+            alphaIn[targetIndex] = shadowOriginalPixels[origIndex];
         }
     }
 
@@ -4786,9 +5180,7 @@ function applyShadowFilter() {
         alphaBlurred.set(alphaIn);
     }
 
-    const ctx = shadowCanvas.getContext('2d');
-    const finalImageData = ctx.createImageData(origW, origH);
-    const dest = finalImageData.data;
+    const pureDest = new Uint8Array(origW * origH * 4);
 
     const shadowR = shadowState.r;
     const shadowG = shadowState.g;
@@ -4826,30 +5218,35 @@ function applyShadowFilter() {
             const interpVal = (1 - ty) * ((1 - tx) * v00 + tx * v10) + ty * ((1 - tx) * v01 + tx * v11);
             sAlphaNorm = (interpVal / 255.0) * shadowOpacity;
 
-            const fgR = origImageData.data[idx];
-            const fgG = origImageData.data[idx + 1];
-            const fgB = origImageData.data[idx + 2];
-            const fgA = origImageData.data[idx + 3] / 255.0;
+            const fgR = shadowOriginalPixels[idx];
+            const fgG = shadowOriginalPixels[idx + 1];
+            const fgB = shadowOriginalPixels[idx + 2];
+            const fgA = shadowOriginalPixels[idx + 3] / 255.0;
 
             if (shadowState.shadowOnly) {
-                dest[idx] = shadowR;
-                dest[idx + 1] = shadowG;
-                dest[idx + 2] = shadowB;
-                dest[idx + 3] = Math.round(sAlphaNorm * 255);
+                pureDest[idx] = shadowR;
+                pureDest[idx + 1] = shadowG;
+                pureDest[idx + 2] = shadowB;
+                pureDest[idx + 3] = Math.round(sAlphaNorm * 255);
             } else {
                 const outAlpha = fgA + sAlphaNorm * (1.0 - fgA);
                 if (outAlpha > 0) {
-                    dest[idx] = Math.round((fgR * fgA + shadowR * sAlphaNorm * (1.0 - fgA)) / outAlpha);
-                    dest[idx + 1] = Math.round((fgG * fgA + shadowG * sAlphaNorm * (1.0 - fgA)) / outAlpha);
-                    dest[idx + 2] = Math.round((fgB * fgA + shadowB * sAlphaNorm * (1.0 - fgA)) / outAlpha);
-                    dest[idx + 3] = Math.round(outAlpha * 255);
+                    pureDest[idx] = Math.round((fgR * fgA + shadowR * sAlphaNorm * (1.0 - fgA)) / outAlpha);
+                    pureDest[idx + 1] = Math.round((fgG * fgA + shadowG * sAlphaNorm * (1.0 - fgA)) / outAlpha);
+                    pureDest[idx + 2] = Math.round((fgB * fgA + shadowB * sAlphaNorm * (1.0 - fgA)) / outAlpha);
+                    pureDest[idx + 3] = Math.round(outAlpha * 255);
                 } else {
-                    dest[idx] = dest[idx + 1] = dest[idx + 2] = dest[idx + 3] = 0;
+                    pureDest[idx] = pureDest[idx + 1] = pureDest[idx + 2] = pureDest[idx + 3] = 0;
                 }
             }
         }
     }
 
+    shadowProcessedPixels = pureDest;
+
+    const ctx = shadowCanvas.getContext('2d');
+    const finalImageData = ctx.createImageData(origW, origH);
+    finalImageData.data.set(pureDest);
     ctx.putImageData(finalImageData, 0, 0);
     shadowIsProcessing = false;
 }
@@ -5050,15 +5447,14 @@ function initShadowButtons() {
     });
 
     shadowApplyBtn.addEventListener('click', () => {
-        if (!shadowCanvas || !shadowFileObj) return;
+        if (!shadowProcessedPixels || !shadowFileObj) return;
         
         const fileToProcess = shadowFileObj;
         const w = shadowCanvas.width;
         const h = shadowCanvas.height;
-        const imgData = shadowCanvas.getContext('2d').getImageData(0, 0, w, h);
         
-        // Pixel-perfect сохранение с помощью UPNG
-        const pngBuffer = UPNG.encode([imgData.data.buffer], w, h, 0);
+        // Pixel-perfect сохранение с помощью UPNG без чтения из грязного Canvas
+        const pngBuffer = UPNG.encode([shadowProcessedPixels.buffer], w, h, 0);
         const blob = new Blob([pngBuffer], { type: "image/png" });
         
         openPremultiplyModal(fileToProcess, blob, () => {
@@ -5162,20 +5558,24 @@ function openPremultiplyModal(file, blob, onReady) {
         origCtx.clearRect(0, 0, img.naturalWidth, img.naturalHeight);
         origCtx.drawImage(img, 0, 0);
 
-        // Извлекаем точные пиксели для математики (оригинал)
-        premultRawPixels = origCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight).data;
+                // Извлекаем точные пиксели для математики (оригинал)
+                premultRawPixels = origCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight).data;
 
-        applyPremultiplyFilter();
-        premultiplyOverlay.classList.add('visible');
-        
-        // Закрываем предыдущее окно без мерцания интерфейса
-        if (onReady) onReady();
+                applyPremultiplyFilter();
+                premultiplyOverlay.classList.add('visible');
+                
+                // Закрываем предыдущее окно без мерцания интерфейса
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (onReady) onReady();
+                    });
+                });
 
-        requestAnimationFrame(() => {
-            updatePremultiplyPreviewScale();
-        });
-    };
-    img.src = url;
+                requestAnimationFrame(() => {
+                    updatePremultiplyPreviewScale();
+                });
+            };
+            img.src = url;
 }
 
 function closePremultiplyModal() {
@@ -5197,49 +5597,54 @@ function openPremultiplyModal(file, blob, onReady) {
         premultBackBtn.style.display = pipelineStepBlobs.shadowInput ? 'inline-block' : 'none';
     }
 
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => {
-        premultImageObj = img;
-        premultCanvasA.width = img.naturalWidth;
-        premultCanvasA.height = img.naturalHeight;
-        premultCanvasB.width = img.naturalWidth;
-        premultCanvasB.height = img.naturalHeight;
+    blob.arrayBuffer().then(arrayBuffer => {
+        const upngImg = UPNG.decode(arrayBuffer);
+        premultRawPixels = new Uint8ClampedArray(UPNG.toRGBA8(upngImg)[0]);
+        const w = upngImg.width;
+        const h = upngImg.height;
 
-        // Создаем вспомогательный холст для извлечения пикселей исходного формата
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = img.naturalWidth;
-        tempCanvas.height = img.naturalHeight;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.drawImage(img, 0, 0);
-        premultRawPixels = tempCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight).data;
+        premultCanvasA.width = w;
+        premultCanvasA.height = h;
+        premultCanvasB.width = w;
+        premultCanvasB.height = h;
 
-        // Математическое преумножение RGB-каналов на Alpha
-        const length = premultRawPixels.length;
-        premultProcessedPixels = new Uint8ClampedArray(length);
-        for (let i = 0; i < length; i += 4) {
-            const r = premultRawPixels[i];
-            const g = premultRawPixels[i + 1];
-            const b = premultRawPixels[i + 2];
-            const a = premultRawPixels[i + 3];
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+            premultImageObj = img;
 
-            const coef = a / 255.0;
-            premultProcessedPixels[i] = Math.round(r * coef);
-            premultProcessedPixels[i + 1] = Math.round(g * coef);
-            premultProcessedPixels[i + 2] = Math.round(b * coef);
-            premultProcessedPixels[i + 3] = a;
+            // Математическое преумножение RGB-каналов на Alpha
+            const length = premultRawPixels.length;
+            premultProcessedPixels = new Uint8ClampedArray(length);
+            for (let i = 0; i < length; i += 4) {
+                const r = premultRawPixels[i];
+                const g = premultRawPixels[i + 1];
+                const b = premultRawPixels[i + 2];
+                const a = premultRawPixels[i + 3];
+
+                const coef = a / 255.0;
+                premultProcessedPixels[i] = Math.round(r * coef);
+                premultProcessedPixels[i + 1] = Math.round(g * coef);
+                premultProcessedPixels[i + 2] = Math.round(b * coef);
+                premultProcessedPixels[i + 3] = a;
+            }
+
+                    // Рисуем дефолтные превью для обеих колонок
+                    drawPremultPreview(premultCanvasA, premultRawPixels);       // Вариант А: Исходный, с ободками
+                    drawPremultPreview(premultCanvasB, premultProcessedPixels); // Вариант Б: Оптимизированный, чистый
+
+                    premultiplyOverlay.classList.add('visible');
+                    
+                    // Бесшовно закрываем предыдущее окно
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            if (onReady) onReady();
+                        });
+                    });
+                };
+                img.src = url;
+            });
         }
-
-        // Рисуем дефолтные превью для обеих колонок
-        drawPremultPreview(premultCanvasA, premultRawPixels);       // Вариант А: Исходный, с ободками
-        drawPremultPreview(premultCanvasB, premultProcessedPixels); // Вариант Б: Оптимизированный, чистый
-
-        premultiplyOverlay.classList.add('visible');
-        
-        if (onReady) onReady();
-    };
-    img.src = url;
-}
 
 function drawPremultPreview(canvas, pixels) {
     const w = canvas.width;
@@ -5962,3 +6367,65 @@ window.addEventListener('beforeunload', function (e) {
         return ''; // Требуется для старых браузеров
     }
 });
+
+
+/* === ⚠️ AI DIFF CONFLICT ⚠️ ===
+We could not auto-apply the following chunks. Please merge manually:
+
+                    setTimeout(() => URL.revokeObjectURL(url), 100);
+                }
+            }
+        });
+    }
+}
+
+async function processFileAndAddToLibrary(file, customBlob = null) {
+    try {
+        let finalName = file.name;
+        let activeBlob = customBlob || file;
+        
+        if (customBlob) {
+            const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+            finalName = "rmbg_" + baseName + ".png";
+        }
+
+        const arrayBuffer = await activeBlob.arrayBuffer();
+        const img = UPNG.decode(arrayBuffer);
+        const w = img.width;
+        const h = img.height;
+
+        let finalBlob = activeBlob;
+        if (w > 53 || h > 53) {
+            const decision = await showSizeWarning();
+            if (decision === 'cancel') {
+                return false;
+            } else if (decision === 'resize') {
+                finalBlob = await resizeImageTo53Pure(activeBlob);
+            }
+        } else if (w < 53 || h < 53) {
+            finalBlob = await padImageTo53Pure(activeBlob);
+        }
+
+        const compressedUrl = await applyUGSCompressionPure(finalBlob);
+        
+        const finalUrl = URL.createObjectURL(finalBlob);
+        window.originalCustomIcons[compressedUrl] = finalUrl;
+
+        customIcons.unshift({
+            name: finalName,
+            url: compressedUrl
+        });
+        return compressedUrl;
+    } catch (err) {
+        console.error("Ошибка при обработке файла:", file.name, err);
+        return false;
+    }
+}
+
+function initEditorUI() {
+    // Упреждающий предзагрузчик фона инвентаря для пиксель-пёрфект превью
+    const preloadBg = new Image();
+    preloadBg.onload = () => {
+        window._cachedTrueInventoryBgImage = preloadBg;
+
+==================================== */

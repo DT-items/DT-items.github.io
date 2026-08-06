@@ -49,7 +49,7 @@ window.getRawPixelData = async function(url) {
 
         // Сохраняем исходный чистый путь к картинке
         if (!img.dataset.originalSrc) {
-            if (img.src.startsWith('data:')) {
+            if (img.src.startsWith('data:') || img.src.startsWith('blob:')) {
                 if (!img.dataset.originalSrc) {
                     img.dataset.originalSrc = img.src;
                 }
@@ -447,7 +447,7 @@ window.getUGSIconUrl = function(modName, globalIndexStr) {
     window.resolveIconUrl = function(mod, item) {
     if (!item) return '';
 
-    if (item.Icon && item.Icon.startsWith('data:')) {
+    if (item.Icon && (item.Icon.startsWith('data:') || item.Icon.startsWith('blob:'))) {
         return item.Icon;
     }
 
